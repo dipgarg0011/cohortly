@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f7f6;
+  --foreground: #0f172a;
+  --brand: #0f766e;
+  --brand-dark: #0d5f59;
+  --brand-soft: #ccfbf1;
+  --muted: #64748b;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --border: rgba(15, 118, 110, 0.1);
+  --shadow: 0 14px 40px -28px rgba(15, 118, 110, 0.45);
+  --shadow-hover: 0 22px 48px -24px rgba(15, 118, 110, 0.5);
+  --radius-card: 1.15rem;
+
+  /* Feature accents (subtle washes + solid chips) */
+  --accent-home: #0f766e;
+  --accent-home-soft: #d8f3ee;
+  --accent-network: #0284c7;
+  --accent-network-soft: #e0f2fe;
+  --accent-mentors: #d97706;
+  --accent-mentors-soft: #fef3c7;
+  --accent-referrals: #e11d48;
+  --accent-referrals-soft: #ffe4e6;
+  --accent-opportunities: #4f46e5;
+  --accent-opportunities-soft: #e0e7ff;
+  --accent-messages: #0d9488;
+  --accent-messages-soft: #ccfbf1;
+  --accent-profile: #475569;
+  --accent-profile-soft: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Typography hierarchy */
+.page-title {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: clamp(1.85rem, 2.5vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.section-title {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.meta-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Shared surface card */
+.surface-card {
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.surface-card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(15, 118, 110, 0.22);
+}
+
+.surface-card-interactive:active {
+  transform: translateY(-1px);
+}
+
+/* Soft page atmospheres */
+.page-atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.page-atmosphere::before,
+.page-atmosphere::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+  opacity: 0.7;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.9rem;
+  background: var(--brand);
+  padding: 0.7rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  transition:
+    background 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+  box-shadow: 0 10px 24px -16px rgba(15, 118, 110, 0.8);
+}
+
+.btn-primary:hover {
+  background: var(--brand-dark);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: white;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #334155;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 118, 110, 0.2);
+}
+
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    90deg,
+    #e8eeec 0%,
+    #f4f7f6 50%,
+    #e8eeec 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 320ms ease both;
+}

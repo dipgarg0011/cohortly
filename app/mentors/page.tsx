@@ -1,0 +1,181 @@
+import { requireProfile } from "@/lib/require-profile";
+import { Navbar } from "@/components/navbar";
+import { MentorsBoard } from "@/components/mentors-board";
+import { PageShell, PageHeader } from "@/components/ui/page-shell";
+import { getProfileRole } from "@/lib/network";
+import {
+  normalizeMatchedAsk,
+  normalizeMentorshipRequest,
+  normalizeRequestAnswer,
+  normalizeRequestMatch,
+  type MatchedAsk,
+  type MentorshipRequest,
+  type MentorProfileSnippet,
+  type RequestAnswer,
+  type RequestMatch,
+} from "@/lib/mentorship";
+
+const REQUEST_COLS =
+  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score";
+
+const MATCH_COLS =
+  "id, request_id, mentor_id, match_score, match_reasons, status, referred_to, referred_by, responded_at, created_at";
+
+const ANSWER_COLS =
+  "id, request_id, match_id, mentor_id, content, is_public, helpful, created_at";
+
+const PROFILE_COLS =
+  "id, full_name, batch_year, company, role_title, current_job, avatar_url, department";
+
+export default async function MentorsPage() {
+  const { supabase, user } = await requireProfile();
+
+  const [
+    { data: profile },
+    { data: myRequestRows, error: requestError },
+    { data: matchedAskRows, error: matchError },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("batch_year, skills, bio")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("mentorship_requests")
+      .select(REQUEST_COLS)
+      .eq("student_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase.rpc("list_my_matched_asks"),
+  ]);
+
+  const isGraduate = getProfileRole(profile?.batch_year ?? null) === "Graduate";
+
+  // Graduates are auto-opted in — no profile setup needed. Matching uses skills.
+  if (isGraduate) {
+    const skills = (profile?.skills as string[] | null) ?? [];
+    await supabase.from("mentor_availability").upsert(
+      {
+        mentor_id: user.id,
+        is_available: true,
+        session_lengths: [30, 60],
+        topics: skills,
+        max_open_requests: 5,
+        bio_note: (profile?.bio as string | null)?.trim() || null,
+      },
+      { onConflict: "mentor_id" },
+    );
+  }
+
+  const loadError = requestError || matchError;
+
+  if (loadError) {
+    return (
+      <PageShell accent="mentors">
+        <Navbar />
+        <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+          <PageHeader
+            accent="mentors"
+            eyebrow="Guidance"
+            title="Mentors"
+            description="Post what you need — we route each ask only to graduates whose skills strongly match."
+          />
+          <div className="surface-card border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            <p>Couldn&apos;t load mentorship data.</p>
+            <p className="mt-2 text-xs text-red-600/90">{loadError.message}</p>
+          </div>
+        </main>
+      </PageShell>
+    );
+  }
+
+  const initialMatchedAsks: MatchedAsk[] = (
+    (matchedAskRows ?? []) as Record<string, unknown>[]
+  ).map((row) => normalizeMatchedAsk(row));
+
+  const myRequestIds = (myRequestRows ?? []).map((r) => r.id as string);
+
+  let answerRows: Record<string, unknown>[] = [];
+  let connectedMatchRows: Record<string, unknown>[] = [];
+  if (myRequestIds.length > 0) {
+    const [{ data: answers }, { data: connected }] = await Promise.all([
+      supabase
+        .from("request_answers")
+        .select(ANSWER_COLS)
+        .in("request_id", myRequestIds)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("request_matches")
+        .select(MATCH_COLS)
+        .in("request_id", myRequestIds)
+        .in("status", ["accepted", "answered"]),
+    ]);
+    answerRows = (answers ?? []) as Record<string, unknown>[];
+    connectedMatchRows = (connected ?? []) as Record<string, unknown>[];
+  }
+
+  const mentorIds = new Set<string>();
+  for (const row of connectedMatchRows) {
+    mentorIds.add(row.mentor_id as string);
+  }
+  for (const row of answerRows) {
+    mentorIds.add(row.mentor_id as string);
+  }
+
+  const profileMap = new Map<string, MentorProfileSnippet>();
+  if (mentorIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select(PROFILE_COLS)
+      .in("id", Array.from(mentorIds));
+    for (const p of (profiles ?? []) as MentorProfileSnippet[]) {
+      profileMap.set(p.id, p);
+    }
+  }
+
+  const initialRequests: MentorshipRequest[] = (myRequestRows ?? []).map(
+    (row) => normalizeMentorshipRequest(row as Record<string, unknown>),
+  );
+
+  const initialAnswers: RequestAnswer[] = answerRows.map((row) => {
+    const answer = normalizeRequestAnswer(row);
+    answer.mentor = profileMap.get(answer.mentor_id) ?? null;
+    return answer;
+  });
+
+  const connectedByRequest: Record<string, RequestMatch> = {};
+  for (const row of connectedMatchRows) {
+    const match = normalizeRequestMatch(row);
+    match.mentor = profileMap.get(match.mentor_id) ?? null;
+    const existing = connectedByRequest[match.request_id];
+    if (
+      !existing ||
+      (existing.status !== "accepted" && match.status === "accepted") ||
+      (existing.status !== "answered" && match.status === "answered")
+    ) {
+      connectedByRequest[match.request_id] = match;
+    }
+  }
+
+  return (
+    <PageShell accent="mentors">
+      <Navbar />
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+        <PageHeader
+          accent="mentors"
+          eyebrow="Guidance"
+          title="Mentors"
+          description="Students ask for help. Graduates see matching asks here and respond."
+        />
+
+        <MentorsBoard
+          currentUserId={user.id}
+          isGraduate={isGraduate}
+          initialRequests={initialRequests}
+          initialMatchedAsks={initialMatchedAsks}
+          initialAnswers={initialAnswers}
+          connectedByRequestId={connectedByRequest}
+        />
+      </main>
+    </PageShell>
+  );
+}

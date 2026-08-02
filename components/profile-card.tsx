@@ -12,7 +12,6 @@ type Props = {
   onSayHi?: () => void;
   sayHiLabel?: string;
   sayHiDisabled?: boolean;
-  hint?: string;
   accent?: "network" | "mentors" | "referrals" | "opportunities";
 };
 
@@ -28,9 +27,8 @@ export function ProfileCard({
   currentYear = new Date().getFullYear(),
   isSelf = false,
   onSayHi,
-  sayHiLabel = "Connect",
+  sayHiLabel = "Send Request",
   sayHiDisabled = false,
-  hint,
   accent = "network",
 }: Props) {
   const role = getProfileRole(profile.batch_year, currentYear);
@@ -39,8 +37,7 @@ export function ProfileCard({
   const roleTitle =
     profile.role_title?.trim() || profile.current_job?.trim() || "";
   const company = profile.company?.trim() || "";
-  const openTo = (profile.open_to ?? []).slice(0, 3);
-  const skills = (profile.skills ?? []).slice(0, 3);
+  const openTo = profile.open_to ?? [];
 
   return (
     <SurfaceCard
@@ -99,9 +96,6 @@ export function ProfileCard({
               <span className="meta-text">Batch {profile.batch_year}</span>
             )}
           </div>
-          {hint && (
-            <p className="mt-1.5 text-xs font-semibold text-sky-700">{hint}</p>
-          )}
         </div>
       </div>
 
@@ -117,20 +111,8 @@ export function ProfileCard({
         {profile.department?.trim() && (
           <p className="text-slate-500">{profile.department.trim()}</p>
         )}
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {skills.map((skill) => (
-              <span
-                key={skill}
-                className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
-        )}
         {openTo.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
+          <div className="flex flex-wrap gap-1.5 pt-1">
             {openTo.map((tag) => (
               <span
                 key={tag}

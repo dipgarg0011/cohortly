@@ -82,10 +82,8 @@ export function SuggestedPeople({
   return (
     <>
       <ul
-        className={`mx-auto grid grid-cols-1 gap-4 ${
-          compact
-            ? "max-w-2xl sm:grid-cols-3"
-            : "sm:grid-cols-2 lg:grid-cols-3"
+        className={`grid grid-cols-1 gap-4 ${
+          compact ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
         {profiles.map((profile) => {

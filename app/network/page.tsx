@@ -5,31 +5,27 @@ import { PageShell, PageHeader } from "@/components/ui/page-shell";
 import type { ConversationRow } from "@/lib/conversations";
 import type { NetworkProfile } from "@/lib/network";
 
-const PROFILE_SELECT =
-  "id, full_name, batch_year, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
-
 export default async function NetworkPage() {
   const { supabase, user } = await requireProfile();
 
-  const [{ data, error }, { data: conversationRows }, { data: myProfile }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select(PROFILE_SELECT)
-        .order("batch_year", { ascending: false })
-        .order("full_name", { ascending: true }),
-      supabase
-        .from("conversations")
-        .select(
-          "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at",
-        )
-        .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`),
-      supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
-    ]);
+  const [{ data, error }, { data: conversationRows }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "id, full_name, batch_year, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio",
+      )
+      .order("batch_year", { ascending: false })
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("conversations")
+      .select(
+        "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at",
+      )
+      .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`),
+  ]);
 
   const profiles = (data ?? []) as NetworkProfile[];
   const conversations = (conversationRows ?? []) as ConversationRow[];
-  const viewer = (myProfile as NetworkProfile | null) ?? null;
 
   return (
     <PageShell accent="network">
@@ -39,7 +35,7 @@ export default async function NetworkPage() {
           accent="network"
           eyebrow="Community"
           title="Network"
-          description="Search people, filter who can help, and send a connect request in one tap."
+          description="Find seniors and graduates from your college — mentors, founders, and people who can help."
         />
 
         {error ? (
@@ -51,7 +47,6 @@ export default async function NetworkPage() {
           <NetworkDirectory
             profiles={profiles}
             currentUserId={user.id}
-            viewer={viewer}
             initialConversations={conversations}
           />
         )}

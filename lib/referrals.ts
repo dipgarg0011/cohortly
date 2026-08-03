@@ -36,6 +36,8 @@ export type ReferralReachStats = {
   opens_to_all_at: string | null;
   matching_graduate_count: number;
   past_company_graduate_count: number;
+  age_tier?: number;
+  open_to_all_now?: boolean;
 };
 
 export const REFERRAL_SELECT = `
@@ -92,10 +94,19 @@ export function normalizeReachStats(
     opens_to_all_at: (row.opens_to_all_at as string | null) ?? null,
     matching_graduate_count: Number(row.matching_graduate_count ?? 0),
     past_company_graduate_count: Number(row.past_company_graduate_count ?? 0),
+    age_tier:
+      row.age_tier != null ? Number(row.age_tier) : undefined,
+    open_to_all_now:
+      row.open_to_all_now != null ? Boolean(row.open_to_all_now) : undefined,
   };
 }
 
-/** Compute tier from created_at (mirrors SQL referral_age_tier). */
+/** Normalize company the same way SQL does (trim, collapse spaces, lower). */
+export function normalizeCompanyName(company: string | null | undefined): string {
+  return (company ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Compute age-only tier from created_at (mirrors SQL referral_age_tier). */
 export function referralAgeTier(createdAt: string, now = new Date()): number {
   const created = new Date(createdAt).getTime();
   if (Number.isNaN(created)) return 1;
@@ -103,6 +114,20 @@ export function referralAgeTier(createdAt: string, now = new Date()): number {
   if (hours < 48) return 1;
   if (hours < 5 * 24) return 2;
   return 3;
+}
+
+/**
+ * Effective visibility tier for UI.
+ * If no graduates work at the company, treat as open-to-all (tier 3).
+ */
+export function referralEffectiveTier(
+  createdAt: string,
+  matchingGraduateCount: number | null | undefined,
+  now = new Date(),
+): number {
+  const age = referralAgeTier(createdAt, now);
+  if ((matchingGraduateCount ?? 0) === 0) return 3;
+  return age;
 }
 
 export function daysUntil(iso: string | null, now = new Date()): number | null {
@@ -116,9 +141,12 @@ export function reachLabel(
   request: ReferralRequest,
   stats: ReferralReachStats | null,
 ): string {
-  const tier = stats?.tier ?? request.visibility_tier ?? referralAgeTier(request.created_at);
-  const company = request.company.trim() || "this company";
   const matchCount = stats?.matching_graduate_count ?? 0;
+  const tier =
+    stats?.tier ??
+    referralEffectiveTier(request.created_at, matchCount);
+  const company = request.company.trim() || "this company";
+  const ageTier = stats?.age_tier ?? referralAgeTier(request.created_at);
 
   if (request.status !== "open") {
     if (request.status === "accepted") return "Accepted — chat is unlocked";
@@ -127,6 +155,9 @@ export function reachLabel(
   }
 
   if (tier >= 3) {
+    if (matchCount === 0) {
+      return "Now visible to all graduates (no one from this company on Cohortly yet)";
+    }
     return "Now visible to all graduates";
   }
 
@@ -137,20 +168,29 @@ export function reachLabel(
       d.setDate(d.getDate() + 5);
       return d.toISOString();
     })();
-  const days = daysUntil(opensAt);
+  const daysToAll = daysUntil(opensAt);
+  const hoursLeft48 = (() => {
+    const created = new Date(request.created_at).getTime();
+    const openPast = created + 48 * 60 * 60 * 1000;
+    return Math.max(0, Math.ceil((openPast - Date.now()) / (1000 * 60 * 60)));
+  })();
 
-  if (tier === 1) {
-    if (matchCount > 0) {
-      return `Visible to ${matchCount} ${matchCount === 1 ? "person" : "people"} at ${company}`;
+  if (ageTier === 1) {
+    const companyLine =
+      matchCount > 0
+        ? `Visible to ${matchCount} ${matchCount === 1 ? "person" : "people"} at ${company}`
+        : `Looking for graduates at ${company}`;
+    if (hoursLeft48 > 0 && hoursLeft48 < 48) {
+      return `${companyLine} · past coworkers in ~${hoursLeft48}h · everyone in ${Math.max(daysToAll ?? 5, 0)}d`;
     }
-    return `No one from ${company} yet — opens to all graduates in ${Math.max(days ?? 5, 0)} days`;
+    return `${companyLine} · opens wider after 48 hours`;
   }
 
-  // tier 2
-  if (days != null && days > 0) {
-    return `Opening to all graduates in ${days} ${days === 1 ? "day" : "days"}`;
+  // age tier 2
+  if (daysToAll != null && daysToAll > 0) {
+    return `Visible to ${company} + past coworkers · all graduates in ${daysToAll} ${daysToAll === 1 ? "day" : "days"}`;
   }
-  return "Opening to all graduates soon";
+  return `Visible to ${company} + past coworkers · opening to all graduates soon`;
 }
 
 export function postingExpectation(
@@ -160,9 +200,9 @@ export function postingExpectation(
   const name = company.trim() || "that company";
   if (graduateCount == null) return "Checking who’s on Cohortly…";
   if (graduateCount > 0) {
-    return `${graduateCount} ${graduateCount === 1 ? "graduate" : "graduates"} at ${name} ${graduateCount === 1 ? "is" : "are"} on Cohortly`;
+    return `${graduateCount} ${graduateCount === 1 ? "graduate" : "graduates"} at ${name} ${graduateCount === 1 ? "is" : "are"} on Cohortly — they’ll see this first (48h), then it widens.`;
   }
-  return `No one from ${name} yet — your request will open to all graduates in 5 days.`;
+  return `No one from ${name} on Cohortly yet — your request goes to all graduates right away.`;
 }
 
 export function deadlineLabel(deadline: string | null): string | null {

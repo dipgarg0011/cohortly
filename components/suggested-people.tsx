@@ -50,6 +50,7 @@ export function SuggestedPeople({
   );
 
   // Resolve connection state for every suggestion from the one conversations list.
+  // Declined/blocked → hide the card entirely.
   const actionById = useMemo(() => {
     const map: Record<
       string,
@@ -91,9 +92,14 @@ export function SuggestedPeople({
     return map;
   }, [others, conversations, currentUserId]);
 
-  const hasMore = limit != null && others.length > limit;
+  const visible = useMemo(
+    () => others.filter((p) => actionById[p.id]?.kind !== "hidden"),
+    [others, actionById],
+  );
 
-  if (others.length === 0) {
+  const hasMore = limit != null && visible.length > limit;
+
+  if (visible.length === 0) {
     return (
       <EmptyState
         icon={<IconNetworkEmpty />}
@@ -119,7 +125,7 @@ export function SuggestedPeople({
               : "sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
-        {others.map((profile, index) => {
+        {visible.map((profile, index) => {
           const hideOnMobile =
             mobileOnlyLimit && limit != null && index >= limit;
           const hideAlways =
@@ -127,22 +133,11 @@ export function SuggestedPeople({
           if (hideAlways) return null;
 
           const state = actionById[profile.id];
+          if (!state || state.kind === "hidden") return null;
+
           const itemClass = `min-w-0 max-w-full overflow-hidden${
             hideOnMobile ? " hidden sm:block" : ""
           }`;
-
-          if (!state || state.kind === "hidden") {
-            return (
-              <li key={profile.id} className={itemClass}>
-                <ProfileCard
-                  profile={profile}
-                  currentYear={currentYear}
-                  dense={dense}
-                  accent="network"
-                />
-              </li>
-            );
-          }
 
           const onSayHi =
             state.kind === "message"

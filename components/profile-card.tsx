@@ -49,9 +49,9 @@ export function ProfileCard({
       <SurfaceCard
         as="article"
         interactive
-        className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-2.5 py-2"
+        className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-2 py-1.5"
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2">
           <Avatar
             name={profile.full_name}
             url={profile.avatar_url}
@@ -59,15 +59,15 @@ export function ProfileCard({
             size="sm"
           />
           <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1">
               <h2
                 title={name}
-                className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-bold text-slate-900"
+                className="min-w-0 flex-1 truncate text-sm font-bold leading-tight text-slate-900"
               >
                 {name}
               </h2>
               <span
-                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                className={`shrink-0 rounded px-1 py-px text-[10px] font-bold leading-4 ${
                   isStudent
                     ? "bg-teal-50 text-teal-800"
                     : "bg-slate-100 text-slate-700"
@@ -76,15 +76,15 @@ export function ProfileCard({
                 {role}
               </span>
               {profile.batch_year != null && (
-                <span className="shrink-0 text-[10px] font-medium text-slate-500">
+                <span className="shrink-0 text-[10px] font-medium leading-4 text-slate-500">
                   {profile.batch_year}
                 </span>
               )}
             </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-2">
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
               <p
                 title={department || roleTitle || company || undefined}
-                className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-slate-500"
+                className="min-w-0 flex-1 truncate text-xs leading-4 text-slate-500"
               >
                 {department || roleTitle || company || "—"}
               </p>
@@ -93,7 +93,7 @@ export function ProfileCard({
                   type="button"
                   onClick={onSayHi}
                   disabled={sayHiDisabled}
-                  className="shrink-0 rounded-md bg-[var(--brand)] px-2 py-0.5 text-[11px] font-bold leading-5 text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+                  className="shrink-0 rounded-md bg-[var(--brand)] px-1.5 py-0.5 text-[10px] font-bold leading-4 text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {sayHiLabel}
                 </button>
@@ -252,7 +252,7 @@ function Avatar({
   ring: string;
   size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "h-8 w-8 text-[10px]" : "h-12 w-12";
+  const dim = size === "sm" ? "h-10 w-10 text-[11px]" : "h-12 w-12";
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

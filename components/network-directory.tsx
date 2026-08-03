@@ -165,6 +165,12 @@ export function NetworkDirectory({
     return map;
   }, [filtered, conversations, currentUserId, router]);
 
+  // Declined / blocked: omit from the directory (same as suggestions).
+  const visible = useMemo(
+    () => filtered.filter((p) => !actionById[p.id]?.hidden),
+    [filtered, actionById],
+  );
+
   return (
     <div className="space-y-6 min-w-0">
       <div className="space-y-3">
@@ -269,7 +275,7 @@ export function NetworkDirectory({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <EmptyState
           icon={<IconNetworkEmpty />}
           title="Nobody matches that search"
@@ -286,15 +292,15 @@ export function NetworkDirectory({
           accentSoft="var(--accent-network-soft)"
         />
       ) : (
-        <ul className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-hidden sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((profile) => {
+        <ul className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-clip sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((profile) => {
             const props = actionById[profile.id];
             return (
               <li key={profile.id} className="min-w-0 max-w-full overflow-hidden">
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}
-                  onSayHi={props?.hidden ? undefined : props?.onSayHi}
+                  onSayHi={props?.onSayHi}
                   sayHiLabel={props?.sayHiLabel}
                   sayHiDisabled={props?.sayHiDisabled}
                 />

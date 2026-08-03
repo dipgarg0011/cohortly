@@ -81,6 +81,14 @@ export default async function ReferralsPage() {
     .filter((r) => r.student_id === user.id && r.status === "open")
     .map((r) => r.id);
 
+  // Refresh stored visibility_tier for every open ask this user can see
+  const openIds = requests.filter((r) => r.status === "open").map((r) => r.id);
+  await Promise.all(
+    openIds.map((id) =>
+      supabase.rpc("sync_referral_visibility", { p_request_id: id }),
+    ),
+  );
+
   const reachEntries = await Promise.all(
     myOpenIds.map(async (id) => {
       const { data: stats } = await supabase.rpc("referral_reach_stats", {

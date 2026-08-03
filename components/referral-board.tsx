@@ -172,6 +172,9 @@ export function ReferralBoard({
         past_company_graduate_count: Number(
           row.past_company_graduate_count ?? 0,
         ),
+        age_tier: row.age_tier != null ? Number(row.age_tier) : undefined,
+        open_to_all_now:
+          row.open_to_all_now != null ? Boolean(row.open_to_all_now) : undefined,
       },
     }));
   }
@@ -390,6 +393,31 @@ export function ReferralBoard({
         />
       </div>
 
+      {view === "help" && !isGraduate && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+          Open asks from others are shown to{" "}
+          <span className="font-bold">graduates</span> only. You can still post
+          and track your own requests under “I need a referral”. Update your
+          status on{" "}
+          <Link href="/profile" className="font-bold underline">
+            Profile
+          </Link>{" "}
+          if you’ve graduated.
+        </div>
+      )}
+
+      {view === "help" && isGraduate && !viewerCompany?.trim() && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-950">
+          Add your current company on{" "}
+          <Link href="/profile" className="font-bold underline">
+            Profile
+          </Link>{" "}
+          so new asks for your workplace show up in the first 48 hours. Without
+          it, you’ll only see asks after they open to everyone (or when no one
+          from that company is on Cohortly).
+        </div>
+      )}
+
       {view === "need" ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <FilterChips
@@ -480,18 +508,20 @@ export function ReferralBoard({
             title={
               helpFilter === "helping"
                 ? "You’re not helping anyone yet"
-                : viewerCompany?.trim()
-                  ? `No asks for ${viewerCompany.trim()} right now`
-                  : "No open asks"
+                : !isGraduate
+                  ? "Graduate view only"
+                  : viewerCompany?.trim()
+                    ? `No asks for ${viewerCompany.trim()} right now`
+                    : "No open asks for you yet"
             }
             description={
               helpFilter === "helping"
                 ? "When you accept a request, it moves here so you can message the student."
-                : viewerCompany?.trim()
-                  ? "Nothing matching your current company. New asks open to more graduates after a few days."
-                  : isGraduate
-                    ? "Add your company on your profile so we can match you to asks sooner."
-                    : "Only graduates see open referral asks from others."
+                : !isGraduate
+                  ? "Switch to “I need a referral” to post, or mark yourself as a graduate on Profile to help others."
+                  : viewerCompany?.trim()
+                    ? "Nothing matching your company in the first 48 hours. Asks with no one at that company go to all graduates immediately; others open to everyone after 5 days."
+                    : "Add your company on Profile to see matching asks early. Broader asks appear after 48h / 5 days, or right away if no one works there."
             }
             accentSoft="var(--accent-referrals-soft)"
           />
@@ -745,7 +775,7 @@ function ReferralRequestForm({
       .from("referral_requests")
       .insert({
         student_id: user.id,
-        company: company.trim(),
+        company: company.trim().replace(/\s+/g, " "),
         role: role.trim(),
         context: context.trim(),
         job_link: jobLink.trim() || null,

@@ -83,16 +83,15 @@ export default async function DashboardPage() {
 
   const profile = myProfile as NetworkProfile | null;
   const isGraduate = isGraduateStatus(profile?.status);
-  const companyNorm = profile?.company?.trim().toLowerCase() ?? "";
 
   let companyReferralAsks = 0;
-  if (isGraduate && companyNorm) {
+  if (isGraduate) {
     const { count } = await supabase
       .from("referral_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "open")
-      .eq("target_company_normalized", companyNorm)
       .neq("student_id", user.id);
+    // RLS can_view_referral already filters what this graduate can see
     companyReferralAsks = count ?? 0;
   }
 
@@ -141,12 +140,12 @@ export default async function DashboardPage() {
   }
 
   if (suggestionFilters.length > 0) {
-    // Exclude current user both in the query and after fetch (PostgREST .or + .neq can be flaky).
+    // Exclude self before .or — PostgREST can ignore trailing .not on .or filters.
     const { data } = await supabase
       .from("profiles")
       .select(PROFILE_SELECT)
+      .neq("id", user.id)
       .or(suggestionFilters.join(","))
-      .not("id", "eq", user.id)
       .limit(12);
 
     const rows = ((data ?? []) as NetworkProfile[]).filter(
@@ -217,7 +216,7 @@ export default async function DashboardPage() {
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
         <div className="mb-4 min-w-0 animate-fade-up sm:mb-6">
           <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
             Your home base
@@ -231,7 +230,7 @@ export default async function DashboardPage() {
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 
-        {isGraduate && companyReferralAsks > 0 && profile?.company?.trim() && (
+        {isGraduate && companyReferralAsks > 0 && (
           <Link
             href="/referrals"
             className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up hover:border-rose-200 sm:mb-6 sm:px-4"
@@ -242,8 +241,10 @@ export default async function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-slate-900">
                 {companyReferralAsks} referral{" "}
-                {companyReferralAsks === 1 ? "ask" : "asks"} for{" "}
-                {profile.company.trim()}
+                {companyReferralAsks === 1 ? "ask" : "asks"} waiting
+                {profile?.company?.trim()
+                  ? ` · including ${profile.company.trim()}`
+                  : ""}
               </p>
               <p className="truncate text-xs text-slate-500">
                 Open Referrals to ask a question or accept.
@@ -282,8 +283,8 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* Compact horizontal stats — never a tall 2×2 on mobile/tablet */}
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 animate-fade-up [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mb-8 lg:grid lg:grid-cols-4 lg:gap-3 lg:overflow-visible lg:pb-0">
+        {/* Compact stats: 4 equal tiles in one row — no min-width that blows past 375px */}
+        <div className="mb-5 grid w-full min-w-0 max-w-full grid-cols-4 gap-1.5 animate-fade-up sm:gap-2 lg:mb-8 lg:gap-3">
           <StatTile
             href="/network"
             label="Network"
@@ -308,7 +309,6 @@ export default async function DashboardPage() {
             icon={<IconBriefcase size={14} />}
             soft="var(--accent-opportunities-soft)"
             solid="var(--accent-opportunities)"
-            sublabel={profile?.department?.trim() || undefined}
           />
           <StatTile
             href="/network"
@@ -317,16 +317,11 @@ export default async function DashboardPage() {
             icon={<IconUsers size={14} />}
             soft="var(--accent-mentors-soft)"
             solid="var(--accent-mentors)"
-            sublabel={
-              profile?.batch_year != null
-                ? String(profile.batch_year)
-                : undefined
-            }
           />
         </div>
 
-        <div className="grid min-w-0 max-w-full gap-5 overflow-x-hidden lg:grid-cols-5 lg:gap-6 animate-fade-up">
-          <section className="min-w-0 max-w-full overflow-hidden lg:col-span-3">
+        <div className="grid min-w-0 max-w-full gap-5 lg:grid-cols-5 lg:gap-6 animate-fade-up">
+          <section className="min-w-0 max-w-full lg:col-span-3">
             <PeoplePreviewHeader />
             <SuggestedPeople
               profiles={suggestions}
@@ -339,7 +334,7 @@ export default async function DashboardPage() {
             />
           </section>
 
-          <section className="min-w-0 max-w-full overflow-hidden lg:col-span-2">
+          <section className="min-w-0 max-w-full lg:col-span-2">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}
@@ -359,7 +354,6 @@ function StatTile({
   icon,
   soft,
   solid,
-  sublabel,
   highlight = false,
 }: {
   href: string;
@@ -368,17 +362,13 @@ function StatTile({
   icon: ReactNode;
   soft: string;
   solid: string;
-  sublabel?: string;
   highlight?: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      className="block min-w-[4.5rem] flex-1 basis-0 shrink-0 lg:min-w-0 lg:flex-none"
-    >
+    <Link href={href} className="block min-w-0 max-w-full">
       <SurfaceCard
         interactive
-        className={`flex h-full min-w-0 flex-col items-center px-2 py-1.5 text-center lg:items-start lg:p-3.5 lg:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
+        className={`flex h-full min-w-0 max-w-full flex-col items-center overflow-hidden px-1 py-1.5 text-center sm:px-2 sm:py-2 lg:items-start lg:p-3.5 lg:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
       >
         <div
           className="mb-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md lg:mb-2 lg:h-8 lg:w-8 lg:rounded-xl"
@@ -389,17 +379,9 @@ function StatTile({
         <p className="font-[family-name:var(--font-display)] text-base font-bold leading-none text-slate-900 lg:text-3xl">
           {value}
         </p>
-        <p className="mt-0.5 text-[10px] font-semibold leading-tight text-slate-500 lg:mt-0.5 lg:text-xs">
+        <p className="mt-0.5 max-w-full truncate text-[10px] font-semibold leading-tight text-slate-500 lg:text-xs">
           {label}
         </p>
-        {sublabel && (
-          <p
-            className="mt-0.5 hidden max-w-full truncate text-[11px] font-medium lg:block"
-            style={{ color: solid }}
-          >
-            {sublabel}
-          </p>
-        )}
       </SurfaceCard>
     </Link>
   );

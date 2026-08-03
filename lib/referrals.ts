@@ -245,11 +245,20 @@ export function isDeadlineUrgent(deadline: string | null): boolean {
 }
 
 export function mapReferralError(message: string): string {
+  if (message.includes("REFERRAL_ALREADY_TAKEN")) {
+    return "Someone else has already taken this.";
+  }
   if (message.includes("REFERRAL_OPEN_LIMIT")) {
     return "You can have at most 3 open referral requests at a time.";
   }
   if (message.includes("REFERRAL_COMPANY_LIMIT")) {
     return "You already requested this company in the last 30 days.";
+  }
+  if (message.includes("NOT_ALLOWED")) {
+    return "You're not allowed to accept this request.";
+  }
+  if (message.includes("REQUEST_NOT_FOUND")) {
+    return "That referral request could not be found.";
   }
   return message;
 }

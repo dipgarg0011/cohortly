@@ -589,6 +589,14 @@ function MentorInbox({
     }
 
     const refreshed = await refreshAsk(matchId);
+    if (!refreshed && status === "accepted") {
+      setError(
+        "Accept didn't stick — refresh and try again. If this keeps happening, the match may already be taken.",
+      );
+      setBusyId(null);
+      router.refresh();
+      return;
+    }
     if (refreshed) {
       onAsksChange((prev) =>
         prev.map((a) => (a.match_id === matchId ? refreshed : a)),
@@ -609,6 +617,9 @@ function MentorInbox({
         router.push(`/messages?with=${studentId}`);
         return;
       }
+      setError(
+        "Accepted, but we couldn't open chat yet (identity may still be hidden). Refresh Mentors and use Message.",
+      );
     }
 
     router.refresh();

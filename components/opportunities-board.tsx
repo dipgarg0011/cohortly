@@ -1,29 +1,75 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { deadlineLabel, isDeadlineUrgent } from "@/lib/referrals";
+import { getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconOpportunityEmpty } from "@/components/ui/icons";
 import {
+  APPLICATION_SELECT,
+  APPLICATION_STATUS_LABEL,
   OPPORTUNITY_TYPES,
+  PITCH_MAX,
+  PITCH_MIN,
   TYPE_FILTERS,
+  mapApplicationError,
+  normalizeApplication,
   normalizeOpportunity,
+  type ApplicationStatus,
   type Opportunity,
+  type OpportunityApplication,
   type OpportunityFilter,
   type OpportunityType,
 } from "@/lib/opportunities";
 
+type BoardView = "board" | "mine" | "applicants";
+
 type Props = {
+  currentUserId: string;
   initialOpportunities: Opportunity[];
+  initialMyApplications: OpportunityApplication[];
+  initialReceivedApplications: OpportunityApplication[];
 };
 
-export function OpportunitiesBoard({ initialOpportunities }: Props) {
+export function OpportunitiesBoard({
+  currentUserId,
+  initialOpportunities,
+  initialMyApplications,
+  initialReceivedApplications,
+}: Props) {
   const [items, setItems] = useState(initialOpportunities);
+  const [myApps, setMyApps] = useState(initialMyApplications);
+  const [received, setReceived] = useState(initialReceivedApplications);
   const [filter, setFilter] = useState<OpportunityFilter>("all");
+  const [view, setView] = useState<BoardView>("board");
   const [showForm, setShowForm] = useState(false);
+  const [applyTarget, setApplyTarget] = useState<Opportunity | null>(null);
+
+  const myAppByOpportunity = useMemo(() => {
+    const map = new Map<string, OpportunityApplication>();
+    for (const app of myApps) {
+      const existing = map.get(app.opportunity_id);
+      if (!existing || existing.created_at < app.created_at) {
+        map.set(app.opportunity_id, app);
+      }
+    }
+    return map;
+  }, [myApps]);
+
+  const pendingReceivedCount = useMemo(
+    () => received.filter((a) => a.status === "pending").length,
+    [received],
+  );
+
+  const hasPosted = useMemo(
+    () => items.some((item) => item.posted_by === currentUserId),
+    [items, currentUserId],
+  );
 
   const filtered = useMemo(() => {
     if (filter === "all") return items;
@@ -32,41 +78,146 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
 
   return (
     <div className="space-y-6 min-w-0 overflow-x-clip">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div
-          className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-teal-50 p-1"
-          role="tablist"
-          aria-label="Opportunity type"
-        >
-          {TYPE_FILTERS.map((option) => {
-            const active = filter === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setFilter(option.id)}
-                className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
-                  active
-                    ? "bg-white text-teal-900 shadow-sm"
-                    : "text-teal-700/70 hover:text-teal-900"
-                }`}
-              >
-                <span className="truncate">{option.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="btn-primary w-full shrink-0 sm:w-auto"
-        >
-          {showForm ? "Cancel" : "Post an Opportunity"}
-        </button>
+      <div
+        className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-teal-50 p-1"
+        role="tablist"
+        aria-label="Opportunities views"
+      >
+        {(
+          [
+            { id: "board" as const, label: "Board" },
+            {
+              id: "mine" as const,
+              label: "My applications",
+              count: myApps.length || undefined,
+            },
+            ...(hasPosted || received.length > 0
+              ? [
+                  {
+                    id: "applicants" as const,
+                    label: "Applicants",
+                    count: pendingReceivedCount || undefined,
+                  },
+                ]
+              : []),
+          ] as { id: BoardView; label: string; count?: number }[]
+        ).map((option) => {
+          const active = view === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(option.id)}
+              className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
+                active
+                  ? "bg-white text-teal-900 shadow-sm"
+                  : "text-teal-700/70 hover:text-teal-900"
+              }`}
+            >
+              <span className="truncate">{option.label}</span>
+              {option.count != null && option.count > 0 && (
+                <span
+                  className={`ml-1 rounded-full px-1.5 text-[10px] ${
+                    active ? "bg-teal-100 text-teal-800" : "bg-white text-teal-800"
+                  }`}
+                >
+                  {option.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      {view === "board" && (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div
+              className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-slate-100 p-1"
+              role="tablist"
+              aria-label="Opportunity type"
+            >
+              {TYPE_FILTERS.map((option) => {
+                const active = filter === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setFilter(option.id)}
+                    className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
+                      active
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span className="truncate">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="btn-primary w-full shrink-0 sm:w-auto"
+            >
+              Post an Opportunity
+            </button>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<IconOpportunityEmpty />}
+              title="The board is wide open"
+              description="Share an internship, job, research role, or early-stage startup opening with your college community."
+              actionLabel="Post an Opportunity"
+              onAction={() => setShowForm(true)}
+              accentSoft="var(--accent-opportunities-soft)"
+            />
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {filtered.map((item) => (
+                <li key={item.id} className="min-w-0">
+                  <OpportunityCard
+                    opportunity={item}
+                    currentUserId={currentUserId}
+                    myApplication={myAppByOpportunity.get(item.id) ?? null}
+                    onApply={() => setApplyTarget(item)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      {view === "mine" && (
+        <MyApplicationsList
+          applications={myApps}
+          onWithdrawn={(id) =>
+            setMyApps((prev) =>
+              prev.map((a) =>
+                a.id === id ? { ...a, status: "withdrawn" as const } : a,
+              ),
+            )
+          }
+        />
+      )}
+
+      {view === "applicants" && (
+        <ApplicantsList
+          applications={received}
+          onUpdated={(updated) =>
+            setReceived((prev) =>
+              prev.map((a) => (a.id === updated.id ? updated : a)),
+            )
+          }
+        />
+      )}
 
       {showForm && (
         <AppModal
@@ -81,29 +232,35 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
               setItems((prev) => [item, ...prev]);
               setShowForm(false);
               setFilter("all");
+              setView("board");
             }}
             onCancel={() => setShowForm(false)}
           />
         </AppModal>
       )}
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<IconOpportunityEmpty />}
-          title="The board is wide open"
-          description="Share an internship, job, research role, or early-stage startup opening with your college community."
-          actionLabel="Post an Opportunity"
-          onAction={() => setShowForm(true)}
-          accentSoft="var(--accent-opportunities-soft)"
-        />
-      ) : (
-        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {filtered.map((item) => (
-            <li key={item.id} className="min-w-0">
-              <OpportunityCard opportunity={item} />
-            </li>
-          ))}
-        </ul>
+      {applyTarget && (
+        <AppModal
+          open={!!applyTarget}
+          onClose={() => setApplyTarget(null)}
+          title="Apply through Cohortly"
+          description={
+            applyTarget.company?.trim()
+              ? `${applyTarget.title} · ${applyTarget.company.trim()}`
+              : applyTarget.title
+          }
+          maxWidthClass="sm:max-w-lg"
+        >
+          <ApplyForm
+            opportunity={applyTarget}
+            onSubmitted={(app) => {
+              setMyApps((prev) => [app, ...prev.filter((a) => a.id !== app.id)]);
+              setApplyTarget(null);
+              setView("mine");
+            }}
+            onCancel={() => setApplyTarget(null)}
+          />
+        </AppModal>
       )}
     </div>
   );
@@ -228,7 +385,7 @@ function OpportunityForm({
         </label>
         <label className="block sm:col-span-2">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Apply link
+            External apply link (optional)
           </span>
           <input
             type="url"
@@ -291,9 +448,20 @@ function OpportunityForm({
   );
 }
 
-function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+function OpportunityCard({
+  opportunity,
+  currentUserId,
+  myApplication,
+  onApply,
+}: {
+  opportunity: Opportunity;
+  currentUserId: string;
+  myApplication: OpportunityApplication | null;
+  onApply: () => void;
+}) {
   const deadlineText = deadlineLabel(opportunity.deadline);
   const urgent = isDeadlineUrgent(opportunity.deadline);
+  const isMine = opportunity.posted_by === currentUserId;
 
   return (
     <SurfaceCard as="article" interactive className="flex h-full min-w-0 flex-col p-4 sm:p-5">
@@ -348,20 +516,583 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
         </p>
       )}
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:flex-wrap">
+        {isMine ? (
+          <span className="text-sm font-medium text-slate-500">Your posting</span>
+        ) : myApplication ? (
+          <span
+            className={`inline-flex items-center rounded-xl px-3 py-2 text-sm font-semibold ${statusTone(myApplication.status)}`}
+          >
+            {myApplication.status === "pending"
+              ? "Applied · Pending"
+              : `Applied · ${APPLICATION_STATUS_LABEL[myApplication.status]}`}
+          </span>
+        ) : (
+          <button type="button" onClick={onApply} className="btn-primary w-full sm:w-auto">
+            Apply through Cohortly
+          </button>
+        )}
+
         {opportunity.apply_link ? (
           <a
             href={opportunity.apply_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary w-full sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
           >
-            Apply
+            Apply on company site
           </a>
-        ) : (
-          <span className="text-sm text-slate-400">No apply link provided</span>
-        )}
+        ) : null}
       </div>
     </SurfaceCard>
   );
+}
+
+function ApplyForm({
+  opportunity,
+  onSubmitted,
+  onCancel,
+}: {
+  opportunity: Opportunity;
+  onSubmitted: (app: OpportunityApplication) => void;
+  onCancel: () => void;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const [pitch, setPitch] = useState("");
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [existingResume, setExistingResume] = useState<string | null>(null);
+  const [useExisting, setUseExisting] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const { data: fromApps } = await supabase
+        .from("opportunity_applications")
+        .select("resume_url")
+        .eq("applicant_id", user.id)
+        .not("resume_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (fromApps?.resume_url) {
+        setExistingResume(fromApps.resume_url as string);
+        return;
+      }
+
+      const { data: fromReferrals } = await supabase
+        .from("referral_requests")
+        .select("resume_url")
+        .eq("student_id", user.id)
+        .not("resume_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!cancelled && fromReferrals?.resume_url) {
+        setExistingResume(fromReferrals.resume_url as string);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  const pitchLen = pitch.length;
+  const pitchOk = pitch.trim().length >= PITCH_MIN && pitchLen <= PITCH_MAX;
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (!pitchOk) {
+      setError(`Pitch must be ${PITCH_MIN}–${PITCH_MAX} characters.`);
+      setLoading(false);
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setError("You need to be logged in.");
+      setLoading(false);
+      return;
+    }
+
+    let resumePath: string | null = null;
+    if (resumeFile) {
+      if (resumeFile.size > 5 * 1024 * 1024) {
+        setError("Resume must be under 5 MB.");
+        setLoading(false);
+        return;
+      }
+      const ext = resumeFile.name.split(".").pop()?.toLowerCase() || "pdf";
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("resumes")
+        .upload(path, resumeFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: resumeFile.type || "application/pdf",
+        });
+      if (uploadError) {
+        const msg = uploadError.message.toLowerCase();
+        setError(
+          msg.includes("bucket") && msg.includes("not found")
+            ? "Resume storage isn’t set up yet. Ask an admin to run the resumes storage SQL."
+            : `Resume upload failed: ${uploadError.message}`,
+        );
+        setLoading(false);
+        return;
+      }
+      resumePath = path;
+    } else if (useExisting && existingResume) {
+      resumePath = existingResume;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from("opportunity_applications")
+      .insert({
+        opportunity_id: opportunity.id,
+        applicant_id: user.id,
+        pitch: pitch.trim(),
+        resume_url: resumePath,
+        status: "pending",
+      })
+      .select(
+        `
+        ${APPLICATION_SELECT},
+        opportunity:opportunities (
+          id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
+          poster:profiles!posted_by ( id, full_name, batch_year )
+        )
+      `,
+      )
+      .single();
+
+    if (insertError) {
+      setError(mapApplicationError(insertError.message));
+      setLoading(false);
+      return;
+    }
+
+    onSubmitted(normalizeApplication(data as Record<string, unknown>));
+    setLoading(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="rounded-xl bg-teal-50 px-3.5 py-3 text-sm text-teal-900">
+        Your pitch becomes your first message. You won&apos;t be able to send
+        another until the poster accepts your application.
+      </p>
+
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-slate-700">
+          Why you&apos;re a fit
+        </span>
+        <textarea
+          required
+          value={pitch}
+          onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))}
+          rows={6}
+          placeholder="Skills, relevant projects, and why this role…"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+        />
+        <span
+          className={`mt-1 block text-right text-xs ${
+            pitchOk ? "text-slate-500" : "text-amber-700"
+          }`}
+        >
+          {pitchLen}/{PITCH_MAX}
+          {pitch.trim().length < PITCH_MIN
+            ? ` · ${PITCH_MIN - pitch.trim().length} more needed`
+            : ""}
+        </span>
+      </label>
+
+      <div className="space-y-2">
+        <span className="block text-sm font-medium text-slate-700">
+          Resume (optional)
+        </span>
+        {existingResume && (
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={useExisting && !resumeFile}
+              onChange={(e) => {
+                setUseExisting(e.target.checked);
+                if (e.target.checked) setResumeFile(null);
+              }}
+              className="mt-0.5"
+            />
+            <span>Reuse my last uploaded resume</span>
+          </label>
+        )}
+        <input
+          type="file"
+          accept=".pdf,.doc,.docx,application/pdf"
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            setResumeFile(file);
+            if (file) setUseExisting(false);
+          }}
+          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700"
+        />
+      </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={loading || !pitchOk}
+          className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+        >
+          {loading ? "Submitting…" : "Submit application"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function MyApplicationsList({
+  applications,
+  onWithdrawn,
+}: {
+  applications: OpportunityApplication[];
+  onWithdrawn: (id: string) => void;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function withdraw(id: string) {
+    setBusyId(id);
+    setError(null);
+    const { data, error: updateError } = await supabase
+      .from("opportunity_applications")
+      .update({ status: "withdrawn" })
+      .eq("id", id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      setError(mapApplicationError(updateError.message));
+      setBusyId(null);
+      return;
+    }
+    if (!data) {
+      setError("Could not withdraw — it may already be decided.");
+      setBusyId(null);
+      return;
+    }
+    onWithdrawn(id);
+    setBusyId(null);
+  }
+
+  if (applications.length === 0) {
+    return (
+      <EmptyState
+        icon={<IconOpportunityEmpty />}
+        title="No applications yet"
+        description="Find a role on the board and apply through Cohortly with a short pitch."
+        accentSoft="var(--accent-opportunities-soft)"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {error && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      <ul className="space-y-3">
+        {applications.map((app) => {
+          const title = app.opportunity?.title ?? "Opportunity";
+          const company = app.opportunity?.company?.trim();
+          const posterId = app.opportunity?.posted_by;
+          return (
+            <li key={app.id}>
+              <SurfaceCard className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {company && (
+                      <p className="text-xs font-bold uppercase tracking-wide text-indigo-700/80">
+                        {company}
+                      </p>
+                    )}
+                    <h3 className="card-title mt-0.5 break-safe">{title}</h3>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone(app.status)}`}
+                  >
+                    {APPLICATION_STATUS_LABEL[app.status]}
+                  </span>
+                </div>
+                <p className="mt-3 line-clamp-3 break-safe text-sm text-slate-600">
+                  {app.pitch}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {app.status === "accepted" && posterId && (
+                    <Link
+                      href={`/messages?with=${posterId}`}
+                      className="btn-primary"
+                    >
+                      Message
+                    </Link>
+                  )}
+                  {app.status === "pending" && (
+                    <button
+                      type="button"
+                      disabled={busyId === app.id}
+                      onClick={() => void withdraw(app.id)}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {busyId === app.id ? "Withdrawing…" : "Withdraw"}
+                    </button>
+                  )}
+                </div>
+              </SurfaceCard>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function ApplicantsList({
+  applications,
+  onUpdated,
+}: {
+  applications: OpportunityApplication[];
+  onUpdated: (app: OpportunityApplication) => void;
+}) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function openResume(path: string) {
+    const { data, error: signedError } = await supabase.storage
+      .from("resumes")
+      .createSignedUrl(path, 60);
+    if (signedError || !data?.signedUrl) {
+      alert(signedError?.message || "Could not open resume.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function decide(app: OpportunityApplication, status: "accepted" | "declined") {
+    setBusyId(app.id);
+    setError(null);
+    const { data, error: updateError } = await supabase
+      .from("opportunity_applications")
+      .update({ status })
+      .eq("id", app.id)
+      .eq("status", "pending")
+      .select(
+        `
+        ${APPLICATION_SELECT},
+        opportunity:opportunities (
+          id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
+          poster:profiles!posted_by ( id, full_name, batch_year )
+        ),
+        applicant:profiles!applicant_id (
+          id, full_name, batch_year, department, skills, avatar_url
+        )
+      `,
+      )
+      .maybeSingle();
+
+    if (updateError) {
+      setError(mapApplicationError(updateError.message));
+      setBusyId(null);
+      return;
+    }
+    if (!data) {
+      setError("This application was already decided.");
+      setBusyId(null);
+      return;
+    }
+
+    const updated = normalizeApplication(data as Record<string, unknown>);
+    onUpdated(updated);
+    setBusyId(null);
+
+    if (status === "accepted") {
+      router.push(`/messages?with=${app.applicant_id}`);
+    }
+  }
+
+  if (applications.length === 0) {
+    return (
+      <EmptyState
+        icon={<IconOpportunityEmpty />}
+        title="No applicants yet"
+        description="When someone applies to your posting, their pitch and resume show up here."
+        accentSoft="var(--accent-opportunities-soft)"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {error && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      <ul className="space-y-3">
+        {applications.map((app) => {
+          const name = app.applicant?.full_name?.trim() || "Applicant";
+          const title = app.opportunity?.title ?? "Your opportunity";
+          return (
+            <li key={app.id}>
+              <SurfaceCard className="p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100 text-sm font-bold text-teal-800">
+                    {app.applicant?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={app.applicant.avatar_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      getInitials(name)
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-slate-900">
+                          {name}
+                        </h3>
+                        <p className="truncate text-xs text-slate-500">
+                          {[
+                            app.applicant?.batch_year != null
+                              ? `Batch ${app.applicant.batch_year}`
+                              : null,
+                            app.applicant?.department,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          {` → ${title}`}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone(app.status)}`}
+                      >
+                        {APPLICATION_STATUS_LABEL[app.status]}
+                      </span>
+                    </div>
+
+                    {app.applicant?.skills && app.applicant.skills.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {app.applicant.skills.slice(0, 5).map((skill) => (
+                          <span
+                            key={skill}
+                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="mt-3 whitespace-pre-wrap break-safe text-sm text-slate-700">
+                      {app.pitch}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {app.resume_url && (
+                        <button
+                          type="button"
+                          onClick={() => void openResume(app.resume_url!)}
+                          className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          View resume
+                        </button>
+                      )}
+                      {app.status === "pending" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busyId === app.id}
+                            onClick={() => void decide(app, "accepted")}
+                            className="btn-primary disabled:opacity-60"
+                          >
+                            {busyId === app.id ? "Working…" : "Accept & chat"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busyId === app.id}
+                            onClick={() => void decide(app, "declined")}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                      {app.status === "accepted" && (
+                        <Link
+                          href={`/messages?with=${app.applicant_id}`}
+                          className="btn-primary"
+                        >
+                          Message
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </SurfaceCard>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function statusTone(status: ApplicationStatus): string {
+  switch (status) {
+    case "pending":
+      return "bg-amber-50 text-amber-900";
+    case "accepted":
+      return "bg-emerald-50 text-emerald-800";
+    case "declined":
+      return "bg-slate-100 text-slate-600";
+    case "withdrawn":
+      return "bg-slate-100 text-slate-500";
+  }
 }

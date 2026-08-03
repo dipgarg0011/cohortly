@@ -154,7 +154,21 @@ export function ReferralBoard({
 
   function patchRequest(id: string, row: Record<string, unknown>) {
     const next = normalizeReferralRequest(row);
-    setRequests((prev) => prev.map((r) => (r.id === id ? next : r)));
+    setRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        return { ...next, student: next.student ?? r.student };
+      }),
+    );
+  }
+
+  function patchRequestFields(
+    id: string,
+    fields: Partial<ReferralRequest>,
+  ) {
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...fields } : r)),
+    );
   }
 
   async function refreshReach(id: string) {
@@ -183,31 +197,49 @@ export function ReferralBoard({
     setBusyId(request.id);
     setError(null);
 
-    const { data, error: updateError } = await supabase
-      .from("referral_requests")
-      .update({
-        status: "accepted",
-        accepted_by: currentUserId,
-      })
-      .eq("id", request.id)
-      .eq("status", "open")
-      .select(REFERRAL_SELECT)
-      .maybeSingle();
+    // Optimistic: show referring state immediately
+    patchRequestFields(request.id, {
+      status: "accepted",
+      accepted_by: currentUserId,
+    });
 
-    if (updateError) {
-      setError(mapReferralError(updateError.message));
+    const { data, error: rpcError } = await supabase.rpc(
+      "accept_referral_request",
+      { p_request_id: request.id },
+    );
+
+    if (rpcError) {
+      // Roll back optimistic patch
+      patchRequestFields(request.id, {
+        status: request.status,
+        accepted_by: request.accepted_by,
+      });
+      setError(mapReferralError(rpcError.message));
       setBusyId(null);
       return;
     }
 
-    if (data) {
-      patchRequest(request.id, data as Record<string, unknown>);
-      setHelpFilter("helping");
-      setAcceptTarget(
-        normalizeReferralRequest(data as Record<string, unknown>),
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+
+    if (!row) {
+      patchRequestFields(request.id, {
+        status: request.status,
+        accepted_by: request.accepted_by,
+      });
+      setError(
+        "Someone else has already taken this — or the accept didn't go through. Refresh and try another ask.",
       );
+      setBusyId(null);
+      return;
     }
 
+    const normalized = normalizeReferralRequest(row);
+    normalized.student = request.student ?? normalized.student;
+    patchRequest(request.id, row);
+    setHelpFilter("helping");
+    setAcceptTarget(normalized);
     setBusyId(null);
     router.refresh();
   }
@@ -278,7 +310,14 @@ export function ReferralBoard({
       setBusyId(null);
       return;
     }
-    if (data) patchRequest(request.id, data as Record<string, unknown>);
+    if (!data) {
+      setError(
+        "Couldn't update that request. It may already be closed or taken — refresh and try again.",
+      );
+      setBusyId(null);
+      return;
+    }
+    patchRequest(request.id, data as Record<string, unknown>);
     setBusyId(null);
   }
 
@@ -296,7 +335,14 @@ export function ReferralBoard({
       setBusyId(null);
       return;
     }
-    if (data) patchRequest(request.id, data as Record<string, unknown>);
+    if (!data) {
+      setError(
+        "Couldn't mark as referred. Refresh and try again.",
+      );
+      setBusyId(null);
+      return;
+    }
+    patchRequest(request.id, data as Record<string, unknown>);
     setBusyId(null);
   }
 
@@ -1076,11 +1122,15 @@ function ReferralCard({
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || isAcceptor}
               onClick={onAccept}
               className="btn-primary disabled:opacity-60"
             >
-              {busy ? "…" : "Accept & refer"}
+              {busy
+                ? "…"
+                : isAcceptor
+                  ? "You're referring this"
+                  : "Accept & refer"}
             </button>
             <button
               type="button"
@@ -1253,6 +1303,7 @@ function AcceptChecklistModal({
   onClose: () => void;
 }) {
   const name = request.student?.full_name?.trim() || "them";
+  const first = name.split(" ")[0];
   return (
     <AppModal
       open
@@ -1266,11 +1317,20 @@ function AcceptChecklistModal({
         <li>Share the application / referral ID back in chat.</li>
       </ol>
       <p className="mt-3 text-sm text-slate-500">
-        You can message {name.split(" ")[0]} anytime from Referrals or Messages.
+        You can message {first} anytime from Referrals or Messages.
       </p>
-      <button type="button" onClick={onClose} className="btn-primary mt-4 w-full">
-        Message {name.split(" ")[0]}
-      </button>
+      <div className="mt-4 flex flex-col gap-2">
+        <Link
+          href={`/messages?with=${request.student_id}`}
+          className="btn-primary w-full text-center"
+          onClick={onClose}
+        >
+          Message {first}
+        </Link>
+        <button type="button" onClick={onClose} className="btn-secondary w-full">
+          Close
+        </button>
+      </div>
     </AppModal>
   );
 }

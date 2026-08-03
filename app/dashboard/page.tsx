@@ -284,7 +284,6 @@ export default async function DashboardPage() {
   const communityStats = buildCommunityStats(
     (communityRows ?? []) as CommunityProfileRow[],
     {
-      id: user.id,
       batch_year: profile?.batch_year ?? null,
       department: profile?.department ?? null,
     },

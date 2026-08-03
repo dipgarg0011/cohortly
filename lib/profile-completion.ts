@@ -22,70 +22,79 @@ const COMPLETION_CHECKS: {
   {
     key: "full_name",
     label: "full name",
-    tip: "add your full name",
+    tip: "Add your full name",
     isFilled: (p) => Boolean(p.full_name?.trim()),
   },
   {
     key: "batch_year",
     label: "batch year",
-    tip: "add your batch year",
+    tip: "Add your batch year",
     isFilled: (p) => p.batch_year != null,
   },
   {
     key: "status",
     label: "student or graduate status",
-    tip: "say whether you're a student or graduate",
+    tip: "Say whether you're a student or graduate",
     isFilled: (p) => p.status === "student" || p.status === "graduate",
   },
   {
     key: "department",
     label: "department",
-    tip: "add your department",
+    tip: "Add your department",
     isFilled: (p) => Boolean(p.department?.trim()),
   },
   {
     key: "current_job",
     label: "role title",
-    tip: "add your role title",
-    isFilled: (p) =>
-      Boolean(p.current_job?.trim() || p.role_title?.trim()),
+    tip: "Add your role title",
+    isFilled: (p) => Boolean(p.current_job?.trim() || p.role_title?.trim()),
   },
   {
     key: "company",
     label: "company",
-    tip: "add your company",
+    tip: "Add your company so juniors can find you for referrals",
     isFilled: (p) => Boolean(p.company?.trim()),
   },
   {
     key: "bio",
     label: "bio",
-    tip: "add a bio to help others find you",
+    tip: "Add a short bio so people know how to approach you",
     isFilled: (p) => Boolean(p.bio?.trim()),
   },
   {
     key: "linkedin_url",
     label: "LinkedIn",
-    tip: "add your LinkedIn URL",
+    tip: "Add your LinkedIn so connections can verify you",
     isFilled: (p) => Boolean(p.linkedin_url?.trim()),
   },
   {
     key: "avatar_url",
     label: "photo",
-    tip: "add a profile photo",
+    tip: "Add a profile photo",
     isFilled: (p) => Boolean(p.avatar_url?.trim()),
   },
   {
     key: "skills",
     label: "skills",
-    tip: "add skills or interests",
+    tip: "Add skills so the right mentorship asks reach you",
     isFilled: (p) => (p.skills?.length ?? 0) > 0,
   },
   {
     key: "open_to",
     label: "open to",
-    tip: "share what you're open to",
+    tip: "Share what you're open to",
     isFilled: (p) => (p.open_to?.length ?? 0) > 0,
   },
+];
+
+/** Missing fields that unlock the most value — tip order, not % order. */
+const UNLOCK_TIP_ORDER: (keyof ProfileCompletionFields)[] = [
+  "company",
+  "skills",
+  "current_job",
+  "bio",
+  "linkedin_url",
+  "avatar_url",
 ];
 
 export function getProfileCompletion(profile: ProfileCompletionFields) {
@@ -94,7 +103,16 @@ export function getProfileCompletion(profile: ProfileCompletionFields) {
     check.isFilled(profile),
   ).length;
   const percent = Math.round((filled / total) * 100);
-  const next = COMPLETION_CHECKS.find((check) => !check.isFilled(profile));
+
+  const byKey = new Map(COMPLETION_CHECKS.map((c) => [c.key, c]));
+  let next =
+    UNLOCK_TIP_ORDER.map((key) => byKey.get(key)).find(
+      (check) => check && !check.isFilled(profile),
+    ) ?? null;
+
+  if (!next) {
+    next = COMPLETION_CHECKS.find((check) => !check.isFilled(profile)) ?? null;
+  }
 
   return {
     percent,

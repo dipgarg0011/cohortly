@@ -6,20 +6,13 @@ import {
   DashboardFeed,
   PeoplePreviewHeader,
 } from "@/components/dashboard-feed";
+import { DashboardNeedsYou } from "@/components/dashboard-needs";
+import { DashboardWorthALook } from "@/components/dashboard-worth-a-look";
 import { PageShell } from "@/components/ui/page-shell";
-import { SurfaceCard } from "@/components/ui/surface-card";
-import {
-  IconBriefcase,
-  IconMessage,
-  IconMentor,
-  IconReferral,
-  IconUsers,
-} from "@/components/ui/icons";
 import { getProfileCompletion } from "@/lib/profile-completion";
 import {
   firstName,
   hasBatchYearPassed,
-  isGraduateStatus,
   type NetworkProfile,
   type ProfileStatus,
 } from "@/lib/network";
@@ -32,36 +25,45 @@ import {
   type Message,
 } from "@/lib/messages";
 import {
+  normalizeApplication,
   normalizeOpportunity,
   type Opportunity,
 } from "@/lib/opportunities";
-import type { ReactNode } from "react";
+import {
+  REFERRAL_SELECT,
+  normalizeReferralRequest,
+} from "@/lib/referrals";
+import {
+  normalizeMatchedAsk,
+  normalizeMentorshipRequest,
+} from "@/lib/mentorship";
+import { buildNeedsYouItems } from "@/lib/dashboard-needs";
+import {
+  buildWorthALookItems,
+  needExclusionSet,
+} from "@/lib/dashboard-look";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
+
+const CONVERSATION_SELECT =
+  "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id, turn_nudge_sent_at";
 
 export default async function DashboardPage() {
   const { user, supabase } = await requireProfile();
 
   const [
     { data: myProfile },
-    { count: networkCount },
-    { count: unreadCount },
     { data: messageRows },
     { data: opportunityRows },
     { data: conversationRows },
+    { data: matchedAskRows },
+    { data: openReferralRows },
+    { data: acceptedReferralRows },
+    { data: applicationRows },
+    { data: openMentorshipRows },
   ] = await Promise.all([
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
-    // Exclude self from network size
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .neq("id", user.id),
-    supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("receiver_id", user.id)
-      .eq("read", false),
     supabase
       .from("messages")
       .select("id, sender_id, receiver_id, content, created_at, read")
@@ -73,52 +75,56 @@ export default async function DashboardPage() {
         "id, posted_by, type, title, company, description, apply_link, location, deadline, created_at",
       )
       .order("created_at", { ascending: false })
-      .limit(3),
+      .limit(20),
     supabase
       .from("conversations")
-      .select(
-        "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at",
-      )
+      .select(CONVERSATION_SELECT)
       .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`),
+    supabase.rpc("list_my_matched_asks"),
+    supabase
+      .from("referral_requests")
+      .select(REFERRAL_SELECT)
+      .eq("status", "open")
+      .neq("student_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(15),
+    supabase
+      .from("referral_requests")
+      .select(REFERRAL_SELECT)
+      .eq("accepted_by", user.id)
+      .eq("status", "accepted")
+      .is("referred_at", null)
+      .order("accepted_at", { ascending: true })
+      .limit(10),
+    supabase
+      .from("opportunity_applications")
+      .select(
+        `
+        id, opportunity_id, applicant_id, pitch, resume_url, status, created_at,
+        opportunity:opportunities!inner (
+          id, posted_by, type, title, company, description, apply_link, location, deadline, created_at
+        ),
+        applicant:profiles!applicant_id (
+          id, full_name, batch_year, department, skills, avatar_url
+        )
+      `,
+      )
+      .eq("status", "pending")
+      .eq("opportunity.posted_by", user.id)
+      .order("created_at", { ascending: true })
+      .limit(15),
+    supabase
+      .from("mentorship_requests")
+      .select(
+        "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score, reach_stage, last_escalated_at",
+      )
+      .eq("status", "open")
+      .neq("student_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const profile = myProfile as NetworkProfile | null;
-  const isGraduate = isGraduateStatus(profile?.status);
-
-  let companyReferralAsks = 0;
-  let waitingStudents: { count: number; maxAgeDays: number } | null = null;
-  if (isGraduate) {
-    const [{ count }, { data: matchedAskRows }] = await Promise.all([
-      supabase
-        .from("referral_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open")
-        .neq("student_id", user.id),
-      supabase.rpc("list_my_matched_asks"),
-    ]);
-    // RLS can_view_referral already filters what this graduate can see
-    companyReferralAsks = count ?? 0;
-
-    const pending = (
-      (matchedAskRows ?? []) as Record<string, unknown>[]
-    ).filter((row) => row.match_status === "pending");
-    if (pending.length > 0) {
-      let maxAgeDays = 0;
-      for (const row of pending) {
-        const created = new Date(String(row.request_created_at ?? ""));
-        if (Number.isNaN(created.getTime())) continue;
-        const age =
-          (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-        if (age > maxAgeDays) maxAgeDays = age;
-      }
-      if (maxAgeDays >= 1) {
-        waitingStudents = {
-          count: pending.length,
-          maxAgeDays: Math.max(1, Math.floor(maxAgeDays)),
-        };
-      }
-    }
-  }
 
   const displayName = firstName(
     profile?.full_name ||
@@ -131,51 +137,33 @@ export default async function DashboardPage() {
     : {
         percent: 0,
         message: "Complete your profile to get started.",
-        nextTip: null,
+        nextTip: null as string | null,
       };
 
-  let sameDepartmentCount = 0;
-  let sameBatchCount = 0;
+  // Suggestions: exclude self inside each OR branch (PostgREST-safe).
   let suggestions: NetworkProfile[] = [];
-
+  const uid = user.id;
+  const branches: string[] = [];
+  const quote = (value: string) => {
+    if (/^[A-Za-z0-9._-]+$/.test(value)) return value;
+    return `"${value.replace(/"/g, '\\"')}"`;
+  };
   if (profile?.department?.trim()) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("department", profile.department.trim())
-      .neq("id", user.id);
-    sameDepartmentCount = count ?? 0;
-  }
-
-  if (profile?.batch_year != null) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("batch_year", profile.batch_year)
-      .neq("id", user.id);
-    sameBatchCount = count ?? 0;
-  }
-
-  const suggestionFilters: string[] = [];
-  if (profile?.department?.trim()) {
-    suggestionFilters.push(`department.eq.${profile.department.trim()}`);
+    branches.push(
+      `and(department.eq.${quote(profile.department.trim())},id.neq.${uid})`,
+    );
   }
   if (profile?.batch_year != null) {
-    suggestionFilters.push(`batch_year.eq.${profile.batch_year}`);
+    branches.push(`and(batch_year.eq.${profile.batch_year},id.neq.${uid})`);
   }
-
-  if (suggestionFilters.length > 0) {
-    // Exclude self before .or — PostgREST can ignore trailing .not on .or filters.
+  if (branches.length > 0) {
     const { data } = await supabase
       .from("profiles")
       .select(PROFILE_SELECT)
-      .neq("id", user.id)
-      .or(suggestionFilters.join(","))
+      .or(branches.join(","))
       .limit(12);
 
-    const rows = ((data ?? []) as NetworkProfile[]).filter(
-      (row) => row.id !== user.id,
-    );
+    const rows = (data ?? []) as NetworkProfile[];
     suggestions = rows
       .map((row) => {
         let score = 0;
@@ -194,16 +182,20 @@ export default async function DashboardPage() {
         return { row, score };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
+      .slice(0, 3)
       .map((item) => item.row);
   }
 
   const conversations = (conversationRows ?? []) as ConversationRow[];
-
   const messages = (messageRows ?? []) as Message[];
+
   const partnerIds = new Set<string>();
   for (const message of messages) {
     partnerIds.add(otherPartyId(message, user.id));
+  }
+  for (const conv of conversations) {
+    if (conv.initiator_id !== user.id) partnerIds.add(conv.initiator_id);
+    if (conv.recipient_id !== user.id) partnerIds.add(conv.recipient_id);
   }
 
   const partnersMap: Record<string, ChatPartner> = {};
@@ -218,20 +210,57 @@ export default async function DashboardPage() {
     }
   }
 
+  const matchedAsks = ((matchedAskRows ?? []) as Record<string, unknown>[]).map(
+    (row) => normalizeMatchedAsk(row),
+  );
+  const openReferrals = ((openReferralRows ?? []) as Record<string, unknown>[]).map(
+    (row) => normalizeReferralRequest(row),
+  );
+  const acceptedReferrals = (
+    (acceptedReferralRows ?? []) as Record<string, unknown>[]
+  ).map((row) => normalizeReferralRequest(row));
+  const pendingApplications = (
+    (applicationRows ?? []) as Record<string, unknown>[]
+  ).map((row) => normalizeApplication(row));
+  const openMentorshipAsks = (
+    (openMentorshipRows ?? []) as Record<string, unknown>[]
+  ).map((row) => normalizeMentorshipRequest(row));
+
+  const needItems = buildNeedsYouItems({
+    currentUserId: user.id,
+    conversations,
+    messages,
+    partners: partnersMap,
+    matchedAsks,
+    openReferrals,
+    pendingApplications,
+    acceptedReferrals,
+  });
+
+  const recentOpportunities = (opportunityRows ?? []).map((row) =>
+    normalizeOpportunity(row as Record<string, unknown>),
+  ) as Opportunity[];
+
+  const lookItems = buildWorthALookItems({
+    currentUserId: user.id,
+    department: profile?.department ?? null,
+    skills: profile?.skills ?? null,
+    company: profile?.company ?? null,
+    batchYear: profile?.batch_year ?? null,
+    needsIds: needExclusionSet(needItems.slice(0, 5)),
+    recentOpportunities,
+    openReferrals,
+    openMentorshipAsks,
+    newMembers: [], // profiles have no reliable created_at in schema
+  });
+
   const recentConversations = buildConversations(
     messages,
     partnersMap,
     user.id,
   ).slice(0, 3);
 
-  const latestOpportunities = (opportunityRows ?? []).map((row) =>
-    normalizeOpportunity(row as Record<string, unknown>),
-  ) as Opportunity[];
-
-  const tip =
-    completion.nextTip?.replace(/^Add your /i, "") ||
-    completion.message ||
-    "complete your profile";
+  const latestOpportunities = recentOpportunities.slice(0, 3);
 
   const showGradNudge =
     (profile?.status as ProfileStatus | null | undefined) === "student" &&
@@ -242,150 +271,46 @@ export default async function DashboardPage() {
       <Navbar />
 
       <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
-        <div className="mb-4 min-w-0 animate-fade-up sm:mb-6">
-          <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
-            Your home base
-          </p>
+        <div className="mb-4 min-w-0 animate-fade-up sm:mb-5">
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--muted)] sm:mt-2 sm:text-base">
-            Catch up on people, messages, and openings from your college
-            community.
-          </p>
         </div>
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 
-        {isGraduate && companyReferralAsks > 0 && (
-          <Link
-            href="/referrals"
-            className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up hover:border-rose-200 sm:mb-6 sm:px-4"
-          >
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-referrals-soft)] text-[var(--accent-referrals)]">
-              <IconReferral size={16} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">
-                {companyReferralAsks} referral{" "}
-                {companyReferralAsks === 1 ? "ask" : "asks"} waiting
-                {profile?.company?.trim()
-                  ? ` · including ${profile.company.trim()}`
-                  : ""}
-              </p>
-              <p className="truncate text-xs text-slate-500">
-                Open Referrals to ask a question or accept.
-              </p>
-            </div>
-            <span className="shrink-0 text-xs font-bold text-[var(--accent-referrals)]">
-              View →
-            </span>
-          </Link>
-        )}
+        <DashboardNeedsYou items={needItems} />
 
-        {isGraduate && waitingStudents && (
-          <Link
-            href="/mentors"
-            className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up hover:border-amber-200 sm:mb-6 sm:px-4"
-          >
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-mentors-soft)] text-[var(--accent-mentors)]">
-              <IconMentor size={16} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">
-                {waitingStudents.count} student
-                {waitingStudents.count === 1 ? "" : "s"} still waiting —{" "}
-                {waitingStudents.maxAgeDays} day
-                {waitingStudents.maxAgeDays === 1 ? "" : "s"}
-              </p>
-              <p className="truncate text-xs text-slate-500">
-                Open Mentors to accept or reply.
-              </p>
-            </div>
-            <span className="shrink-0 text-xs font-bold text-[var(--accent-mentors)]">
-              View →
-            </span>
-          </Link>
-        )}
+        <DashboardWorthALook items={lookItems} />
 
-        {completion.percent < 100 && (
-          <div className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up sm:mb-6 sm:gap-4 sm:px-4 sm:py-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <p className="shrink-0 text-xs font-bold text-slate-800 sm:text-sm">
-                  {completion.percent}%
-                </p>
-                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-teal-50">
-                  <div
-                    className="h-full rounded-full bg-[var(--brand)]"
-                    style={{ width: `${completion.percent}%` }}
-                  />
-                </div>
-              </div>
-              <p className="mt-1 truncate text-[11px] text-slate-500 sm:text-xs">
-                Add {tip}
-              </p>
-            </div>
+        {completion.percent < 100 && completion.nextTip && (
+          <div className="mb-5 flex min-w-0 items-center gap-3 animate-fade-up sm:mb-6">
+            <p className="min-w-0 flex-1 truncate text-sm text-slate-600">
+              {completion.nextTip}
+            </p>
             <Link
               href="/profile"
-              className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)]"
+              className="shrink-0 text-sm font-bold text-[var(--brand)] hover:underline"
             >
-              Finish
+              Edit profile →
             </Link>
           </div>
         )}
 
-        {/* Compact stats: 4 equal tiles in one row — no min-width that blows past 375px */}
-        <div className="mb-5 grid w-full min-w-0 max-w-full grid-cols-4 gap-1.5 animate-fade-up sm:gap-2 lg:mb-8 lg:gap-3">
-          <StatTile
-            href="/network"
-            label="Network"
-            value={networkCount ?? 0}
-            icon={<IconUsers size={14} />}
-            soft="var(--accent-network-soft)"
-            solid="var(--accent-network)"
-          />
-          <StatTile
-            href="/messages"
-            label="Unread"
-            value={unreadCount ?? 0}
-            icon={<IconMessage size={14} />}
-            soft="var(--accent-messages-soft)"
-            solid="var(--accent-messages)"
-            highlight={(unreadCount ?? 0) > 0}
-          />
-          <StatTile
-            href="/network"
-            label="Dept"
-            value={sameDepartmentCount}
-            icon={<IconBriefcase size={14} />}
-            soft="var(--accent-opportunities-soft)"
-            solid="var(--accent-opportunities)"
-          />
-          <StatTile
-            href="/network"
-            label="Batch"
-            value={sameBatchCount}
-            icon={<IconUsers size={14} />}
-            soft="var(--accent-mentors-soft)"
-            solid="var(--accent-mentors)"
-          />
-        </div>
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip animate-fade-up">
+          {suggestions.length > 0 && (
+            <section className="w-full min-w-0 max-w-full overflow-x-clip">
+              <PeoplePreviewHeader />
+              <SuggestedPeople
+                profiles={suggestions}
+                currentUserId={user.id}
+                initialConversations={conversations}
+                compact
+                dense
+                limit={3}
+              />
+            </section>
+          )}
 
-        {/* Below-the-fold: force phone width — never expand into a desktop strip */}
-        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip lg:grid-cols-5 lg:gap-6 animate-fade-up">
-          <section className="w-full min-w-0 max-w-full overflow-x-clip lg:col-span-3">
-            <PeoplePreviewHeader />
-            <SuggestedPeople
-              profiles={suggestions}
-              currentUserId={user.id}
-              initialConversations={conversations}
-              compact
-              dense
-              limit={4}
-              mobileOnlyLimit
-            />
-          </section>
-
-          <section className="w-full min-w-0 max-w-full overflow-x-clip lg:col-span-2">
+          <section className="w-full min-w-0 max-w-full overflow-x-clip">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}
@@ -395,45 +320,5 @@ export default async function DashboardPage() {
         </div>
       </main>
     </PageShell>
-  );
-}
-
-function StatTile({
-  href,
-  label,
-  value,
-  icon,
-  soft,
-  solid,
-  highlight = false,
-}: {
-  href: string;
-  label: string;
-  value: number;
-  icon: ReactNode;
-  soft: string;
-  solid: string;
-  highlight?: boolean;
-}) {
-  return (
-    <Link href={href} className="block min-w-0 max-w-full">
-      <SurfaceCard
-        interactive
-        className={`flex h-full min-w-0 max-w-full flex-col items-center overflow-hidden px-1 py-1.5 text-center sm:px-2 sm:py-2 lg:items-start lg:p-3.5 lg:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
-      >
-        <div
-          className="mb-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md lg:mb-2 lg:h-8 lg:w-8 lg:rounded-xl"
-          style={{ background: soft, color: solid }}
-        >
-          {icon}
-        </div>
-        <p className="font-[family-name:var(--font-display)] text-base font-bold leading-none text-slate-900 lg:text-3xl">
-          {value}
-        </p>
-        <p className="mt-0.5 max-w-full truncate text-[10px] font-semibold leading-tight text-slate-500 lg:text-xs">
-          {label}
-        </p>
-      </SurfaceCard>
-    </Link>
   );
 }

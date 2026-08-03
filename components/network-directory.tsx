@@ -271,11 +271,11 @@ export function NetworkDirectory({
           accentSoft="var(--accent-network-soft)"
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-hidden sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((profile) => {
             const props = actionProps(profile);
             return (
-              <li key={profile.id} className="min-w-0">
+              <li key={profile.id} className="min-w-0 max-w-full overflow-hidden">
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}

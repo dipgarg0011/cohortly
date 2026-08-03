@@ -33,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${fraunces.variable} h-full overflow-x-clip antialiased`}
+      className={`${nunito.variable} ${fraunces.variable} h-full max-w-full overflow-x-hidden antialiased`}
     >
-      <body className="flex min-h-full min-w-0 flex-col overflow-x-clip font-sans">
+      <body className="flex min-h-full min-w-0 max-w-full flex-col overflow-x-hidden font-sans">
         {children}
       </body>
     </html>

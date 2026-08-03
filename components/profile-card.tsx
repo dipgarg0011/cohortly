@@ -43,9 +43,9 @@ export function ProfileCard({
     <SurfaceCard
       as="article"
       interactive
-      className="flex h-full min-w-0 flex-col p-4 sm:p-5"
+      className="flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden p-4 sm:p-5"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         {profile.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -62,9 +62,11 @@ export function ProfileCard({
           </div>
         )}
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="card-title truncate">{name}</h2>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 items-start gap-2">
+            <h2 className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
+              {name}
+            </h2>
             {profile.linkedin_url ? (
               <a
                 href={profile.linkedin_url}
@@ -77,7 +79,7 @@ export function ProfileCard({
               </a>
             ) : null}
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${
                 isStudent
@@ -99,26 +101,32 @@ export function ProfileCard({
         </div>
       </div>
 
-      <div className="mt-4 flex-1 space-y-2 text-sm">
+      <div className="mt-4 min-w-0 flex-1 space-y-2 overflow-hidden text-sm">
         {(roleTitle || company) && (
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             {roleTitle && (
-              <p className="break-safe font-semibold text-slate-800">{roleTitle}</p>
+              <p className="line-clamp-2 font-semibold text-slate-800 [overflow-wrap:anywhere]">
+                {roleTitle}
+              </p>
             )}
             {company && (
-              <p className="break-safe text-slate-600">{company}</p>
+              <p className="line-clamp-1 text-slate-600 [overflow-wrap:anywhere]">
+                {company}
+              </p>
             )}
           </div>
         )}
         {profile.department?.trim() && (
-          <p className="break-safe text-slate-500">{profile.department.trim()}</p>
+          <p className="line-clamp-2 text-slate-500 [overflow-wrap:anywhere]">
+            {profile.department.trim()}
+          </p>
         )}
         {openTo.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className="flex min-w-0 flex-wrap gap-1.5 pt-1">
             {openTo.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex max-w-full break-safe rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
+                className="inline-flex max-w-full rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800 [overflow-wrap:anywhere]"
               >
                 Open to {tag}
               </span>
@@ -132,7 +140,7 @@ export function ProfileCard({
           type="button"
           onClick={onSayHi}
           disabled={sayHiDisabled}
-          className="btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-55"
+          className="btn-primary mt-4 w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55"
         >
           {sayHiLabel}
         </button>

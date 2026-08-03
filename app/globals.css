@@ -39,7 +39,7 @@
 }
 
 html {
-  overflow-x: clip;
+  overflow-x: hidden;
   max-width: 100%;
 }
 
@@ -47,9 +47,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  overflow-x: clip;
+  overflow-x: hidden;
   max-width: 100%;
   min-width: 0;
+  width: 100%;
 }
 
 /* Keep long names / URLs from forcing horizontal scroll */

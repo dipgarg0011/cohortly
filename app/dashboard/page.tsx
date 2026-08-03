@@ -176,8 +176,8 @@ export default async function DashboardPage() {
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
-        <div className="mb-6 animate-fade-up">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-3 py-6 sm:px-6 sm:py-10">
+        <div className="mb-6 min-w-0 animate-fade-up">
           <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
             Your home base
           </p>
@@ -189,7 +189,7 @@ export default async function DashboardPage() {
         </div>
 
         {completion.percent < 100 && (
-          <div className="surface-card mb-6 flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-5 animate-fade-up">
+          <div className="surface-card mb-6 flex min-w-0 max-w-full flex-col gap-3 overflow-hidden px-4 py-3.5 sm:flex-row sm:items-center sm:gap-5 animate-fade-up">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-bold text-slate-800">
@@ -257,8 +257,8 @@ export default async function DashboardPage() {
           />
         </div>
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-5 animate-fade-up">
-          <section className="min-w-0 lg:col-span-3">
+        <div className="grid min-w-0 max-w-full gap-6 overflow-x-hidden lg:grid-cols-5 animate-fade-up">
+          <section className="min-w-0 max-w-full overflow-hidden lg:col-span-3">
             <PeoplePreviewHeader />
             <SuggestedPeople
               profiles={suggestions}
@@ -278,7 +278,7 @@ export default async function DashboardPage() {
             </div>
           </section>
 
-          <section className="min-w-0 lg:col-span-2">
+          <section className="min-w-0 max-w-full overflow-hidden lg:col-span-2">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}

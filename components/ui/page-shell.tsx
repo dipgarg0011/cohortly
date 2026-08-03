@@ -59,7 +59,7 @@ export function PageShell({
 }) {
   const a = ACCENT[accent];
   return (
-    <div className="relative flex min-h-full min-w-0 flex-1 flex-col overflow-x-clip">
+    <div className="relative flex min-h-full min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
       <div className="page-atmosphere" aria-hidden>
         <div
           className="absolute -left-20 -top-24 h-72 w-72 rounded-full"

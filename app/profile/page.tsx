@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "full_name, batch_year, status, department, company, role_title, is_founder, open_to, skills, linkedin_url, bio",
+      "full_name, batch_year, status, department, company, past_companies, role_title, is_founder, open_to, skills, linkedin_url, bio",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -29,6 +29,7 @@ export default async function ProfilePage() {
     status,
     department: profile?.department ?? "",
     company: profile?.company ?? "",
+    past_companies: profile?.past_companies ?? [],
     role_title: profile?.role_title ?? "",
     is_founder: profile?.is_founder ?? false,
     open_to: profile?.open_to ?? [],

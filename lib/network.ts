@@ -52,6 +52,7 @@ export type EditableProfile = {
   status: ProfileStatus;
   department: string;
   company: string;
+  past_companies: string[];
   role_title: string;
   is_founder: boolean;
   open_to: string[];

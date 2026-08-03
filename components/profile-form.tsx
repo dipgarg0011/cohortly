@@ -30,6 +30,9 @@ export function ProfileForm({ initialProfile }: Props) {
   const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState(initialProfile.department);
   const [company, setCompany] = useState(initialProfile.company);
+  const [pastCompaniesText, setPastCompaniesText] = useState(
+    initialProfile.past_companies.join(", "),
+  );
   const [roleTitle, setRoleTitle] = useState(initialProfile.role_title);
   const [isFounder, setIsFounder] = useState(initialProfile.is_founder);
   const [openTo, setOpenTo] = useState<string[]>(initialProfile.open_to);
@@ -94,12 +97,18 @@ export function ProfileForm({ initialProfile }: Props) {
       return;
     }
 
+    const past_companies = pastCompaniesText
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const payload = {
       full_name: fullName.trim(),
       batch_year: year,
       status,
       department: department.trim() || null,
       company: company.trim() || null,
+      past_companies,
       role_title: roleTitle.trim() || null,
       current_job: roleTitle.trim() || null,
       is_founder: isFounder,
@@ -213,6 +222,21 @@ export function ProfileForm({ initialProfile }: Props) {
             onChange={setRoleTitle}
             placeholder="Software Engineer, Founder…"
           />
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Past companies{" "}
+              <span className="font-normal text-slate-400">
+                (comma-separated, for referral matching)
+              </span>
+            </span>
+            <input
+              id="pastCompanies"
+              value={pastCompaniesText}
+              onChange={(e) => setPastCompaniesText(e.target.value)}
+              placeholder="Google, Microsoft,…"
+              className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
           <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-teal-50/50 px-3.5 py-3 sm:col-span-2">
             <input
               type="checkbox"

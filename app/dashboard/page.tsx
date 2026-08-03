@@ -11,12 +11,14 @@ import { SurfaceCard } from "@/components/ui/surface-card";
 import {
   IconBriefcase,
   IconMessage,
+  IconReferral,
   IconUsers,
 } from "@/components/ui/icons";
 import { getProfileCompletion } from "@/lib/profile-completion";
 import {
   firstName,
   hasBatchYearPassed,
+  isGraduateStatus,
   type NetworkProfile,
   type ProfileStatus,
 } from "@/lib/network";
@@ -80,6 +82,20 @@ export default async function DashboardPage() {
   ]);
 
   const profile = myProfile as NetworkProfile | null;
+  const isGraduate = isGraduateStatus(profile?.status);
+  const companyNorm = profile?.company?.trim().toLowerCase() ?? "";
+
+  let companyReferralAsks = 0;
+  if (isGraduate && companyNorm) {
+    const { count } = await supabase
+      .from("referral_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open")
+      .eq("target_company_normalized", companyNorm)
+      .neq("student_id", user.id);
+    companyReferralAsks = count ?? 0;
+  }
+
   const displayName = firstName(
     profile?.full_name ||
       (user.user_metadata?.full_name as string | undefined) ||
@@ -214,6 +230,30 @@ export default async function DashboardPage() {
         </div>
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
+
+        {isGraduate && companyReferralAsks > 0 && profile?.company?.trim() && (
+          <Link
+            href="/referrals"
+            className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up hover:border-rose-200 sm:mb-6 sm:px-4"
+          >
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-referrals-soft)] text-[var(--accent-referrals)]">
+              <IconReferral size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900">
+                {companyReferralAsks} referral{" "}
+                {companyReferralAsks === 1 ? "ask" : "asks"} for{" "}
+                {profile.company.trim()}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                Open Referrals to ask a question or accept.
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-bold text-[var(--accent-referrals)]">
+              View →
+            </span>
+          </Link>
+        )}
 
         {completion.percent < 100 && (
           <div className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up sm:mb-6 sm:gap-4 sm:px-4 sm:py-3">

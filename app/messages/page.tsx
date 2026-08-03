@@ -22,14 +22,14 @@ export default async function MessagesPage({
     supabase
       .from("messages")
       .select(
-        "id, sender_id, receiver_id, content, created_at, read, conversation_id",
+        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system",
       )
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true }),
     supabase
       .from("conversations")
       .select(
-        "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at",
+        "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id",
       )
       .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .order("updated_at", { ascending: false }),
@@ -59,7 +59,7 @@ export default async function MessagesPage({
   return (
     <PageShell accent="messages">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-5 sm:px-6 sm:py-8">
         <PageHeader
           accent="messages"
           eyebrow="Inbox"

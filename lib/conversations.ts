@@ -4,7 +4,13 @@ export type ConversationStatus =
   | "declined"
   | "blocked";
 
-export type UnlockReason = "manual_accept" | "referral" | "mentorship";
+export type UnlockReason =
+  | "manual_accept"
+  | "referral"
+  | "mentorship"
+  | "referral_question";
+
+export type GateMode = "locked" | "turn_based" | "open";
 
 export type ConversationRow = {
   id: string;
@@ -15,9 +21,62 @@ export type ConversationRow = {
   intro_message_sent: boolean;
   created_at: string;
   updated_at: string;
+  gate_mode?: GateMode;
+  turn_holder?: string | null;
+  reply_count_by_recipient?: number;
+  gate_lifted_at?: string | null;
+  gate_student_id?: string | null;
+  turn_nudge_sent_at?: string | null;
 };
 
 export const INTRO_MESSAGE_MAX = 300;
+export const TURN_FOLLOWUP_MAX = 500;
+
+/** Student view only — mentors should never see restriction UI. */
+export function studentTurnGate(
+  conv: ConversationRow | undefined,
+  currentUserId: string,
+): {
+  isTurnBased: boolean;
+  isStudent: boolean;
+  canSend: boolean;
+  waitingOnMentor: boolean;
+} {
+  if (!conv || conv.status !== "accepted") {
+    return {
+      isTurnBased: false,
+      isStudent: false,
+      canSend: true,
+      waitingOnMentor: false,
+    };
+  }
+  const mode = conv.gate_mode ?? "open";
+  if (mode !== "turn_based" || !conv.gate_student_id) {
+    return {
+      isTurnBased: false,
+      isStudent: false,
+      canSend: true,
+      waitingOnMentor: false,
+    };
+  }
+  const isStudent = conv.gate_student_id === currentUserId;
+  if (!isStudent) {
+    // Mentor side: no restriction UI
+    return {
+      isTurnBased: true,
+      isStudent: false,
+      canSend: true,
+      waitingOnMentor: false,
+    };
+  }
+  const holdsTurn = conv.turn_holder === currentUserId;
+  return {
+    isTurnBased: true,
+    isStudent: true,
+    canSend: holdsTurn,
+    waitingOnMentor: !holdsTurn,
+  };
+}
 
 export function partnerIdFromConversation(
   conv: ConversationRow,
@@ -66,6 +125,10 @@ export function mapMessagingError(
 
   if (msg.includes("DAILY_REQUEST_LIMIT")) {
     return "You can only send 5 connection requests per day. Try again tomorrow.";
+  }
+
+  if (msg.includes("TURN_GATE_LIMIT")) {
+    return "Follow-ups are limited to 500 characters until you can chat freely.";
   }
 
   if (msg.includes("MESSAGE_NOT_ALLOWED")) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -8,6 +9,11 @@ import {
   COLLEGE_EMAIL_ERROR,
   isCollegeEmail,
 } from "@/lib/college";
+import { ProfileStatusField } from "@/components/profile-status-field";
+import {
+  suggestedProfileStatus,
+  type ProfileStatus,
+} from "@/lib/network";
 
 type Mode = "login" | "signup";
 
@@ -58,7 +64,20 @@ function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [batchYear, setBatchYear] = useState("");
+  const [status, setStatus] = useState<ProfileStatus>(
+    suggestedProfileStatus(null),
+  );
+  const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState("");
+
+  function onBatchYearChange(value: string) {
+    setBatchYear(value);
+    if (statusTouched) return;
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
+      setStatus(suggestedProfileStatus(year));
+    }
+  }
 
   useEffect(() => {
     const fromUrl = searchParams.get("error");
@@ -144,6 +163,7 @@ function AuthForm() {
             data: {
               full_name: fullName.trim(),
               batch_year: year,
+              status,
               department: department.trim(),
             },
           },
@@ -164,6 +184,7 @@ function AuthForm() {
         id: userId,
         full_name: fullName.trim(),
         batch_year: year,
+        status,
         department: department.trim(),
       });
 
@@ -194,9 +215,12 @@ function AuthForm() {
   return (
     <AuthShell>
       <div className="mb-8 text-center">
-        <p className="font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--brand)] sm:text-5xl">
+        <Link
+          href="/"
+          className="inline-block rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98] sm:text-5xl"
+        >
           Cohortly
-        </p>
+        </Link>
         <p className="mt-3 text-base text-[var(--muted)]">
           Connect with your college batch — mentors, seniors, and friends.
         </p>
@@ -267,7 +291,7 @@ function AuthForm() {
                   id="batchYear"
                   type="number"
                   value={batchYear}
-                  onChange={setBatchYear}
+                  onChange={onBatchYearChange}
                   placeholder="2024"
                   required
                 />
@@ -280,6 +304,14 @@ function AuthForm() {
                   required
                 />
               </div>
+              <ProfileStatusField
+                value={status}
+                onChange={(next) => {
+                  setStatusTouched(true);
+                  setStatus(next);
+                }}
+                idPrefix="signup-status"
+              />
             </>
           )}
 

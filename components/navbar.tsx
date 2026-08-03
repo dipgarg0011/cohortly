@@ -124,17 +124,17 @@ export function Navbar() {
     pathname === "/messages" || pathname.startsWith("/messages/");
 
   return (
-    <header className="sticky top-0 z-30 border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 overflow-x-clip border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
         <Link
-          href="/dashboard"
-          className="shrink-0 font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-[var(--brand)]"
+          href={userId ? "/dashboard" : "/"}
+          className="relative z-10 min-w-0 shrink-0 truncate rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98] sm:text-xl"
         >
           Cohortly
         </Link>
 
         <nav
-          className="ml-2 hidden min-w-0 flex-1 items-center gap-1 md:flex"
+          className="ml-1 hidden min-w-0 flex-1 items-center gap-0.5 lg:flex"
           aria-label="Main"
         >
           {PRIMARY_LINKS.map(({ href, label, Icon }) => {
@@ -144,7 +144,7 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className={`group relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                className={`group relative flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold transition xl:px-3 ${
                   active
                     ? "text-[var(--brand)]"
                     : "text-slate-500 hover:text-slate-800"
@@ -154,9 +154,9 @@ export function Navbar() {
                   size={16}
                   className={active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}
                 />
-                <span>{label}</span>
+                <span className="whitespace-nowrap">{label}</span>
                 <span
-                  className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-[var(--brand)] transition ${
+                  className={`absolute inset-x-2.5 -bottom-0.5 h-0.5 rounded-full bg-[var(--brand)] transition xl:inset-x-3 ${
                     active ? "opacity-100 scale-x-100" : "opacity-0 scale-x-50"
                   }`}
                 />
@@ -165,11 +165,11 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1.5">
           <Link
             href="/messages"
             aria-label="Messages"
-            className={`relative rounded-xl p-2.5 transition ${
+            className={`relative rounded-xl p-2 transition sm:p-2.5 ${
               messagesActive
                 ? "bg-teal-50 text-[var(--brand)]"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
@@ -187,7 +187,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-xl p-1.5 pr-2 transition hover:bg-slate-50"
+              className="flex max-w-[9.5rem] items-center gap-2 rounded-xl p-1.5 sm:pr-2 transition hover:bg-slate-50"
               aria-expanded={menuOpen}
               aria-haspopup="menu"
             >
@@ -196,14 +196,14 @@ export function Navbar() {
                 <img
                   src={avatarUrl}
                   alt=""
-                  className="h-8 w-8 rounded-full object-cover ring-2 ring-teal-100"
+                  className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-teal-100"
                 />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800">
                   {getInitials(fullName)}
                 </span>
               )}
-              <span className="hidden max-w-[7rem] truncate text-sm font-semibold text-slate-700 sm:inline">
+              <span className="hidden min-w-0 truncate text-sm font-semibold text-slate-700 sm:inline">
                 {fullName?.split(" ")[0] || "You"}
               </span>
             </button>
@@ -211,7 +211,7 @@ export function Navbar() {
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-teal-900/10 bg-white py-1 shadow-[0_20px_40px_-20px_rgba(15,23,42,0.35)] animate-fade-up"
+                className="absolute right-0 z-40 mt-2 w-48 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-teal-900/10 bg-white py-1 shadow-[0_20px_40px_-20px_rgba(15,23,42,0.35)] animate-fade-up"
               >
                 <Link
                   href="/profile"
@@ -250,20 +250,30 @@ export function Navbar() {
 
           <button
             type="button"
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-50 md:hidden"
-            aria-label="Open menu"
+            className="rounded-xl p-2 text-slate-600 hover:bg-slate-50 lg:hidden"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((v) => !v)}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            {mobileOpen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            )}
           </button>
         </div>
       </div>
 
       {mobileOpen && (
-        <nav className="border-t border-teal-900/8 bg-white px-4 py-3 md:hidden" aria-label="Mobile">
-          <div className="grid grid-cols-2 gap-1">
+        <nav
+          className="max-h-[min(70vh,28rem)] overflow-y-auto border-t border-teal-900/8 bg-white px-3 py-3 sm:px-4 lg:hidden"
+          aria-label="Mobile"
+        >
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
             {PRIMARY_LINKS.map(({ href, label, Icon }) => {
               const active =
                 pathname === href || pathname.startsWith(`${href}/`);
@@ -271,14 +281,14 @@ export function Navbar() {
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold ${
+                  className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold ${
                     active
                       ? "bg-teal-50 text-[var(--brand)]"
                       : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  <Icon size={16} />
-                  {label}
+                  <Icon size={16} className="shrink-0" />
+                  <span className="truncate">{label}</span>
                 </Link>
               );
             })}

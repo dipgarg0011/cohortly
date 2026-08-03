@@ -3,6 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileStatusField } from "@/components/profile-status-field";
+import {
+  suggestedProfileStatus,
+  type ProfileStatus,
+} from "@/lib/network";
 
 type Props = {
   defaultFullName: string;
@@ -16,10 +21,23 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
 
   const [fullName, setFullName] = useState(defaultFullName);
   const [batchYear, setBatchYear] = useState("");
+  const [status, setStatus] = useState<ProfileStatus>(
+    suggestedProfileStatus(null),
+  );
+  const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState("");
   const [company, setCompany] = useState("");
   const [roleTitle, setRoleTitle] = useState("");
   const [isFounder, setIsFounder] = useState(false);
+
+  function onBatchYearChange(value: string) {
+    setBatchYear(value);
+    if (statusTouched) return;
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
+      setStatus(suggestedProfileStatus(year));
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,6 +77,7 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       id: user.id,
       full_name: fullName.trim(),
       batch_year: year,
+      status,
       department: department.trim(),
       company: company.trim() || null,
       role_title: roleTitle.trim() || null,
@@ -105,7 +124,7 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
           <input
             type="number"
             value={batchYear}
-            onChange={(e) => setBatchYear(e.target.value)}
+            onChange={(e) => onBatchYearChange(e.target.value)}
             placeholder="2024"
             required
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
@@ -124,6 +143,15 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
           />
         </label>
       </div>
+
+      <ProfileStatusField
+        value={status}
+        onChange={(next) => {
+          setStatusTouched(true);
+          setStatus(next);
+        }}
+        idPrefix="complete-status"
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">

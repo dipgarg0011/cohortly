@@ -6,6 +6,7 @@ export type Message = {
   created_at: string;
   read: boolean;
   conversation_id?: string | null;
+  is_system?: boolean;
 };
 
 export type ChatPartner = {

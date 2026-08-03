@@ -16,6 +16,8 @@ import { IconChatEmpty } from "@/components/ui/icons";
 import {
   mapMessagingError,
   partnerIdFromConversation,
+  studentTurnGate,
+  TURN_FOLLOWUP_MAX,
   type ConversationRow,
 } from "@/lib/conversations";
 import {
@@ -143,6 +145,11 @@ export function MessagesInbox({
   const selectedConversation = selectedId
     ? conversationByPartner.get(selectedId) ?? null
     : null;
+
+  const turnGate = studentTurnGate(
+    selectedConversation ?? undefined,
+    currentUserId,
+  );
 
   const requestItems = useMemo((): ListItem[] => {
     return conversations
@@ -362,9 +369,21 @@ export function MessagesInbox({
   async function handleSend(event: FormEvent) {
     event.preventDefault();
     if (!selectedId || isLockedForSender) return;
+    if (turnGate.isStudent && !turnGate.canSend) return;
 
     const trimmed = draft.trim();
     if (!trimmed) return;
+
+    if (
+      turnGate.isStudent &&
+      turnGate.canSend &&
+      trimmed.length > TURN_FOLLOWUP_MAX
+    ) {
+      setError(
+        `Follow-ups are limited to ${TURN_FOLLOWUP_MAX} characters until you can chat freely.`,
+      );
+      return;
+    }
 
     setSending(true);
     setError(null);
@@ -378,7 +397,7 @@ export function MessagesInbox({
         read: false,
       })
       .select(
-        "id, sender_id, receiver_id, content, created_at, read, conversation_id",
+        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system",
       )
       .single();
 
@@ -448,9 +467,9 @@ export function MessagesInbox({
   const partnerFirst = firstName(selectedPartner?.full_name);
 
   return (
-    <div className="surface-card flex min-h-[calc(100vh-8rem)] flex-1 overflow-hidden p-0">
+    <div className="surface-card flex min-h-[min(32rem,calc(100dvh-9rem))] w-full max-w-full flex-1 overflow-hidden p-0 md:min-h-[calc(100dvh-9rem)]">
       <aside
-        className={`w-full shrink-0 border-r border-teal-900/8 md:w-80 lg:w-96 ${
+        className={`w-full max-w-full shrink-0 border-teal-900/8 md:w-80 md:border-r lg:w-96 ${
           mobileShowChat ? "hidden md:flex" : "flex"
         } flex-col`}
       >
@@ -541,7 +560,10 @@ export function MessagesInbox({
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-semibold text-slate-900">
+                        <span
+                          title={name}
+                          className="min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
+                        >
                           {name}
                         </span>
                         <span className="shrink-0 text-[11px] text-slate-400">
@@ -595,10 +617,10 @@ export function MessagesInbox({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 border-b border-teal-900/8 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-3 border-b border-teal-900/8 px-3 py-3 sm:px-4">
               <button
                 type="button"
-                className="rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
+                className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
                 onClick={() => {
                   setMobileShowChat(false);
                   setSelectedId(null);
@@ -612,8 +634,11 @@ export function MessagesInbox({
                 url={selectedPartner.avatar_url}
                 size="sm"
               />
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-900">
+              <div className="min-w-0 flex-1">
+                <p
+                  title={partnerName}
+                  className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
+                >
                   {partnerName}
                 </p>
                 {selectedConversation.status === "pending" && (
@@ -630,15 +655,15 @@ export function MessagesInbox({
                     url={selectedPartner.avatar_url}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="break-safe text-sm font-semibold text-slate-900">
                       {partnerName} wants to connect
                     </p>
                     {thread[0] && (
-                      <p className="mt-1 rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                      <p className="mt-1 break-safe rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
                         “{thread[0].content}”
                       </p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 btn-row">
                       <button
                         type="button"
                         disabled={responding}
@@ -684,6 +709,18 @@ export function MessagesInbox({
                 </p>
               ) : (
                 thread.map((message) => {
+                  if (message.is_system) {
+                    return (
+                      <div
+                        key={message.id}
+                        className="flex justify-center px-2"
+                      >
+                        <p className="max-w-[min(90%,28rem)] text-center text-xs text-slate-500">
+                          {message.content}
+                        </p>
+                      </div>
+                    );
+                  }
                   const mine = message.sender_id === currentUserId;
                   return (
                     <div
@@ -691,13 +728,13 @@ export function MessagesInbox({
                       className={`flex ${mine ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+                        className={`max-w-[min(85%,22rem)] rounded-2xl px-3.5 py-2 text-sm ${
                           mine
                             ? "rounded-br-md bg-[var(--brand)] text-white"
                             : "rounded-bl-md bg-slate-100 text-slate-800"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">
+                        <p className="break-safe whitespace-pre-wrap">
                           {message.content}
                         </p>
                         <p
@@ -729,10 +766,10 @@ export function MessagesInbox({
                   </p>
                 )}
                 {isLockedForSender ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <div
                       aria-disabled="true"
-                      className="min-w-0 flex-1 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
+                      className="min-w-0 flex-1 cursor-not-allowed break-safe rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
                     >
                       Waiting for {partnerFirst} to accept your request. You can
                       send more messages once they do.
@@ -740,27 +777,61 @@ export function MessagesInbox({
                     <button
                       type="button"
                       disabled
-                      className="btn-primary shrink-0 cursor-not-allowed opacity-40"
+                      className="btn-primary w-full shrink-0 cursor-not-allowed opacity-40 sm:w-auto"
+                    >
+                      Send
+                    </button>
+                  </div>
+                ) : turnGate.isStudent && turnGate.waitingOnMentor ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <div
+                      aria-disabled="true"
+                      className="min-w-0 flex-1 cursor-not-allowed break-safe rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
+                    >
+                      You&apos;ll be able to send another message once{" "}
+                      {partnerFirst} replies.
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      className="btn-primary w-full shrink-0 cursor-not-allowed opacity-40 sm:w-auto"
                     >
                       Send
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      placeholder="Write a message…"
-                      className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending || !draft.trim()}
-                      className="btn-primary shrink-0 disabled:opacity-60"
-                    >
-                      {sending ? "…" : "Send"}
-                    </button>
+                  <div className="space-y-2">
+                    {turnGate.isStudent && turnGate.canSend && (
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-amber-900">
+                          One follow-up question — make it count
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {draft.length}/{TURN_FOLLOWUP_MAX}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        placeholder="Write a message…"
+                        maxLength={
+                          turnGate.isStudent && turnGate.canSend
+                            ? TURN_FOLLOWUP_MAX
+                            : undefined
+                        }
+                        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                      />
+                      <button
+                        type="submit"
+                        disabled={sending || !draft.trim()}
+                        className="btn-primary shrink-0 disabled:opacity-60"
+                      >
+                        {sending ? "…" : "Send"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </form>

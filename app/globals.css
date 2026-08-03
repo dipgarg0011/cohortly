@@ -38,34 +38,52 @@
   --font-display: var(--font-fraunces);
 }
 
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Keep long names / URLs from forcing horizontal scroll */
+.break-safe {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Typography hierarchy */
 .page-title {
   font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-size: clamp(1.85rem, 2.5vw, 2.35rem);
+  font-size: clamp(1.65rem, 6vw, 2.35rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: #0f172a;
+  overflow-wrap: anywhere;
 }
 
 .section-title {
   font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 4.5vw, 1.35rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #0f172a;
+  overflow-wrap: anywhere;
 }
 
 .card-title {
   font-size: 1rem;
   font-weight: 700;
   color: #0f172a;
+  overflow-wrap: anywhere;
 }
 
 .meta-text {
@@ -81,20 +99,56 @@ body {
   background: var(--surface);
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
+  min-width: 0;
+  max-width: 100%;
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
     border-color 180ms ease;
 }
 
-.surface-card-interactive:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(15, 118, 110, 0.22);
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .surface-card-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(15, 118, 110, 0.22);
+  }
 }
 
 .surface-card-interactive:active {
   transform: translateY(-1px);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row > .btn-primary,
+  .btn-row > .btn-secondary,
+  .btn-row > a {
+    width: 100%;
+  }
 }
 
 /* Soft page atmospheres */
@@ -199,4 +253,36 @@ body {
 
 .animate-fade-up {
   animation: fade-up 320ms ease both;
+}
+
+@keyframes app-modal-sheet-in {
+  from {
+    opacity: 0.6;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-modal-center-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.app-modal-sheet {
+  animation: app-modal-sheet-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (min-width: 640px) {
+  .app-modal-sheet {
+    animation-name: app-modal-center-in;
+  }
 }

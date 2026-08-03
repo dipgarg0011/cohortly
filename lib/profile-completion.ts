@@ -1,6 +1,7 @@
 export type ProfileCompletionFields = {
   full_name: string | null;
   batch_year: number | null;
+  status?: string | null;
   department: string | null;
   current_job: string | null;
   role_title?: string | null;
@@ -29,6 +30,12 @@ const COMPLETION_CHECKS: {
     label: "batch year",
     tip: "add your batch year",
     isFilled: (p) => p.batch_year != null,
+  },
+  {
+    key: "status",
+    label: "student or graduate status",
+    tip: "say whether you're a student or graduate",
+    isFilled: (p) => p.status === "student" || p.status === "graduate",
   },
   {
     key: "department",

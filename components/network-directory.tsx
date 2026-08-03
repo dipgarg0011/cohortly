@@ -47,37 +47,42 @@ export function NetworkDirectory({
 
   const currentYear = new Date().getFullYear();
 
+  const others = useMemo(
+    () => profiles.filter((p) => p.id !== currentUserId),
+    [profiles, currentUserId],
+  );
+
   const batchYears = useMemo(() => {
     const years = new Set<number>();
-    for (const p of profiles) {
+    for (const p of others) {
       if (p.batch_year != null) years.add(p.batch_year);
     }
     return Array.from(years).sort((a, b) => b - a);
-  }, [profiles]);
+  }, [others]);
 
   const departments = useMemo(() => {
     const deps = new Set<string>();
-    for (const p of profiles) {
+    for (const p of others) {
       if (p.department?.trim()) deps.add(p.department.trim());
     }
     return Array.from(deps).sort((a, b) => a.localeCompare(b));
-  }, [profiles]);
+  }, [others]);
 
   const skillOptions = useMemo(() => {
     const fromProfiles = new Set<string>(SKILL_OPTIONS);
-    for (const p of profiles) {
+    for (const p of others) {
       for (const skill of p.skills ?? []) {
         if (skill.trim()) fromProfiles.add(skill.trim());
       }
     }
     return Array.from(fromProfiles).sort((a, b) => a.localeCompare(b));
-  }, [profiles]);
+  }, [others]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return profiles.filter((profile) => {
-      const role = getProfileRole(profile.batch_year, currentYear);
+    return others.filter((profile) => {
+      const role = getProfileRole(profile.status);
       const name = profile.full_name?.toLowerCase() ?? "";
       const company = profile.company?.toLowerCase() ?? "";
 
@@ -108,63 +113,79 @@ export function NetworkDirectory({
       return true;
     });
   }, [
-    profiles,
+    others,
     search,
     batchYear,
     department,
     openToFilter,
     skillFilter,
     status,
-    currentYear,
   ]);
 
-  function actionProps(profile: NetworkProfile) {
-    const conv = findConversationWith(
-      conversations,
-      currentUserId,
-      profile.id,
-    );
-    const action = connectionActionFor(conv);
+  // Resolve Message / Request sent / Send Request for every visible card from one list.
+  const actionById = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        onSayHi?: () => void;
+        sayHiLabel?: string;
+        sayHiDisabled?: boolean;
+        hidden?: boolean;
+      }
+    > = {};
+    for (const profile of filtered) {
+      const conv = findConversationWith(
+        conversations,
+        currentUserId,
+        profile.id,
+      );
+      const action = connectionActionFor(conv);
+      if (action.kind === "hidden") {
+        map[profile.id] = { hidden: true };
+      } else if (action.kind === "message") {
+        map[profile.id] = {
+          onSayHi: () => router.push(`/messages?with=${profile.id}`),
+          sayHiLabel: "Message",
+          sayHiDisabled: false,
+        };
+      } else if (action.kind === "request_sent") {
+        map[profile.id] = {
+          onSayHi: () => undefined,
+          sayHiLabel: "Request sent",
+          sayHiDisabled: true,
+        };
+      } else {
+        map[profile.id] = {
+          onSayHi: () => setRequestTarget(profile),
+          sayHiLabel: "Send Request",
+          sayHiDisabled: false,
+        };
+      }
+    }
+    return map;
+  }, [filtered, conversations, currentUserId, router]);
 
-    if (action.kind === "hidden") {
-      return { onSayHi: undefined as (() => void) | undefined };
-    }
-    if (action.kind === "message") {
-      return {
-        onSayHi: () => router.push(`/messages?with=${profile.id}`),
-        sayHiLabel: "Message",
-        sayHiDisabled: false,
-      };
-    }
-    if (action.kind === "request_sent") {
-      return {
-        onSayHi: () => undefined,
-        sayHiLabel: "Request sent",
-        sayHiDisabled: true,
-      };
-    }
-    return {
-      onSayHi: () => setRequestTarget(profile),
-      sayHiLabel: "Send Request",
-      sayHiDisabled: false,
-    };
-  }
+  // Declined / blocked: omit from the directory (same as suggestions).
+  const visible = useMemo(
+    () => filtered.filter((p) => !actionById[p.id]?.hidden),
+    [filtered, actionById],
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       <div className="space-y-3">
-        <label className="block">
+        <label className="block min-w-0">
           <span className="sr-only">Search by name or company</span>
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or company…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
         </label>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FilterSelect
             label="Batch year"
             value={batchYear}
@@ -240,13 +261,13 @@ export function NetworkDirectory({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setStatus(option)}
-                  className={`rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+                  className={`min-w-0 truncate rounded-lg px-1.5 py-2 text-[11px] font-semibold transition sm:px-2 sm:text-sm ${
                     active
                       ? "bg-white text-teal-900 shadow-sm"
                       : "text-teal-700/70 hover:text-teal-900"
                   }`}
                 >
-                  {label}
+                  <span className="truncate">{label}</span>
                 </button>
               );
             })}
@@ -254,7 +275,7 @@ export function NetworkDirectory({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <EmptyState
           icon={<IconNetworkEmpty />}
           title="Nobody matches that search"
@@ -271,18 +292,17 @@ export function NetworkDirectory({
           accentSoft="var(--accent-network-soft)"
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((profile) => {
-            const props = actionProps(profile);
+        <ul className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-clip sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((profile) => {
+            const props = actionById[profile.id];
             return (
-              <li key={profile.id}>
+              <li key={profile.id} className="min-w-0 max-w-full overflow-hidden">
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}
-                  isSelf={profile.id === currentUserId}
-                  onSayHi={props.onSayHi}
-                  sayHiLabel={props.sayHiLabel}
-                  sayHiDisabled={props.sayHiDisabled}
+                  onSayHi={props?.onSayHi}
+                  sayHiLabel={props?.sayHiLabel}
+                  sayHiDisabled={props?.sayHiDisabled}
                 />
               </li>
             );
@@ -352,12 +372,12 @@ function FilterSelect({
   children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-medium text-slate-500">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+        className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
       >
         {children}
       </select>

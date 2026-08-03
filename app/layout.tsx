@@ -18,6 +18,13 @@ export const metadata: Metadata = {
     "Connect with your college batch — mentors, seniors, and friends.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover" as const,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,9 +33,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${nunito.variable} ${fraunces.variable} h-full max-w-full overflow-x-hidden antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="flex min-h-full min-w-0 max-w-full flex-col overflow-x-hidden font-sans">
+        {children}
+      </body>
     </html>
   );
 }

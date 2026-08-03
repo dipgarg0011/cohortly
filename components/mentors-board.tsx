@@ -12,17 +12,23 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials, SKILL_OPTIONS } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { AppModal } from "@/components/ui/app-modal";
 import { IconMentorEmpty } from "@/components/ui/icons";
 import {
+  evaluateDraftHelp,
   formatRelativeExpiry,
   identityIsMasked,
+  liveStateCopy,
   mapMentorshipError,
+  normalizeLiveState,
   normalizeMatchedAsk,
   normalizeMentorshipRequest,
   normalizeRequestAnswer,
   REQUEST_STATUS_LABEL,
+  stageLabel,
   URGENCY_LABEL,
   type MatchedAsk,
+  type MentorshipLiveState,
   type MentorshipRequest,
   type RequestAnswer,
   type RequestMatch,
@@ -37,10 +43,11 @@ type Props = {
   initialMatchedAsks: MatchedAsk[];
   initialAnswers: RequestAnswer[];
   connectedByRequestId?: Record<string, RequestMatch>;
+  studentDepartment?: string | null;
 };
 
 const REQUEST_COLS =
-  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score";
+  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score, reach_stage, last_escalated_at, nudge_count, resolution, is_public_after_expiry, awaiting_resolution_at";
 
 const ANSWER_COLS =
   "id, request_id, match_id, mentor_id, content, is_public, helpful, created_at";
@@ -51,6 +58,7 @@ export function MentorsBoard({
   initialMatchedAsks,
   initialAnswers,
   connectedByRequestId = {},
+  studentDepartment = null,
 }: Props) {
   const [tab, setTab] = useState<Tab>(isGraduate ? "inbox" : "ask");
   const [requests, setRequests] = useState(initialRequests);
@@ -60,6 +68,18 @@ export function MentorsBoard({
 
   const pendingInbox = asks.filter((a) => a.match_status === "pending");
   const respondedInbox = asks.filter((a) => a.match_status !== "pending");
+  const unansweredPool = pendingInbox.filter((a) => {
+    const ageDays =
+      (Date.now() - new Date(a.request_created_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+    return ageDays >= 9;
+  });
+  const regularPending = pendingInbox.filter((a) => {
+    const ageDays =
+      (Date.now() - new Date(a.request_created_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+    return ageDays < 9;
+  });
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "ask", label: "Ask for help" },
@@ -76,15 +96,21 @@ export function MentorsBoard({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-x-clip">
       <div
-        className={`grid gap-1 rounded-xl bg-teal-50 p-1 ${
+        className={`grid w-full min-w-0 gap-1 rounded-xl bg-teal-50 p-1 ${
           tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"
         } sm:max-w-xl`}
         role="tablist"
       >
         {tabs.map((option) => {
           const active = tab === option.id;
+          const shortLabel =
+            option.id === "ask"
+              ? "Ask"
+              : option.id === "my_asks"
+                ? "Mine"
+                : option.label;
           return (
             <button
               key={option.id}
@@ -92,15 +118,16 @@ export function MentorsBoard({
               role="tab"
               aria-selected={active}
               onClick={() => setTab(option.id)}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+              className={`min-w-0 rounded-lg px-1.5 py-2 text-[11px] font-semibold leading-tight transition sm:px-2 sm:text-sm ${
                 active
                   ? "bg-white text-teal-900 shadow-sm"
                   : "text-teal-700/70 hover:text-teal-900"
               }`}
             >
-              {option.label}
+              <span className="sm:hidden">{shortLabel}</span>
+              <span className="hidden sm:inline">{option.label}</span>
               {option.badge != null && option.badge > 0 && (
-                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[10px] font-bold text-white">
+                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[10px] font-bold text-white sm:ml-1.5">
                   {option.badge > 9 ? "9+" : option.badge}
                 </span>
               )}
@@ -120,7 +147,8 @@ export function MentorsBoard({
 
       {tab === "inbox" && isGraduate && (
         <MentorInbox
-          pending={pendingInbox}
+          pending={regularPending}
+          unansweredPool={unansweredPool}
           responded={respondedInbox}
           onAsksChange={setAsks}
         />
@@ -131,6 +159,7 @@ export function MentorsBoard({
           requests={requests}
           answers={answers}
           connectedByRequestId={connected}
+          studentDepartment={studentDepartment}
           onRequestsChange={setRequests}
           onAnswersChange={setAnswers}
         />
@@ -151,12 +180,76 @@ function AskForHelpForm({
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{
+    match_count: number;
+    suggested_tags: string[];
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("cohortly:repost");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        title?: string;
+        description?: string;
+        tags?: string[];
+      };
+      if (parsed.title) setTitle(parsed.title);
+      if (parsed.description) setDescription(parsed.description);
+      if (parsed.tags?.length) setTags(parsed.tags);
+      window.sessionStorage.removeItem("cohortly:repost");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const draftHelp = useMemo(
+    () => evaluateDraftHelp(description),
+    [description],
+  );
 
   function toggleTag(tag: string) {
     setTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   }
+
+  useEffect(() => {
+    if (tags.length === 0) {
+      setPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setPreviewLoading(true);
+        const { data } = await supabase.rpc("preview_mentorship_matches", {
+          p_tags: tags,
+          p_title: title.trim() || null,
+          p_description: description.trim() || null,
+        });
+        if (cancelled) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row) {
+          setPreview({
+            match_count: Number(
+              (row as { match_count?: number }).match_count ?? 0,
+            ),
+            suggested_tags:
+              ((row as { suggested_tags?: string[] }).suggested_tags as
+                | string[]
+                | undefined) ?? [],
+          });
+        }
+        setPreviewLoading(false);
+      })();
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [tags, title, description, supabase]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -219,6 +312,7 @@ function AskForHelpForm({
     setDescription("");
     setTags([]);
     setIsAnonymous(false);
+    setPreview(null);
     setLoading(false);
   }
 
@@ -262,6 +356,44 @@ function AskForHelpForm({
           />
         </label>
 
+        <div className="rounded-xl bg-amber-50/70 px-3.5 py-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-900/80">
+            Draft help
+          </p>
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+            <li className="flex items-center gap-2">
+              <span
+                className={
+                  draftHelp.goal ? "text-emerald-700" : "text-slate-400"
+                }
+              >
+                {draftHelp.goal ? "✓" : "○"}
+              </span>
+              Clear goal (what you want)
+            </li>
+            <li className="flex items-center gap-2">
+              <span
+                className={
+                  draftHelp.tried ? "text-emerald-700" : "text-slate-400"
+                }
+              >
+                {draftHelp.tried ? "✓" : "○"}
+              </span>
+              What you&apos;ve already tried
+            </li>
+            <li className="flex items-center gap-2">
+              <span
+                className={
+                  draftHelp.specific ? "text-emerald-700" : "text-slate-400"
+                }
+              >
+                {draftHelp.specific ? "✓" : "○"}
+              </span>
+              A specific question
+            </li>
+          </ul>
+        </div>
+
         <div>
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
             Topic
@@ -286,6 +418,98 @@ function AskForHelpForm({
             })}
           </div>
         </div>
+
+        {tags.length > 0 && (
+          <div className="rounded-xl border border-teal-900/10 bg-teal-50/50 px-3.5 py-3 text-sm text-slate-700">
+            {previewLoading && !preview ? (
+              <p>Checking who matches…</p>
+            ) : preview && preview.match_count >= 4 ? (
+              <p>
+                <span className="font-bold text-teal-900">
+                  {preview.match_count} graduates match this
+                </span>{" "}
+                — good chance of a reply.
+              </p>
+            ) : preview && preview.match_count === 1 ? (
+              <div className="space-y-2">
+                <p>
+                  <span className="font-bold text-amber-900">
+                    Only 1 graduate matches these tags.
+                  </span>{" "}
+                  Try broader tags, or post anyway and we&apos;ll widen it
+                  automatically.
+                </p>
+                {preview.suggested_tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-500">Try adding:</span>
+                    {preview.suggested_tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : preview && preview.match_count === 0 ? (
+              <div className="space-y-2">
+                <p>
+                  <span className="font-bold text-amber-900">
+                    No strong matches yet.
+                  </span>{" "}
+                  Post anyway — we&apos;ll widen reach over the next days so it
+                  never sits unseen.
+                </p>
+                {preview.suggested_tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-500">Try:</span>
+                    {preview.suggested_tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : preview ? (
+              <div className="space-y-2">
+                <p>
+                  <span className="font-bold text-teal-900">
+                    {preview.match_count} graduates match
+                  </span>
+                  {preview.match_count < 4
+                    ? " — a bit thin. Broader tags help, or post and we'll widen automatically."
+                    : "."}
+                </p>
+                {preview.match_count < 4 &&
+                  preview.suggested_tags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-slate-500">Try adding:</span>
+                      {preview.suggested_tags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            ) : null}
+          </div>
+        )}
 
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
@@ -320,10 +544,12 @@ function AskForHelpForm({
 
 function MentorInbox({
   pending,
+  unansweredPool,
   responded,
   onAsksChange,
 }: {
   pending: MatchedAsk[];
+  unansweredPool: MatchedAsk[];
   responded: MatchedAsk[];
   onAsksChange: (updater: (prev: MatchedAsk[]) => MatchedAsk[]) => void;
 }) {
@@ -346,6 +572,11 @@ function MentorInbox({
     setBusyId(matchId);
     setError(null);
 
+    const prior = pending
+      .concat(unansweredPool)
+      .concat(responded)
+      .find((a) => a.match_id === matchId);
+
     const { error: updateError } = await supabase
       .from("request_matches")
       .update({ status })
@@ -358,6 +589,14 @@ function MentorInbox({
     }
 
     const refreshed = await refreshAsk(matchId);
+    if (!refreshed && status === "accepted") {
+      setError(
+        "Accept didn't stick — refresh and try again. If this keeps happening, the match may already be taken.",
+      );
+      setBusyId(null);
+      router.refresh();
+      return;
+    }
     if (refreshed) {
       onAsksChange((prev) =>
         prev.map((a) => (a.match_id === matchId ? refreshed : a)),
@@ -371,6 +610,18 @@ function MentorInbox({
     }
 
     setBusyId(null);
+
+    if (status === "accepted") {
+      const studentId = refreshed?.student_id ?? prior?.student_id;
+      if (studentId) {
+        router.push(`/messages?with=${studentId}`);
+        return;
+      }
+      setError(
+        "Accepted, but we couldn't open chat yet (identity may still be hidden). Refresh Mentors and use Message.",
+      );
+    }
+
     router.refresh();
   }
 
@@ -413,6 +664,29 @@ function MentorInbox({
           </ul>
         )}
       </section>
+
+      {unansweredPool.length > 0 && (
+        <section>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-slate-900">
+            Unanswered asks
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Nobody has picked these up yet — no pressure, just visibility.
+          </p>
+          <ul className="mt-4 space-y-4">
+            {unansweredPool.map((ask) => (
+              <MatchAskCard
+                key={ask.match_id}
+                ask={ask}
+                busy={busyId === ask.match_id}
+                onAccept={() => void respond(ask.match_id, "accepted")}
+                onDecline={() => void respond(ask.match_id, "declined")}
+                onAnswer={() => setAnswerAsk(ask)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
       {responded.length > 0 && (
         <section>
@@ -481,8 +755,8 @@ function MatchAskCard({
     : ask.student_full_name?.trim() || "Student";
 
   return (
-    <li className="surface-card p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <li className="surface-card min-w-0 max-w-full p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             <Avatar
@@ -491,7 +765,9 @@ function MatchAskCard({
               anonymous={masked}
             />
             <div className="min-w-0">
-              <p className="font-semibold text-slate-900">{name}</p>
+              <p title={name} className="truncate font-semibold text-slate-900">
+                {name}
+              </p>
               <p className="meta-text mt-0.5">
                 {[
                   ask.student_department,
@@ -510,8 +786,10 @@ function MatchAskCard({
             </div>
           </div>
 
-          <h3 className="mt-3 text-lg font-bold text-slate-900">{ask.title}</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+          <h3 className="mt-3 break-safe text-lg font-bold text-slate-900">
+            {ask.title}
+          </h3>
+          <p className="mt-2 break-safe whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {ask.description}
           </p>
 
@@ -556,7 +834,7 @@ function MatchAskCard({
           )}
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+        <div className="btn-row w-full shrink-0 sm:w-auto sm:flex-col">
           {!readonly && ask.match_status === "pending" && (
             <>
               <button
@@ -704,65 +982,57 @@ function AnswerModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
+    <AppModal
+      open
+      onClose={onClose}
+      title="Instant reply"
+      description="Write a quick answer. Chat unlocks so you can follow up if needed."
+      maxWidthClass="sm:max-w-lg"
     >
-      <div
-        className="w-full max-w-lg rounded-2xl border border-teal-900/10 bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900">
-          Instant reply
-        </h3>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Write a quick answer. Chat unlocks so you can follow up if needed.
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            placeholder="Be specific — steps, resources, what you'd do in their shoes…"
-            className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            autoFocus
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={6}
+          placeholder="Be specific — steps, resources, what you'd do in their shoes…"
+          className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+          autoFocus
+        />
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700"
           />
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700"
-            />
-            Allow this answer in a future public archive
-          </label>
-          {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary flex-1 disabled:opacity-60"
-            >
-              {loading ? "Saving…" : existingId ? "Update reply" : "Send reply"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          Allow this answer in a future public archive
+        </label>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary flex-1 disabled:opacity-60"
+          >
+            {loading ? "Saving…" : existingId ? "Update reply" : "Send reply"}
+          </button>
+        </div>
+      </form>
+    </AppModal>
   );
 }
 
@@ -770,12 +1040,14 @@ function MyAsks({
   requests,
   answers,
   connectedByRequestId,
+  studentDepartment = null,
   onRequestsChange,
   onAnswersChange,
 }: {
   requests: MentorshipRequest[];
   answers: RequestAnswer[];
   connectedByRequestId: Record<string, RequestMatch>;
+  studentDepartment?: string | null;
   onRequestsChange: (
     updater: (prev: MentorshipRequest[]) => MentorshipRequest[],
   ) => void;
@@ -787,6 +1059,61 @@ function MyAsks({
   const supabase = useMemo(() => createClient(), []);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [liveStates, setLiveStates] = useState<
+    Record<string, MentorshipLiveState>
+  >({});
+  const [repostHintId, setRepostHintId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase.rpc("escalate_open_mentorship_requests");
+    void supabase.rpc("apply_mentorship_expiry_rules");
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLiveStates() {
+      if (requests.length === 0) {
+        setLiveStates({});
+        return;
+      }
+      const entries = await Promise.all(
+        requests.map(async (req) => {
+          const { data } = await supabase.rpc(
+            "get_mentorship_request_live_state",
+            { p_request_id: req.id },
+          );
+          const row = Array.isArray(data) ? data[0] : data;
+          if (!row) return null;
+          return [
+            req.id,
+            normalizeLiveState(row as Record<string, unknown>),
+          ] as const;
+        }),
+      );
+      if (cancelled) return;
+      const next: Record<string, MentorshipLiveState> = {};
+      for (const entry of entries) {
+        if (entry) next[entry[0]] = entry[1];
+      }
+      setLiveStates(next);
+    }
+    void loadLiveStates();
+    return () => {
+      cancelled = true;
+    };
+  }, [requests, supabase]);
+
+  async function refreshLiveState(requestId: string) {
+    const { data } = await supabase.rpc("get_mentorship_request_live_state", {
+      p_request_id: requestId,
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return;
+    setLiveStates((prev) => ({
+      ...prev,
+      [requestId]: normalizeLiveState(row as Record<string, unknown>),
+    }));
+  }
 
   async function closeRequest(id: string) {
     setBusyId(id);
@@ -838,6 +1165,48 @@ function MyAsks({
     setBusyId(null);
   }
 
+  async function resolveRequest(
+    id: string,
+    action: "post_public" | "watch",
+  ) {
+    setBusyId(id);
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc(
+      "resolve_mentorship_request",
+      { p_request_id: id, p_action: action },
+    );
+    if (rpcError) {
+      setError(mapMentorshipError(rpcError));
+      setBusyId(null);
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row) {
+      onRequestsChange((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? normalizeMentorshipRequest(row as Record<string, unknown>)
+            : r,
+        ),
+      );
+    }
+    await refreshLiveState(id);
+    setBusyId(null);
+    router.refresh();
+  }
+
+  function saveRepostDraft(req: MentorshipRequest) {
+    window.sessionStorage.setItem(
+      "cohortly:repost",
+      JSON.stringify({
+        title: req.title,
+        description: req.description,
+        tags: req.tags,
+      }),
+    );
+    setRepostHintId(req.id);
+  }
+
   if (requests.length === 0) {
     return (
       <EmptyState
@@ -860,19 +1229,32 @@ function MyAsks({
         {requests.map((req) => {
           const connected = connectedByRequestId[req.id];
           const reqAnswers = answers.filter((a) => a.request_id === req.id);
+          const state = liveStates[req.id];
+          const stage = state?.computed_stage ?? req.reach_stage ?? 1;
+          const showResolution =
+            req.status === "awaiting_resolution" ||
+            (state != null &&
+              !state.has_answer &&
+              state.age_days >= 14 &&
+              state.computed_stage >= 4);
+
           return (
             <li key={req.id} className="surface-card p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-slate-900">{req.title}</h3>
+                    <h3 className="break-safe font-bold text-slate-900">
+                      {req.title}
+                    </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         req.status === "matched"
                           ? "bg-teal-50 text-teal-800"
                           : req.status === "open"
                             ? "bg-amber-50 text-amber-800"
-                            : "bg-slate-100 text-slate-600"
+                            : req.status === "awaiting_resolution"
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {REQUEST_STATUS_LABEL[req.status]}
@@ -896,6 +1278,35 @@ function MyAsks({
                       </span>
                     ))}
                   </div>
+
+                  {state && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-teal-800">
+                          {stageLabel(state.computed_stage)}
+                        </span>
+                        <div
+                          className="flex items-center gap-1"
+                          aria-label={`Reach stage ${Math.min(4, Math.max(1, Math.round(stage)))} of 4`}
+                        >
+                          {[1, 2, 3, 4].map((n) => (
+                            <span
+                              key={n}
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                n <= Math.min(4, Math.max(1, Math.round(stage)))
+                                  ? "bg-teal-600"
+                                  : "bg-slate-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600">
+                        {liveStateCopy(state, studentDepartment)}
+                      </p>
+                    </div>
+                  )}
+
                   <p className="mt-2 text-xs text-slate-400">
                     {formatRelativeExpiry(req.expires_at)}
                   </p>
@@ -915,7 +1326,8 @@ function MyAsks({
                       Message
                     </Link>
                   )}
-                  {req.status === "open" && (
+                  {(req.status === "open" ||
+                    req.status === "awaiting_resolution") && (
                     <button
                       type="button"
                       disabled={busyId === req.id}
@@ -928,6 +1340,50 @@ function MyAsks({
                 </div>
               </div>
 
+              {showResolution && (
+                <div className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 px-3.5 py-3.5">
+                  <p className="text-sm font-semibold text-amber-950">
+                    Still unanswered — here&apos;s what you can do
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      disabled={busyId === req.id}
+                      onClick={() => void resolveRequest(req.id, "post_public")}
+                      className="rounded-xl bg-teal-800 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      Post this publicly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveRepostDraft(req)}
+                      className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-950"
+                    >
+                      Broaden and repost
+                    </button>
+                    <Link
+                      href="/referrals"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700"
+                    >
+                      Ask in Referrals instead
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={busyId === req.id}
+                      onClick={() => void resolveRequest(req.id, "watch")}
+                      className="rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                    >
+                      Notify me when someone relevant joins
+                    </button>
+                  </div>
+                  {repostHintId === req.id && (
+                    <p className="text-xs text-amber-900">
+                      Saved — open Ask for help to edit tags
+                    </p>
+                  )}
+                </div>
+              )}
+
               {reqAnswers.length > 0 && (
                 <div className="mt-4 space-y-3 border-t border-teal-900/8 pt-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-amber-800/80">
@@ -938,10 +1394,13 @@ function MyAsks({
                       key={answer.id}
                       className="rounded-xl bg-amber-50/50 px-3.5 py-3"
                     >
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p
+                        title={answer.mentor?.full_name?.trim() || "Mentor"}
+                        className="truncate text-sm font-semibold text-slate-900"
+                      >
                         {answer.mentor?.full_name?.trim() || "Mentor"}
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                      <p className="mt-1 break-safe whitespace-pre-wrap text-sm text-slate-700">
                         {answer.content}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -973,7 +1432,7 @@ function MyAsks({
                           href={`/messages?with=${answer.mentor_id}`}
                           className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200"
                         >
-                          Follow up
+                          Ask a follow-up
                         </Link>
                       </div>
                     </div>

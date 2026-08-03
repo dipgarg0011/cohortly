@@ -2,7 +2,7 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MentorsBoard } from "@/components/mentors-board";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
-import { getProfileRole } from "@/lib/network";
+import { isGraduateStatus } from "@/lib/network";
 import {
   normalizeMatchedAsk,
   normalizeMentorshipRequest,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/mentorship";
 
 const REQUEST_COLS =
-  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score";
+  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score, reach_stage, last_escalated_at, nudge_count, resolution, is_public_after_expiry, awaiting_resolution_at";
 
 const MATCH_COLS =
   "id, request_id, mentor_id, match_score, match_reasons, status, referred_to, referred_by, responded_at, created_at";
@@ -37,7 +37,7 @@ export default async function MentorsPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("batch_year, skills, bio")
+      .select("batch_year, status, skills, bio, department")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -48,7 +48,9 @@ export default async function MentorsPage() {
     supabase.rpc("list_my_matched_asks"),
   ]);
 
-  const isGraduate = getProfileRole(profile?.batch_year ?? null) === "Graduate";
+  const isGraduate = isGraduateStatus(
+    (profile?.status as "student" | "graduate" | null | undefined) ?? null,
+  );
 
   // Graduates are auto-opted in — no profile setup needed. Matching uses skills.
   if (isGraduate) {
@@ -68,11 +70,18 @@ export default async function MentorsPage() {
 
   const loadError = requestError || matchError;
 
+  // Best-effort lifecycle jobs — ignore failures so the page still loads.
+  await Promise.all([
+    supabase.rpc("escalate_open_mentorship_requests"),
+    supabase.rpc("nudge_unresponsive_matches"),
+    supabase.rpc("apply_mentorship_expiry_rules"),
+  ]);
+
   if (loadError) {
     return (
       <PageShell accent="mentors">
         <Navbar />
-        <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+        <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
           <PageHeader
             accent="mentors"
             eyebrow="Guidance"
@@ -126,8 +135,10 @@ export default async function MentorsPage() {
     const { data: profiles } = await supabase
       .from("profiles")
       .select(PROFILE_COLS)
-      .in("id", Array.from(mentorIds));
+      .in("id", Array.from(mentorIds))
+      .neq("id", user.id);
     for (const p of (profiles ?? []) as MentorProfileSnippet[]) {
+      if (p.id === user.id) continue;
       profileMap.set(p.id, p);
     }
   }
@@ -159,7 +170,7 @@ export default async function MentorsPage() {
   return (
     <PageShell accent="mentors">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
         <PageHeader
           accent="mentors"
           eyebrow="Guidance"
@@ -174,6 +185,9 @@ export default async function MentorsPage() {
           initialMatchedAsks={initialMatchedAsks}
           initialAnswers={initialAnswers}
           connectedByRequestId={connectedByRequest}
+          studentDepartment={
+            (profile?.department as string | null | undefined) ?? null
+          }
         />
       </main>
     </PageShell>

@@ -12,8 +12,9 @@ export default async function NetworkPage() {
     supabase
       .from("profiles")
       .select(
-        "id, full_name, batch_year, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio",
+        "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio",
       )
+      .neq("id", user.id)
       .order("batch_year", { ascending: false })
       .order("full_name", { ascending: true }),
     supabase
@@ -24,13 +25,15 @@ export default async function NetworkPage() {
       .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`),
   ]);
 
-  const profiles = (data ?? []) as NetworkProfile[];
+  const profiles = ((data ?? []) as NetworkProfile[]).filter(
+    (p) => p.id !== user.id,
+  );
   const conversations = (conversationRows ?? []) as ConversationRow[];
 
   return (
     <PageShell accent="network">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
         <PageHeader
           accent="network"
           eyebrow="Community"

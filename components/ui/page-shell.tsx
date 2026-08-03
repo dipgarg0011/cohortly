@@ -59,7 +59,7 @@ export function PageShell({
 }) {
   const a = ACCENT[accent];
   return (
-    <div className="relative flex min-h-full flex-1 flex-col">
+    <div className="relative flex min-h-full min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
       <div className="page-atmosphere" aria-hidden>
         <div
           className="absolute -left-20 -top-24 h-72 w-72 rounded-full"
@@ -94,8 +94,8 @@ export function PageHeader({
 }) {
   const a = ACCENT[accent];
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
+    <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0 flex-1">
         {eyebrow && (
           <p
             className="mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"
@@ -106,12 +106,14 @@ export function PageHeader({
         )}
         <h1 className="page-title">{title}</h1>
         {description && (
-          <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--muted)]">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
             {description}
           </p>
         )}
       </div>
-      {action}
+      {action ? (
+        <div className="w-full shrink-0 sm:w-auto">{action}</div>
+      ) : null}
     </div>
   );
 }

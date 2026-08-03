@@ -15,7 +15,7 @@ export function SurfaceCard({
 }: Props) {
   return (
     <Tag
-      className={`surface-card ${interactive ? "surface-card-interactive" : ""} ${className}`}
+      className={`surface-card min-w-0 max-w-full ${interactive ? "surface-card-interactive" : ""} ${className}`}
     >
       {children}
     </Tag>

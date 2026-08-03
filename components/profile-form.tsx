@@ -3,10 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileStatusField } from "@/components/profile-status-field";
 import {
   OPEN_TO_OPTIONS,
   SKILL_OPTIONS,
+  suggestedProfileStatus,
   type EditableProfile,
+  type ProfileStatus,
 } from "@/lib/network";
 
 type Props = {
@@ -23,14 +26,41 @@ export function ProfileForm({ initialProfile }: Props) {
   const [batchYear, setBatchYear] = useState(
     initialProfile.batch_year != null ? String(initialProfile.batch_year) : "",
   );
+  const [status, setStatus] = useState<ProfileStatus>(initialProfile.status);
+  const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState(initialProfile.department);
   const [company, setCompany] = useState(initialProfile.company);
+  const [pastCompaniesText, setPastCompaniesText] = useState(
+    initialProfile.past_companies.join(", "),
+  );
   const [roleTitle, setRoleTitle] = useState(initialProfile.role_title);
   const [isFounder, setIsFounder] = useState(initialProfile.is_founder);
   const [openTo, setOpenTo] = useState<string[]>(initialProfile.open_to);
   const [skills, setSkills] = useState<string[]>(initialProfile.skills);
   const [linkedinUrl, setLinkedinUrl] = useState(initialProfile.linkedin_url);
   const [bio, setBio] = useState(initialProfile.bio);
+
+  const isGraduate = status === "graduate";
+  const openToOptions = isGraduate
+    ? OPEN_TO_OPTIONS
+    : OPEN_TO_OPTIONS.filter((tag) => tag !== "Mentoring");
+
+  function onBatchYearChange(value: string) {
+    setBatchYear(value);
+    if (statusTouched) return;
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
+      setStatus(suggestedProfileStatus(year));
+    }
+  }
+
+  function onStatusChange(next: ProfileStatus) {
+    setStatusTouched(true);
+    setStatus(next);
+    if (next === "student") {
+      setOpenTo((prev) => prev.filter((tag) => tag !== "Mentoring"));
+    }
+  }
 
   function toggleTag(
     list: string[],
@@ -67,15 +97,24 @@ export function ProfileForm({ initialProfile }: Props) {
       return;
     }
 
+    const past_companies = pastCompaniesText
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const payload = {
       full_name: fullName.trim(),
       batch_year: year,
+      status,
       department: department.trim() || null,
       company: company.trim() || null,
+      past_companies,
       role_title: roleTitle.trim() || null,
       current_job: roleTitle.trim() || null,
       is_founder: isFounder,
-      open_to: openTo,
+      open_to: isGraduate
+        ? openTo
+        : openTo.filter((tag) => tag !== "Mentoring"),
       skills,
       linkedin_url: linkedinUrl.trim() || null,
       bio: bio.trim() || null,
@@ -112,14 +151,19 @@ export function ProfileForm({ initialProfile }: Props) {
             required
             className="sm:col-span-2"
           />
-          <Field
-            label="Batch year"
-            id="batchYear"
-            type="number"
-            value={batchYear}
-            onChange={setBatchYear}
-            required
-          />
+          <div className="space-y-1.5">
+            <Field
+              label="Batch year"
+              id="batchYear"
+              type="number"
+              value={batchYear}
+              onChange={onBatchYearChange}
+              required
+            />
+            <p className="text-xs text-slate-500">
+              Batch year is your graduation year.
+            </p>
+          </div>
           <Field
             label="Department"
             id="department"
@@ -127,6 +171,13 @@ export function ProfileForm({ initialProfile }: Props) {
             onChange={setDepartment}
             placeholder="CSE"
           />
+          <div className="sm:col-span-2">
+            <ProfileStatusField
+              value={status}
+              onChange={onStatusChange}
+              idPrefix="profile-status"
+            />
+          </div>
           <Field
             label="LinkedIn URL"
             id="linkedinUrl"
@@ -145,7 +196,7 @@ export function ProfileForm({ initialProfile }: Props) {
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
               placeholder="A short intro for your college community…"
             />
           </label>
@@ -171,6 +222,21 @@ export function ProfileForm({ initialProfile }: Props) {
             onChange={setRoleTitle}
             placeholder="Software Engineer, Founder…"
           />
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Past companies{" "}
+              <span className="font-normal text-slate-400">
+                (comma-separated, for referral matching)
+              </span>
+            </span>
+            <input
+              id="pastCompanies"
+              value={pastCompaniesText}
+              onChange={(e) => setPastCompaniesText(e.target.value)}
+              placeholder="Google, Microsoft,…"
+              className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
           <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-teal-50/50 px-3.5 py-3 sm:col-span-2">
             <input
               type="checkbox"
@@ -196,9 +262,14 @@ export function ProfileForm({ initialProfile }: Props) {
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           What kinds of help or connections are you open to?
+          {!isGraduate && (
+            <span className="block text-xs text-slate-500">
+              Mentoring is available once you mark yourself as a graduate.
+            </span>
+          )}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {OPEN_TO_OPTIONS.map((tag) => {
+          {openToOptions.map((tag) => {
             const active = openTo.includes(tag);
             return (
               <button
@@ -306,7 +377,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+        className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
       />
     </label>
   );

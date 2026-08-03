@@ -65,26 +65,36 @@ export type EditableProfile = {
  * Suggested default for the student/graduate control.
  * Graduation assumed end of June: if batch_year < current year, or
  * batch_year == current year and month is July or later → graduate.
+ * Future batch years never suggest graduate.
  */
 export function suggestedProfileStatus(
   batchYear: number | null,
   now = new Date(),
 ): ProfileStatus {
-  // Unknown batch → student (never grant graduate powers by default).
-  if (batchYear == null) return "student";
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 1–12
-  if (batchYear < year) return "graduate";
-  if (batchYear === year && month >= 7) return "graduate";
+  if (hasBatchYearPassed(batchYear, now)) return "graduate";
   return "student";
 }
 
-/** True when batch year has passed the June graduation cutoff. */
+/**
+ * True when batch year has passed the June graduation cutoff (July onward
+ * of that year). Future years, null, and invalid values never pass.
+ */
 export function hasBatchYearPassed(
   batchYear: number | null,
   now = new Date(),
 ): boolean {
-  return suggestedProfileStatus(batchYear, now) === "graduate";
+  if (batchYear == null) return false;
+  const y = Math.trunc(Number(batchYear));
+  if (!Number.isFinite(y) || y < 1900 || y > 2100) return false;
+
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1–12
+
+  if (y > year) return false;
+  if (y === year && month < 7) return false;
+  if (y < year) return true;
+  // y === year && month >= 7
+  return true;
 }
 
 /** Badge / role label from explicit profiles.status. */

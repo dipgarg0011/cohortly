@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProfileCard } from "@/components/profile-card";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
@@ -9,6 +10,7 @@ import { IconNetworkEmpty } from "@/components/ui/icons";
 import {
   connectionActionFor,
   findConversationWith,
+  type ConnectionAction,
   type ConversationRow,
 } from "@/lib/conversations";
 import type { NetworkProfile } from "@/lib/network";
@@ -18,6 +20,10 @@ type Props = {
   currentUserId: string;
   initialConversations?: ConversationRow[];
   compact?: boolean;
+  dense?: boolean;
+  limit?: number;
+  /** When true, `limit` only applies below the `sm` breakpoint */
+  mobileOnlyLimit?: boolean;
 };
 
 export function SuggestedPeople({
@@ -25,6 +31,9 @@ export function SuggestedPeople({
   currentUserId,
   initialConversations = [],
   compact = false,
+  dense = false,
+  limit,
+  mobileOnlyLimit = false,
 }: Props) {
   const router = useRouter();
   const currentYear = new Date().getFullYear();
@@ -34,7 +43,57 @@ export function SuggestedPeople({
     null,
   );
 
-  if (profiles.length === 0) {
+  // Never show the logged-in user in suggestions.
+  const others = useMemo(
+    () => profiles.filter((p) => p.id !== currentUserId),
+    [profiles, currentUserId],
+  );
+
+  // Resolve connection state for every suggestion from the one conversations list.
+  const actionById = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        kind: ConnectionAction["kind"];
+        label?: string;
+        disabled?: boolean;
+      }
+    > = {};
+    for (const profile of others) {
+      const conv = findConversationWith(
+        conversations,
+        currentUserId,
+        profile.id,
+      );
+      const action = connectionActionFor(conv);
+      if (action.kind === "hidden") {
+        map[profile.id] = { kind: "hidden" };
+      } else if (action.kind === "message") {
+        map[profile.id] = {
+          kind: "message",
+          label: "Message",
+          disabled: false,
+        };
+      } else if (action.kind === "request_sent") {
+        map[profile.id] = {
+          kind: "request_sent",
+          label: "Request sent",
+          disabled: true,
+        };
+      } else {
+        map[profile.id] = {
+          kind: "send_request",
+          label: "Send Request",
+          disabled: false,
+        };
+      }
+    }
+    return map;
+  }, [others, conversations, currentUserId]);
+
+  const hasMore = limit != null && others.length > limit;
+
+  if (others.length === 0) {
     return (
       <EmptyState
         icon={<IconNetworkEmpty />}
@@ -47,61 +106,77 @@ export function SuggestedPeople({
     );
   }
 
-  function actionProps(profile: NetworkProfile) {
-    const conv = findConversationWith(
-      conversations,
-      currentUserId,
-      profile.id,
-    );
-    const action = connectionActionFor(conv);
-
-    if (action.kind === "hidden") {
-      return { onSayHi: undefined as (() => void) | undefined };
-    }
-    if (action.kind === "message") {
-      return {
-        onSayHi: () => router.push(`/messages?with=${profile.id}`),
-        sayHiLabel: "Message",
-        sayHiDisabled: false,
-      };
-    }
-    if (action.kind === "request_sent") {
-      return {
-        onSayHi: () => undefined,
-        sayHiLabel: "Request sent",
-        sayHiDisabled: true,
-      };
-    }
-    return {
-      onSayHi: () => setRequestTarget(profile),
-      sayHiLabel: "Send Request",
-      sayHiDisabled: false,
-    };
-  }
-
   return (
     <>
       <ul
-        className={`mx-auto grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-clip ${
-          compact ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
+        className={`mx-auto grid w-full min-w-0 max-w-full grid-cols-1 overflow-x-clip ${
+          dense ? "gap-2" : "gap-4"
+        } ${
+          dense
+            ? ""
+            : compact
+              ? "sm:grid-cols-2"
+              : "sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
-        {profiles.map((profile) => {
-          const props = actionProps(profile);
+        {others.map((profile, index) => {
+          const hideOnMobile =
+            mobileOnlyLimit && limit != null && index >= limit;
+          const hideAlways =
+            !mobileOnlyLimit && limit != null && index >= limit;
+          if (hideAlways) return null;
+
+          const state = actionById[profile.id];
+          const itemClass = `min-w-0 max-w-full overflow-hidden${
+            hideOnMobile ? " hidden sm:block" : ""
+          }`;
+
+          if (!state || state.kind === "hidden") {
+            return (
+              <li key={profile.id} className={itemClass}>
+                <ProfileCard
+                  profile={profile}
+                  currentYear={currentYear}
+                  dense={dense}
+                  accent="network"
+                />
+              </li>
+            );
+          }
+
+          const onSayHi =
+            state.kind === "message"
+              ? () => router.push(`/messages?with=${profile.id}`)
+              : state.kind === "send_request"
+                ? () => setRequestTarget(profile)
+                : () => undefined;
+
           return (
-            <li key={profile.id} className="min-w-0 max-w-full overflow-hidden">
+            <li key={profile.id} className={itemClass}>
               <ProfileCard
                 profile={profile}
                 currentYear={currentYear}
+                dense={dense}
                 accent="network"
-                onSayHi={props.onSayHi}
-                sayHiLabel={props.sayHiLabel}
-                sayHiDisabled={props.sayHiDisabled}
+                onSayHi={onSayHi}
+                sayHiLabel={state.label}
+                sayHiDisabled={state.disabled}
               />
             </li>
           );
         })}
       </ul>
+
+      {hasMore && !dense && (
+        <div className="mt-3 text-center sm:text-left">
+          <Link
+            href="/network"
+            className="text-sm font-bold text-[var(--brand)] hover:underline"
+          >
+            See all →
+          </Link>
+        </div>
+      )}
 
       {requestTarget && (
         <ConnectionRequestModal

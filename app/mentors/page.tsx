@@ -72,7 +72,7 @@ export default async function MentorsPage() {
     return (
       <PageShell accent="mentors">
         <Navbar />
-        <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
+        <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
           <PageHeader
             accent="mentors"
             eyebrow="Guidance"
@@ -126,8 +126,10 @@ export default async function MentorsPage() {
     const { data: profiles } = await supabase
       .from("profiles")
       .select(PROFILE_COLS)
-      .in("id", Array.from(mentorIds));
+      .in("id", Array.from(mentorIds))
+      .neq("id", user.id);
     for (const p of (profiles ?? []) as MentorProfileSnippet[]) {
+      if (p.id === user.id) continue;
       profileMap.set(p.id, p);
     }
   }
@@ -159,7 +161,7 @@ export default async function MentorsPage() {
   return (
     <PageShell accent="mentors">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
         <PageHeader
           accent="mentors"
           eyebrow="Guidance"

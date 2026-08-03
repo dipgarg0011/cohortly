@@ -14,7 +14,7 @@ import {
   IconUsers,
 } from "@/components/ui/icons";
 import { getProfileCompletion } from "@/lib/profile-completion";
-import { type NetworkProfile } from "@/lib/network";
+import { firstName, type NetworkProfile } from "@/lib/network";
 import type { ConversationRow } from "@/lib/conversations";
 import {
   buildConversations,
@@ -43,7 +43,11 @@ export default async function DashboardPage() {
     { data: conversationRows },
   ] = await Promise.all([
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    // Exclude self from network size
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .neq("id", user.id),
     supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
@@ -70,11 +74,11 @@ export default async function DashboardPage() {
   ]);
 
   const profile = myProfile as NetworkProfile | null;
-  const displayName =
+  const displayName = firstName(
     profile?.full_name ||
-    (user.user_metadata?.full_name as string | undefined) ||
-    user.email ||
-    "there";
+      (user.user_metadata?.full_name as string | undefined) ||
+      user.email,
+  );
 
   const completion = profile
     ? getProfileCompletion(profile)
@@ -115,14 +119,17 @@ export default async function DashboardPage() {
   }
 
   if (suggestionFilters.length > 0) {
+    // Exclude current user both in the query and after fetch (PostgREST .or + .neq can be flaky).
     const { data } = await supabase
       .from("profiles")
       .select(PROFILE_SELECT)
       .or(suggestionFilters.join(","))
-      .neq("id", user.id)
+      .not("id", "eq", user.id)
       .limit(12);
 
-    const rows = (data ?? []) as NetworkProfile[];
+    const rows = ((data ?? []) as NetworkProfile[]).filter(
+      (row) => row.id !== user.id,
+    );
     suggestions = rows
       .map((row) => {
         let score = 0;
@@ -141,9 +148,11 @@ export default async function DashboardPage() {
         return { row, score };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
+      .slice(0, 8)
       .map((item) => item.row);
   }
+
+  const conversations = (conversationRows ?? []) as ConversationRow[];
 
   const messages = (messageRows ?? []) as Message[];
   const partnerIds = new Set<string>();
@@ -156,7 +165,8 @@ export default async function DashboardPage() {
     const { data: partnerRows } = await supabase
       .from("profiles")
       .select("id, full_name, avatar_url")
-      .in("id", Array.from(partnerIds));
+      .in("id", Array.from(partnerIds))
+      .neq("id", user.id);
     for (const p of (partnerRows ?? []) as ChatPartner[]) {
       partnersMap[p.id] = p;
     }
@@ -172,55 +182,61 @@ export default async function DashboardPage() {
     normalizeOpportunity(row as Record<string, unknown>),
   ) as Opportunity[];
 
+  const tip =
+    completion.nextTip?.replace(/^Add your /i, "") ||
+    completion.message ||
+    "complete your profile";
+
   return (
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-3 py-6 sm:px-6 sm:py-10">
-        <div className="mb-6 min-w-0 animate-fade-up">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
+        <div className="mb-4 min-w-0 animate-fade-up sm:mb-6">
           <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
             Your home base
           </p>
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--muted)] sm:text-base">
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--muted)] sm:mt-2 sm:text-base">
             Catch up on people, messages, and openings from your college
             community.
           </p>
         </div>
 
         {completion.percent < 100 && (
-          <div className="surface-card mb-6 flex min-w-0 max-w-full flex-col gap-3 overflow-hidden px-4 py-3.5 sm:flex-row sm:items-center sm:gap-5 animate-fade-up">
+          <div className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up sm:mb-6 sm:gap-4 sm:px-4 sm:py-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-bold text-slate-800">
-                  Profile {completion.percent}% complete
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="shrink-0 text-xs font-bold text-slate-800 sm:text-sm">
+                  {completion.percent}%
                 </p>
-                <span className="meta-text hidden sm:inline">
-                  {completion.nextTip}
-                </span>
+                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-teal-50">
+                  <div
+                    className="h-full rounded-full bg-[var(--brand)]"
+                    style={{ width: `${completion.percent}%` }}
+                  />
+                </div>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-teal-50">
-                <div
-                  className="h-full rounded-full bg-[var(--brand)] transition-all"
-                  style={{ width: `${completion.percent}%` }}
-                />
-              </div>
-              <p className="mt-1.5 text-xs text-slate-500 sm:hidden">
-                {completion.message}
+              <p className="mt-1 truncate text-[11px] text-slate-500 sm:text-xs">
+                Add {tip}
               </p>
             </div>
-            <Link href="/profile" className="btn-primary w-full shrink-0 sm:w-auto">
-              Finish profile
+            <Link
+              href="/profile"
+              className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)]"
+            >
+              Finish
             </Link>
           </div>
         )}
 
-        <div className="mb-8 grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 animate-fade-up">
+        {/* Compact horizontal stats on mobile; grid on large screens */}
+        <div className="mb-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 animate-fade-up sm:mx-0 sm:mb-8 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 sm:gap-3">
           <StatTile
             href="/network"
-            label="In the network"
+            label="Network"
             value={networkCount ?? 0}
-            icon={<IconUsers size={16} />}
+            icon={<IconUsers size={14} />}
             soft="var(--accent-network-soft)"
             solid="var(--accent-network)"
           />
@@ -228,54 +244,47 @@ export default async function DashboardPage() {
             href="/messages"
             label="Unread"
             value={unreadCount ?? 0}
-            icon={<IconMessage size={16} />}
+            icon={<IconMessage size={14} />}
             soft="var(--accent-messages-soft)"
             solid="var(--accent-messages)"
             highlight={(unreadCount ?? 0) > 0}
           />
           <StatTile
             href="/network"
-            label="Same department"
+            label="Dept"
             value={sameDepartmentCount}
-            icon={<IconBriefcase size={16} />}
+            icon={<IconBriefcase size={14} />}
             soft="var(--accent-opportunities-soft)"
             solid="var(--accent-opportunities)"
             sublabel={profile?.department?.trim() || undefined}
           />
           <StatTile
             href="/network"
-            label="Same batch"
+            label="Batch"
             value={sameBatchCount}
-            icon={<IconUsers size={16} />}
+            icon={<IconUsers size={14} />}
             soft="var(--accent-mentors-soft)"
             solid="var(--accent-mentors)"
             sublabel={
               profile?.batch_year != null
-                ? `Batch ${profile.batch_year}`
+                ? String(profile.batch_year)
                 : undefined
             }
           />
         </div>
 
-        <div className="grid min-w-0 max-w-full gap-6 overflow-x-hidden lg:grid-cols-5 animate-fade-up">
+        <div className="grid min-w-0 max-w-full gap-5 overflow-x-hidden lg:grid-cols-5 lg:gap-6 animate-fade-up">
           <section className="min-w-0 max-w-full overflow-hidden lg:col-span-3">
             <PeoplePreviewHeader />
             <SuggestedPeople
               profiles={suggestions}
               currentUserId={user.id}
-              initialConversations={
-                (conversationRows ?? []) as ConversationRow[]
-              }
+              initialConversations={conversations}
               compact
+              dense
+              limit={4}
+              mobileOnlyLimit
             />
-            <div className="mt-3 sm:hidden">
-              <Link
-                href="/network"
-                className="text-sm font-bold text-[var(--brand)] hover:underline"
-              >
-                View all in Network →
-              </Link>
-            </div>
           </section>
 
           <section className="min-w-0 max-w-full overflow-hidden lg:col-span-2">
@@ -311,26 +320,29 @@ function StatTile({
   highlight?: boolean;
 }) {
   return (
-    <Link href={href} className="block min-w-0">
+    <Link
+      href={href}
+      className="block min-w-[4.75rem] shrink-0 sm:min-w-0 sm:shrink"
+    >
       <SurfaceCard
         interactive
-        className={`h-full min-w-0 p-3 sm:p-4 ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
+        className={`flex h-full min-w-0 flex-col items-center px-2.5 py-2 text-center sm:items-start sm:p-3.5 sm:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
       >
         <div
-          className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-xl"
+          className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-lg sm:mb-2 sm:h-8 sm:w-8 sm:rounded-xl"
           style={{ background: soft, color: solid }}
         >
           {icon}
         </div>
-        <p className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900 sm:text-3xl">
+        <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-none text-slate-900 sm:text-3xl">
           {value}
         </p>
-        <p className="mt-0.5 break-safe text-[11px] font-semibold leading-snug text-slate-500 sm:text-xs">
+        <p className="mt-1 text-[10px] font-semibold leading-tight text-slate-500 sm:mt-0.5 sm:text-xs">
           {label}
         </p>
         {sublabel && (
           <p
-            className="mt-1 truncate text-[11px] font-medium"
+            className="mt-0.5 max-w-full truncate text-[10px] font-medium sm:text-[11px]"
             style={{ color: solid }}
           >
             {sublabel}

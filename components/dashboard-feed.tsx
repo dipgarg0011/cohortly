@@ -216,23 +216,23 @@ function Avatar({
 
 export function PeoplePreviewHeader() {
   return (
-    <div className="mb-3 flex min-w-0 items-end justify-between gap-3">
+    <div className="mb-2.5 flex min-w-0 items-end justify-between gap-3 sm:mb-3">
       <div className="min-w-0">
-        <div className="mb-1 flex min-w-0 items-center gap-2">
+        <div className="mb-0.5 flex min-w-0 items-center gap-2 sm:mb-1">
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-network-soft)] text-[var(--accent-network)]">
             <IconUsers size={14} />
           </span>
           <h2 className="section-title min-w-0">People you might know</h2>
         </div>
-        <p className="text-sm text-[var(--muted)]">
+        <p className="text-xs text-[var(--muted)] sm:text-sm">
           From your department or batch — start a conversation.
         </p>
       </div>
       <Link
         href="/network"
-        className="hidden shrink-0 text-sm font-bold text-[var(--brand)] hover:underline sm:inline"
+        className="shrink-0 text-sm font-bold text-[var(--brand)] hover:underline"
       >
-        View all →
+        See all →
       </Link>
     </div>
   );

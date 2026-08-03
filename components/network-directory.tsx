@@ -47,36 +47,41 @@ export function NetworkDirectory({
 
   const currentYear = new Date().getFullYear();
 
+  const others = useMemo(
+    () => profiles.filter((p) => p.id !== currentUserId),
+    [profiles, currentUserId],
+  );
+
   const batchYears = useMemo(() => {
     const years = new Set<number>();
-    for (const p of profiles) {
+    for (const p of others) {
       if (p.batch_year != null) years.add(p.batch_year);
     }
     return Array.from(years).sort((a, b) => b - a);
-  }, [profiles]);
+  }, [others]);
 
   const departments = useMemo(() => {
     const deps = new Set<string>();
-    for (const p of profiles) {
+    for (const p of others) {
       if (p.department?.trim()) deps.add(p.department.trim());
     }
     return Array.from(deps).sort((a, b) => a.localeCompare(b));
-  }, [profiles]);
+  }, [others]);
 
   const skillOptions = useMemo(() => {
     const fromProfiles = new Set<string>(SKILL_OPTIONS);
-    for (const p of profiles) {
+    for (const p of others) {
       for (const skill of p.skills ?? []) {
         if (skill.trim()) fromProfiles.add(skill.trim());
       }
     }
     return Array.from(fromProfiles).sort((a, b) => a.localeCompare(b));
-  }, [profiles]);
+  }, [others]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return profiles.filter((profile) => {
+    return others.filter((profile) => {
       const role = getProfileRole(profile.batch_year, currentYear);
       const name = profile.full_name?.toLowerCase() ?? "";
       const company = profile.company?.toLowerCase() ?? "";
@@ -108,7 +113,7 @@ export function NetworkDirectory({
       return true;
     });
   }, [
-    profiles,
+    others,
     search,
     batchYear,
     department,
@@ -118,37 +123,48 @@ export function NetworkDirectory({
     currentYear,
   ]);
 
-  function actionProps(profile: NetworkProfile) {
-    const conv = findConversationWith(
-      conversations,
-      currentUserId,
-      profile.id,
-    );
-    const action = connectionActionFor(conv);
-
-    if (action.kind === "hidden") {
-      return { onSayHi: undefined as (() => void) | undefined };
+  // Resolve Message / Request sent / Send Request for every visible card from one list.
+  const actionById = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        onSayHi?: () => void;
+        sayHiLabel?: string;
+        sayHiDisabled?: boolean;
+        hidden?: boolean;
+      }
+    > = {};
+    for (const profile of filtered) {
+      const conv = findConversationWith(
+        conversations,
+        currentUserId,
+        profile.id,
+      );
+      const action = connectionActionFor(conv);
+      if (action.kind === "hidden") {
+        map[profile.id] = { hidden: true };
+      } else if (action.kind === "message") {
+        map[profile.id] = {
+          onSayHi: () => router.push(`/messages?with=${profile.id}`),
+          sayHiLabel: "Message",
+          sayHiDisabled: false,
+        };
+      } else if (action.kind === "request_sent") {
+        map[profile.id] = {
+          onSayHi: () => undefined,
+          sayHiLabel: "Request sent",
+          sayHiDisabled: true,
+        };
+      } else {
+        map[profile.id] = {
+          onSayHi: () => setRequestTarget(profile),
+          sayHiLabel: "Send Request",
+          sayHiDisabled: false,
+        };
+      }
     }
-    if (action.kind === "message") {
-      return {
-        onSayHi: () => router.push(`/messages?with=${profile.id}`),
-        sayHiLabel: "Message",
-        sayHiDisabled: false,
-      };
-    }
-    if (action.kind === "request_sent") {
-      return {
-        onSayHi: () => undefined,
-        sayHiLabel: "Request sent",
-        sayHiDisabled: true,
-      };
-    }
-    return {
-      onSayHi: () => setRequestTarget(profile),
-      sayHiLabel: "Send Request",
-      sayHiDisabled: false,
-    };
-  }
+    return map;
+  }, [filtered, conversations, currentUserId, router]);
 
   return (
     <div className="space-y-6 min-w-0">
@@ -273,16 +289,15 @@ export function NetworkDirectory({
       ) : (
         <ul className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-hidden sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((profile) => {
-            const props = actionProps(profile);
+            const props = actionById[profile.id];
             return (
               <li key={profile.id} className="min-w-0 max-w-full overflow-hidden">
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}
-                  isSelf={profile.id === currentUserId}
-                  onSayHi={props.onSayHi}
-                  sayHiLabel={props.sayHiLabel}
-                  sayHiDisabled={props.sayHiDisabled}
+                  onSayHi={props?.hidden ? undefined : props?.onSayHi}
+                  sayHiLabel={props?.sayHiLabel}
+                  sayHiDisabled={props?.sayHiDisabled}
                 />
               </li>
             );

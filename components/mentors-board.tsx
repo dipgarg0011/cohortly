@@ -498,7 +498,9 @@ function MatchAskCard({
               anonymous={masked}
             />
             <div className="min-w-0">
-              <p className="truncate font-semibold text-slate-900">{name}</p>
+              <p title={name} className="truncate font-semibold text-slate-900">
+                {name}
+              </p>
               <p className="meta-text mt-0.5">
                 {[
                   ask.student_department,
@@ -949,7 +951,10 @@ function MyAsks({
                       key={answer.id}
                       className="rounded-xl bg-amber-50/50 px-3.5 py-3"
                     >
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p
+                        title={answer.mentor?.full_name?.trim() || "Mentor"}
+                        className="truncate text-sm font-semibold text-slate-900"
+                      >
                         {answer.mentor?.full_name?.trim() || "Mentor"}
                       </p>
                       <p className="mt-1 break-safe whitespace-pre-wrap text-sm text-slate-700">

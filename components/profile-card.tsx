@@ -12,6 +12,8 @@ type Props = {
   onSayHi?: () => void;
   sayHiLabel?: string;
   sayHiDisabled?: boolean;
+  /** Compact row layout for dashboard mobile suggestions */
+  dense?: boolean;
   accent?: "network" | "mentors" | "referrals" | "opportunities";
 };
 
@@ -29,6 +31,7 @@ export function ProfileCard({
   onSayHi,
   sayHiLabel = "Send Request",
   sayHiDisabled = false,
+  dense = false,
   accent = "network",
 }: Props) {
   const role = getProfileRole(profile.batch_year, currentYear);
@@ -38,6 +41,79 @@ export function ProfileCard({
     profile.role_title?.trim() || profile.current_job?.trim() || "";
   const company = profile.company?.trim() || "";
   const openTo = profile.open_to ?? [];
+  const department = profile.department?.trim() || "";
+
+  if (dense) {
+    return (
+      <SurfaceCard
+        as="article"
+        interactive
+        className="w-full max-w-full min-w-0 overflow-hidden px-3 py-2.5"
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Avatar
+            name={profile.full_name}
+            url={profile.avatar_url}
+            ring={ACCENT_RING[accent]}
+            size="sm"
+          />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h2
+                title={name}
+                className="min-w-0 truncate text-sm font-bold text-slate-900"
+              >
+                {name}
+              </h2>
+              <span
+                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  isStudent
+                    ? "bg-teal-50 text-teal-800"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {role}
+              </span>
+              {profile.batch_year != null && (
+                <span className="shrink-0 text-[10px] font-medium text-slate-500">
+                  {profile.batch_year}
+                </span>
+              )}
+              {profile.linkedin_url ? (
+                <a
+                  href={profile.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${name} on LinkedIn`}
+                  className="ml-auto shrink-0 rounded-md p-0.5 text-[#0A66C2] hover:bg-sky-50"
+                >
+                  <LinkedInIcon />
+                </a>
+              ) : null}
+            </div>
+            <div className="mt-1 flex min-w-0 items-center gap-2">
+              <p
+                title={department || roleTitle || company || undefined}
+                className="min-w-0 flex-1 truncate text-xs text-slate-500"
+              >
+                {department || roleTitle || company || "—"}
+              </p>
+              {!isSelf && onSayHi && (
+                <button
+                  type="button"
+                  onClick={onSayHi}
+                  disabled={sayHiDisabled}
+                  className="shrink-0 rounded-lg bg-[var(--brand)] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {sayHiLabel}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </SurfaceCard>
+    );
+  }
 
   return (
     <SurfaceCard
@@ -46,25 +122,18 @@ export function ProfileCard({
       className="flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden p-4 sm:p-5"
     >
       <div className="flex min-w-0 items-start gap-3">
-        {profile.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={profile.avatar_url}
-            alt=""
-            className={`h-12 w-12 shrink-0 rounded-full object-cover ring-2 ${ACCENT_RING[accent]}`}
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-100 font-bold text-teal-800"
-          >
-            {getInitials(profile.full_name)}
-          </div>
-        )}
+        <Avatar
+          name={profile.full_name}
+          url={profile.avatar_url}
+          ring={ACCENT_RING[accent]}
+        />
 
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex min-w-0 items-start gap-2">
-            <h2 className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
+            <h2
+              title={name}
+              className="min-w-0 flex-1 truncate text-base font-bold text-slate-900"
+            >
               {name}
             </h2>
             {profile.linkedin_url ? (
@@ -105,20 +174,23 @@ export function ProfileCard({
         {(roleTitle || company) && (
           <div className="min-w-0 overflow-hidden">
             {roleTitle && (
-              <p className="line-clamp-2 font-semibold text-slate-800 [overflow-wrap:anywhere]">
+              <p
+                title={roleTitle}
+                className="truncate font-semibold text-slate-800"
+              >
                 {roleTitle}
               </p>
             )}
             {company && (
-              <p className="line-clamp-1 text-slate-600 [overflow-wrap:anywhere]">
+              <p title={company} className="truncate text-slate-600">
                 {company}
               </p>
             )}
           </div>
         )}
-        {profile.department?.trim() && (
-          <p className="line-clamp-2 text-slate-500 [overflow-wrap:anywhere]">
-            {profile.department.trim()}
+        {department && (
+          <p title={department} className="truncate text-slate-500">
+            {department}
           </p>
         )}
         {openTo.length > 0 && (
@@ -126,7 +198,7 @@ export function ProfileCard({
             {openTo.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex max-w-full rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800 [overflow-wrap:anywhere]"
+                className="inline-flex max-w-full truncate rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
               >
                 Open to {tag}
               </span>
@@ -149,13 +221,45 @@ export function ProfileCard({
   );
 }
 
+function Avatar({
+  name,
+  url,
+  ring,
+  size = "md",
+}: {
+  name: string | null;
+  url: string | null;
+  ring: string;
+  size?: "sm" | "md";
+}) {
+  const dim = size === "sm" ? "h-9 w-9 text-[10px]" : "h-12 w-12";
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt=""
+        className={`${dim} shrink-0 rounded-full object-cover ring-2 ${ring}`}
+      />
+    );
+  }
+  return (
+    <div
+      aria-hidden
+      className={`flex ${dim} shrink-0 items-center justify-center rounded-full bg-teal-100 font-bold text-teal-800`}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 function LinkedInIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="currentColor"
-      className="h-4 w-4"
+      className="h-3.5 w-3.5"
       aria-hidden
     >
       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />

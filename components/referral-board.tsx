@@ -647,7 +647,9 @@ function ReferralCard({
             url={request.student?.avatar_url ?? null}
           />
           <div className="min-w-0 text-sm">
-            <p className="truncate font-medium text-slate-800">{studentName}</p>
+            <p title={studentName} className="truncate font-medium text-slate-800">
+              {studentName}
+            </p>
             {request.student?.batch_year != null && (
               <p className="text-xs text-slate-500">
                 Batch {request.student.batch_year}
@@ -667,7 +669,12 @@ function ReferralCard({
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Referring you
             </p>
-            <p className="truncate font-medium text-slate-800">{acceptorName}</p>
+            <p
+              title={acceptorName}
+              className="truncate font-medium text-slate-800"
+            >
+              {acceptorName}
+            </p>
           </div>
         </div>
       )}

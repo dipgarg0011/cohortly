@@ -106,8 +106,9 @@ body {
   color: var(--muted);
 }
 
-/* Shared surface card */
-.surface-card {
+/* Shared card shell — item cards (.surface-card) and section shells (.section-card) */
+.surface-card,
+.section-card {
   border-radius: var(--radius-card);
   border: 1px solid var(--border);
   background: var(--surface-solid);
@@ -119,18 +120,9 @@ body {
     box-shadow 180ms ease;
 }
 
-/* Primary section card — white lift on tinted page */
+/* Section shells get default padding; item cards opt in via utility classes */
 .section-card {
-  border-radius: 1.25rem;
-  border: 1px solid var(--border);
-  background: var(--surface-solid);
-  box-shadow: var(--shadow);
-  min-width: 0;
-  max-width: 100%;
   padding: 1rem;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease;
 }
 
 @media (min-width: 640px) {

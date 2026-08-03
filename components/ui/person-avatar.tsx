@@ -5,7 +5,7 @@ type Props = {
   id: string;
   name: string | null;
   url: string | null;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 };
 
@@ -13,6 +13,7 @@ const SIZE = {
   sm: "h-10 w-10 text-[11px]",
   md: "h-12 w-12 text-sm",
   lg: "h-14 w-14 text-base",
+  xl: "h-20 w-20 text-xl",
 };
 
 export function PersonAvatar({

@@ -1,0 +1,18 @@
+---
+description: After commit-and-push on the feature branch, also merge into main
+alwaysApply: true
+---
+
+# Push then merge to main
+
+When the user asks to commit and push (including the Cursor "commit-and-push" / diff-tab push action) on the feature branch `cursor/restore-dashboard-network-ui` (or the active work branch targeting production):
+
+1. Stage, commit, and push as usual.
+2. **Also merge into `main`** without waiting for a separate "merge it" ask:
+   - Create a PR to `main` if none exists for the head branch (`gh pr create`).
+   - Merge it (`gh pr merge --merge`).
+   - Confirm production deploy when practical.
+3. If smart-mode blocks the merge, request approval and complete the merge — do not stop after push alone.
+4. Return the PR URL and note that main/production will update.
+
+Do not force-push. Do not delete the feature branch unless the user asks.

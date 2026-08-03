@@ -18,6 +18,8 @@ type Props = {
   /** Wider sheet on desktop (default ~480px) */
   maxWidthClass?: string;
   labelledBy?: string;
+  /** Show header close (X). Default true. */
+  showClose?: boolean;
 };
 
 /**
@@ -32,6 +34,7 @@ export function AppModal({
   children,
   maxWidthClass = "sm:max-w-[480px]",
   labelledBy,
+  showClose = true,
 }: Props) {
   const autoTitleId = useId();
   const titleId = labelledBy ?? autoTitleId;
@@ -87,12 +90,32 @@ export function AppModal({
           aria-hidden
         />
         <div className="min-w-0 shrink-0 border-b border-slate-100 px-4 pb-3 pt-2 sm:px-5 sm:pt-5">
-          <h2
-            id={titleId}
-            className="min-w-0 font-[family-name:var(--font-display)] text-lg font-bold text-slate-900 sm:text-xl"
-          >
-            {title}
-          </h2>
+          <div className="flex min-w-0 items-start gap-3">
+            <h2
+              id={titleId}
+              className="min-w-0 flex-1 font-[family-name:var(--font-display)] text-lg font-bold text-slate-900 sm:text-xl"
+            >
+              {title}
+            </h2>
+            {showClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-5 w-5"
+                  aria-hidden
+                >
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            ) : null}
+          </div>
           {description ? (
             <div className="mt-1.5 min-w-0 text-sm text-slate-600">
               {description}

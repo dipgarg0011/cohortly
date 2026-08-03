@@ -4,6 +4,9 @@ import { Navbar } from "@/components/navbar";
 import { SuggestedPeople } from "@/components/suggested-people";
 import {
   DashboardFeed,
+  DASHBOARD_PAIR_CARD,
+  DASHBOARD_PAIR_FOOTER,
+  DASHBOARD_PAIR_HEADER,
   PeoplePreviewHeader,
 } from "@/components/dashboard-feed";
 import { DashboardNeedsYou } from "@/components/dashboard-needs";
@@ -296,30 +299,37 @@ export default async function DashboardPage() {
           </SectionCard>
         )}
 
-        <div className="grid w-full min-w-0 max-w-full grid-cols-1 items-stretch gap-5 overflow-x-clip lg:grid-cols-2">
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip lg:grid-cols-2 lg:items-stretch">
           {suggestions.length > 0 && (
-            <SectionCard
-              stagger={3}
-              className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0"
-            >
-              <div className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-4 sm:px-5 sm:pb-3.5 sm:pt-5">
-                <PeoplePreviewHeader />
-              </div>
-              <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto px-3 py-3 sm:px-4 sm:py-3.5">
-                <SuggestedPeople
-                  profiles={suggestions}
-                  currentUserId={user.id}
-                  initialConversations={conversations}
-                  compact
-                  dense
-                  limit={4}
-                />
-              </div>
-            </SectionCard>
+            <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col">
+              <SectionCard stagger={3} className={DASHBOARD_PAIR_CARD}>
+                <div className={DASHBOARD_PAIR_HEADER}>
+                  <PeoplePreviewHeader />
+                </div>
+                <div className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto px-3 py-3 sm:px-4 sm:py-3.5">
+                  <SuggestedPeople
+                    profiles={suggestions}
+                    currentUserId={user.id}
+                    initialConversations={conversations}
+                    compact
+                    dense
+                    limit={4}
+                  />
+                </div>
+                <div className={DASHBOARD_PAIR_FOOTER}>
+                  <Link
+                    href="/network"
+                    className="text-sm font-bold text-[var(--brand)] hover:underline"
+                  >
+                    See all →
+                  </Link>
+                </div>
+              </SectionCard>
+            </div>
           )}
 
           <div
-            className={`h-full min-h-0 w-full min-w-0 max-w-full ${
+            className={`flex h-full min-h-0 w-full min-w-0 max-w-full flex-col ${
               suggestions.length > 0 ? "" : "lg:col-span-2"
             }`}
           >

@@ -1,9 +1,12 @@
+"use client";
+
 import {
-  getInitials,
   getProfileRole,
   type NetworkProfile,
 } from "@/lib/network";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { PersonAvatar } from "@/components/ui/person-avatar";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 
 type Props = {
   profile: NetworkProfile;
@@ -17,13 +20,6 @@ type Props = {
   accent?: "network" | "mentors" | "referrals" | "opportunities";
 };
 
-const ACCENT_RING = {
-  network: "ring-sky-100",
-  mentors: "ring-amber-100",
-  referrals: "ring-rose-100",
-  opportunities: "ring-indigo-100",
-};
-
 export function ProfileCard({
   profile,
   currentYear = new Date().getFullYear(),
@@ -35,6 +31,7 @@ export function ProfileCard({
   accent = "network",
 }: Props) {
   void currentYear;
+  void accent;
   const role = getProfileRole(profile.status);
   const name = profile.full_name?.trim() || "Unnamed member";
   const isStudent = role === "Student";
@@ -52,19 +49,23 @@ export function ProfileCard({
         className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-2 py-1.5"
       >
         <div className="flex w-full min-w-0 items-center gap-2">
-          <Avatar
-            name={profile.full_name}
-            url={profile.avatar_url}
-            ring={ACCENT_RING[accent]}
-            size="sm"
-          />
+          <ProfilePreviewTrigger userId={profile.id} className="shrink-0">
+            <PersonAvatar
+              id={profile.id}
+              name={profile.full_name}
+              url={profile.avatar_url}
+              size="sm"
+            />
+          </ProfilePreviewTrigger>
           <div className="min-w-0 flex-1 overflow-hidden">
-            <h2
-              title={name}
-              className="min-w-0 truncate text-sm font-bold leading-tight text-slate-900"
-            >
-              {name}
-            </h2>
+            <ProfilePreviewTrigger userId={profile.id}>
+              <h2
+                title={name}
+                className="min-w-0 truncate text-sm font-bold leading-tight text-slate-900"
+              >
+                {name}
+              </h2>
+            </ProfilePreviewTrigger>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
               <span
                 className={`shrink-0 rounded px-1 py-px text-[10px] font-bold leading-4 ${
@@ -89,7 +90,10 @@ export function ProfileCard({
               {!isSelf && onSayHi && (
                 <button
                   type="button"
-                  onClick={onSayHi}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSayHi();
+                  }}
                   disabled={sayHiDisabled}
                   className="shrink-0 rounded-md bg-[var(--brand)] px-1.5 py-0.5 text-[10px] font-bold leading-4 text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
                 >
@@ -110,27 +114,33 @@ export function ProfileCard({
       className="flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden p-4 sm:p-5"
     >
       <div className="flex min-w-0 items-start gap-3">
-        <Avatar
-          name={profile.full_name}
-          url={profile.avatar_url}
-          ring={ACCENT_RING[accent]}
-        />
+        <ProfilePreviewTrigger userId={profile.id} className="shrink-0">
+          <PersonAvatar
+            id={profile.id}
+            name={profile.full_name}
+            url={profile.avatar_url}
+            size="md"
+          />
+        </ProfilePreviewTrigger>
 
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex min-w-0 items-start gap-2">
-            <h2
-              title={name}
-              className="min-w-0 flex-1 truncate whitespace-nowrap text-base font-bold text-slate-900"
-            >
-              {name}
-            </h2>
+            <ProfilePreviewTrigger userId={profile.id} className="min-w-0 flex-1">
+              <h2
+                title={name}
+                className="min-w-0 truncate whitespace-nowrap text-base font-bold text-slate-900"
+              >
+                {name}
+              </h2>
+            </ProfilePreviewTrigger>
             {profile.linkedin_url ? (
               <a
                 href={profile.linkedin_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${name} on LinkedIn`}
-                className="shrink-0 rounded-lg p-1.5 text-[#0A66C2] transition hover:bg-sky-50"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 rounded-lg p-1.5 text-[#0A66C2] transition hover:bg-teal-50"
               >
                 <LinkedInIcon />
               </a>
@@ -190,7 +200,10 @@ export function ProfileCard({
             {!isSelf && onSayHi && (
               <button
                 type="button"
-                onClick={onSayHi}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSayHi();
+                }}
                 disabled={sayHiDisabled}
                 className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55 sm:hidden"
               >
@@ -203,7 +216,10 @@ export function ProfileCard({
           <div className="flex justify-end sm:hidden">
             <button
               type="button"
-              onClick={onSayHi}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSayHi();
+              }}
               disabled={sayHiDisabled}
               className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
             >
@@ -228,7 +244,10 @@ export function ProfileCard({
       {!isSelf && onSayHi && (
         <button
           type="button"
-          onClick={onSayHi}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSayHi();
+          }}
           disabled={sayHiDisabled}
           className="btn-primary mt-4 hidden w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55 sm:block"
         >
@@ -236,38 +255,6 @@ export function ProfileCard({
         </button>
       )}
     </SurfaceCard>
-  );
-}
-
-function Avatar({
-  name,
-  url,
-  ring,
-  size = "md",
-}: {
-  name: string | null;
-  url: string | null;
-  ring: string;
-  size?: "sm" | "md";
-}) {
-  const dim = size === "sm" ? "h-10 w-10 text-[11px]" : "h-12 w-12";
-  if (url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt=""
-        className={`${dim} shrink-0 rounded-full object-cover ring-2 ${ring}`}
-      />
-    );
-  }
-  return (
-    <div
-      aria-hidden
-      className={`flex ${dim} shrink-0 items-center justify-center rounded-full bg-teal-100 font-bold text-teal-800`}
-    >
-      {getInitials(name)}
-    </div>
   );
 }
 

@@ -9,6 +9,7 @@ import {
 import { DashboardNeedsYou } from "@/components/dashboard-needs";
 import { DashboardWorthALook } from "@/components/dashboard-worth-a-look";
 import { PageShell } from "@/components/ui/page-shell";
+import { SectionCard } from "@/components/ui/section-card";
 import { getProfileCompletion } from "@/lib/profile-completion";
 import {
   firstName,
@@ -258,7 +259,7 @@ export default async function DashboardPage() {
     messages,
     partnersMap,
     user.id,
-  ).slice(0, 3);
+  ).slice(0, 4);
 
   const latestOpportunities = recentOpportunities.slice(0, 3);
 
@@ -271,7 +272,7 @@ export default async function DashboardPage() {
       <Navbar />
 
       <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
-        <div className="mb-4 min-w-0 animate-fade-up sm:mb-5">
+        <div className="mb-5 min-w-0 stagger-1 sm:mb-6">
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
         </div>
 
@@ -282,7 +283,7 @@ export default async function DashboardPage() {
         <DashboardWorthALook items={lookItems} />
 
         {completion.percent < 100 && completion.nextTip && (
-          <div className="mb-5 flex min-w-0 items-center gap-3 animate-fade-up sm:mb-6">
+          <SectionCard stagger={3} className="mb-5 flex min-w-0 items-center gap-3 sm:mb-6">
             <p className="min-w-0 flex-1 truncate text-sm text-slate-600">
               {completion.nextTip}
             </p>
@@ -292,22 +293,24 @@ export default async function DashboardPage() {
             >
               Edit profile →
             </Link>
-          </div>
+          </SectionCard>
         )}
 
-        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip animate-fade-up">
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip">
           {suggestions.length > 0 && (
-            <section className="w-full min-w-0 max-w-full overflow-x-clip">
+            <SectionCard stagger={3} className="w-full min-w-0 max-w-full overflow-x-clip">
               <PeoplePreviewHeader />
-              <SuggestedPeople
-                profiles={suggestions}
-                currentUserId={user.id}
-                initialConversations={conversations}
-                compact
-                dense
-                limit={3}
-              />
-            </section>
+              <div className="mt-4">
+                <SuggestedPeople
+                  profiles={suggestions}
+                  currentUserId={user.id}
+                  initialConversations={conversations}
+                  compact
+                  dense
+                  limit={3}
+                />
+              </div>
+            </SectionCard>
           )}
 
           <section className="w-full min-w-0 max-w-full overflow-x-clip">

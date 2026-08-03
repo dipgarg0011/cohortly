@@ -6,6 +6,8 @@ import {
   IconReferral,
   IconUsers,
 } from "@/components/ui/icons";
+import { SectionCard } from "@/components/ui/section-card";
+import { SectionHeader } from "@/components/ui/section-header";
 import {
   seeAllHrefForNeeds,
   waitedLabel,
@@ -22,6 +24,24 @@ const ICONS: Record<NeedType, typeof IconMessage> = {
   followup: IconMessage,
 };
 
+const ICON_SOFT: Record<NeedType, string> = {
+  connection: "var(--accent-network-soft)",
+  mentorship: "var(--accent-mentors-soft)",
+  referral: "var(--accent-referrals-soft)",
+  application: "var(--accent-opportunities-soft)",
+  unread_turn: "var(--accent-messages-soft)",
+  followup: "var(--accent-messages-soft)",
+};
+
+const ICON_SOLID: Record<NeedType, string> = {
+  connection: "var(--accent-network)",
+  mentorship: "var(--accent-mentors)",
+  referral: "var(--accent-referrals)",
+  application: "var(--accent-opportunities)",
+  unread_turn: "var(--accent-messages)",
+  followup: "var(--accent-messages)",
+};
+
 type Props = {
   items: NeedItem[];
 };
@@ -29,7 +49,9 @@ type Props = {
 export function DashboardNeedsYou({ items }: Props) {
   if (items.length === 0) {
     return (
-      <p className="mb-5 text-sm text-slate-500 sm:mb-6">You&apos;re all caught up.</p>
+      <p className="mb-5 text-sm text-slate-500 stagger-1 sm:mb-6">
+        You&apos;re all caught up.
+      </p>
     );
   }
 
@@ -37,38 +59,40 @@ export function DashboardNeedsYou({ items }: Props) {
   const seeAll = seeAllHrefForNeeds(top);
 
   return (
-    <section className="mb-5 min-w-0 animate-fade-up sm:mb-6">
-      <div className="mb-2.5 flex min-w-0 items-end justify-between gap-3">
-        <h2 className="section-title">Needs you</h2>
-        {items.length > 5 && (
-          <Link
-            href={seeAll}
-            className="shrink-0 text-sm font-bold text-[var(--brand)] hover:underline"
-          >
-            See all →
-          </Link>
-        )}
-      </div>
-      <ul className="min-w-0 divide-y divide-slate-100 rounded-xl border border-teal-900/8 bg-white/80">
+    <SectionCard stagger={1} className="mb-5 sm:mb-6">
+      <SectionHeader
+        title="Needs you"
+        accent="home"
+        icon={<IconUsers size={16} />}
+        actionHref={items.length > 5 ? seeAll : undefined}
+        actionLabel={items.length > 5 ? "See all →" : undefined}
+      />
+      <ul className="min-w-0 space-y-1.5">
         {top.map((item) => {
           const Icon = ICONS[item.type];
           return (
             <li key={item.id} className="min-w-0">
-              <div className="flex min-w-0 items-center gap-3 px-3 py-2.5 sm:px-3.5">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
+              <div className="flex min-w-0 items-center gap-3 rounded-xl px-1 py-1.5 sm:px-1.5">
+                <span
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    background: ICON_SOFT[item.type],
+                    color: ICON_SOLID[item.type],
+                  }}
+                >
                   <Icon size={14} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-semibold text-slate-900">
                     {item.text}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-400">
                     Waiting {waitedLabel(item.waitedAt)}
                   </p>
                 </div>
                 <Link
                   href={item.href}
-                  className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)]"
+                  className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-dark)]"
                 >
                   {item.actionLabel}
                 </Link>
@@ -77,16 +101,6 @@ export function DashboardNeedsYou({ items }: Props) {
           );
         })}
       </ul>
-      {items.length > 5 && (
-        <div className="mt-2 sm:hidden">
-          <Link
-            href={seeAll}
-            className="text-sm font-bold text-[var(--brand)] hover:underline"
-          >
-            See all →
-          </Link>
-        </div>
-      )}
-    </section>
+    </SectionCard>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProfileCard } from "@/components/profile-card";
+import { PersonRow } from "@/components/ui/person-row";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconNetworkEmpty } from "@/components/ui/icons";
@@ -148,15 +149,38 @@ export function SuggestedPeople({
 
           return (
             <li key={profile.id} className={itemClass}>
-              <ProfileCard
-                profile={profile}
-                currentYear={currentYear}
-                dense={dense}
-                accent="network"
-                onSayHi={onSayHi}
-                sayHiLabel={state.label}
-                sayHiDisabled={state.disabled}
-              />
+              {dense ? (
+                <PersonRow
+                  profile={profile}
+                  onClick={
+                    state.disabled
+                      ? undefined
+                      : () => {
+                          onSayHi();
+                        }
+                  }
+                  action={
+                    <button
+                      type="button"
+                      onClick={onSayHi}
+                      disabled={state.disabled}
+                      className="shrink-0 rounded-lg bg-[var(--accent-network)] px-2.5 py-1.5 text-[11px] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      {state.label}
+                    </button>
+                  }
+                />
+              ) : (
+                <ProfileCard
+                  profile={profile}
+                  currentYear={currentYear}
+                  dense={false}
+                  accent="network"
+                  onSayHi={onSayHi}
+                  sayHiLabel={state.label}
+                  sayHiDisabled={state.disabled}
+                />
+              )}
             </li>
           );
         })}

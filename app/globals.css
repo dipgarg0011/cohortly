@@ -1,18 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f7f6;
+  --background: #eef3f2;
   --foreground: #0f172a;
   --brand: #0f766e;
   --brand-dark: #0d5f59;
   --brand-soft: #ccfbf1;
   --muted: #64748b;
-  --surface: rgba(255, 255, 255, 0.82);
+  --surface: #ffffff;
   --surface-solid: #ffffff;
-  --border: rgba(15, 118, 110, 0.1);
-  --shadow: 0 14px 40px -28px rgba(15, 118, 110, 0.45);
-  --shadow-hover: 0 22px 48px -24px rgba(15, 118, 110, 0.5);
-  --radius-card: 1.15rem;
+  --border: rgba(15, 23, 42, 0.06);
+  --shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -12px rgba(15, 23, 42, 0.12),
+    0 18px 40px -28px rgba(15, 118, 110, 0.18);
+  --shadow-hover:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 14px 32px -14px rgba(15, 23, 42, 0.16),
+    0 24px 48px -28px rgba(15, 118, 110, 0.22);
+  --radius-card: 1.25rem;
 
   /* Feature accents (subtle washes + solid chips) */
   --accent-home: #0f766e;
@@ -72,11 +78,19 @@ body {
 
 .section-title {
   font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-size: clamp(1.15rem, 4.5vw, 1.35rem);
+  font-size: clamp(1.25rem, 4.5vw, 1.5rem);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
   color: #0f172a;
   overflow-wrap: anywhere;
+}
+
+.section-subtitle {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #94a3b8;
 }
 
 .card-title {
@@ -96,15 +110,43 @@ body {
 .surface-card {
   border-radius: var(--radius-card);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-solid);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
   min-width: 0;
   max-width: 100%;
   transition:
     transform 180ms ease,
-    box-shadow 180ms ease,
-    border-color 180ms ease;
+    box-shadow 180ms ease;
+}
+
+/* Primary section card — white lift on tinted page */
+.section-card {
+  border-radius: 1.25rem;
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  max-width: 100%;
+  padding: 1rem;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+@media (min-width: 640px) {
+  .section-card {
+    padding: 1.25rem 1.35rem;
+  }
+}
+
+.person-row {
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #fbfcfc;
+  padding: 0.75rem 0.85rem;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 img,
@@ -122,14 +164,22 @@ button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .surface-card-interactive:hover {
-    transform: translateY(-3px);
+  .surface-card-interactive:hover,
+  .section-card-interactive:hover {
+    transform: translateY(-2px);
     box-shadow: var(--shadow-hover);
-    border-color: rgba(15, 118, 110, 0.22);
+  }
+
+  .person-row:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    background: #ffffff;
   }
 }
 
-.surface-card-interactive:active {
+.surface-card-interactive:active,
+.section-card-interactive:active,
+.person-row:active {
   transform: translateY(-1px);
 }
 
@@ -151,12 +201,13 @@ button {
   }
 }
 
-/* Soft page atmospheres */
+/* Soft page atmospheres — kept behind content, very faint */
 .page-atmosphere {
   pointer-events: none;
   position: absolute;
   inset: 0;
   overflow: hidden;
+  z-index: 0;
 }
 
 .page-atmosphere::before,
@@ -164,8 +215,8 @@ button {
   content: "";
   position: absolute;
   border-radius: 9999px;
-  filter: blur(40px);
-  opacity: 0.7;
+  filter: blur(64px);
+  opacity: 0.35;
 }
 
 .btn-primary {
@@ -243,7 +294,7 @@ button {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -252,7 +303,56 @@ button {
 }
 
 .animate-fade-up {
-  animation: fade-up 320ms ease both;
+  animation: fade-up 220ms ease both;
+}
+
+.stagger-1 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 0ms;
+}
+.stagger-2 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 40ms;
+}
+.stagger-3 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 80ms;
+}
+.stagger-4 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 120ms;
+}
+.stagger-5 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 160ms;
+}
+.stagger-6 {
+  animation: fade-up 200ms ease both;
+  animation-delay: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4,
+  .stagger-5,
+  .stagger-6,
+  .app-modal-sheet {
+    animation: none !important;
+  }
+
+  .surface-card,
+  .section-card,
+  .person-row,
+  .btn-primary {
+    transition: none !important;
+  }
+
+  .skeleton {
+    animation: none !important;
+  }
 }
 
 @keyframes app-modal-sheet-in {

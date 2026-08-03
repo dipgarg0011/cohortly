@@ -16,37 +16,37 @@ const ACCENT: Record<
   home: {
     soft: "var(--accent-home-soft)",
     solid: "var(--accent-home)",
-    blob: "rgba(15,118,110,0.18)",
+    blob: "rgba(15,118,110,0.08)",
   },
   network: {
     soft: "var(--accent-network-soft)",
     solid: "var(--accent-network)",
-    blob: "rgba(2,132,199,0.16)",
+    blob: "rgba(2,132,199,0.07)",
   },
   mentors: {
     soft: "var(--accent-mentors-soft)",
     solid: "var(--accent-mentors)",
-    blob: "rgba(217,119,6,0.16)",
+    blob: "rgba(217,119,6,0.07)",
   },
   referrals: {
     soft: "var(--accent-referrals-soft)",
     solid: "var(--accent-referrals)",
-    blob: "rgba(225,29,72,0.14)",
+    blob: "rgba(225,29,72,0.06)",
   },
   opportunities: {
     soft: "var(--accent-opportunities-soft)",
     solid: "var(--accent-opportunities)",
-    blob: "rgba(79,70,229,0.14)",
+    blob: "rgba(79,70,229,0.06)",
   },
   messages: {
     soft: "var(--accent-messages-soft)",
     solid: "var(--accent-messages)",
-    blob: "rgba(13,148,136,0.16)",
+    blob: "rgba(13,148,136,0.07)",
   },
   profile: {
     soft: "var(--accent-profile-soft)",
     solid: "var(--accent-profile)",
-    blob: "rgba(71,85,105,0.14)",
+    blob: "rgba(71,85,105,0.06)",
   },
 };
 
@@ -60,21 +60,20 @@ export function PageShell({
   const a = ACCENT[accent];
   return (
     <div className="relative flex min-h-full min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
+      {/* Decorative wash stays clipped and very faint — never behind mid-page content */}
       <div className="page-atmosphere" aria-hidden>
         <div
-          className="absolute -left-20 -top-24 h-72 w-72 rounded-full"
+          className="absolute -left-24 -top-32 h-56 w-56 rounded-full"
           style={{ background: a.blob }}
         />
         <div
-          className="absolute -right-16 top-40 h-64 w-64 rounded-full"
-          style={{ background: a.soft, opacity: 0.85 }}
-        />
-        <div
-          className="absolute bottom-10 left-1/3 h-48 w-48 rounded-full"
-          style={{ background: "rgba(232,238,252,0.8)" }}
+          className="absolute -right-20 -top-10 h-48 w-48 rounded-full"
+          style={{ background: a.soft, opacity: 0.45 }}
         />
       </div>
-      {children}
+      <div className="relative z-10 flex min-h-full min-w-0 flex-1 flex-col">
+        {children}
+      </div>
     </div>
   );
 }

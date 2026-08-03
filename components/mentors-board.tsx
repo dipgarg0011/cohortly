@@ -572,6 +572,11 @@ function MentorInbox({
     setBusyId(matchId);
     setError(null);
 
+    const prior = pending
+      .concat(unansweredPool)
+      .concat(responded)
+      .find((a) => a.match_id === matchId);
+
     const { error: updateError } = await supabase
       .from("request_matches")
       .update({ status })
@@ -597,6 +602,15 @@ function MentorInbox({
     }
 
     setBusyId(null);
+
+    if (status === "accepted") {
+      const studentId = refreshed?.student_id ?? prior?.student_id;
+      if (studentId) {
+        router.push(`/messages?with=${studentId}`);
+        return;
+      }
+    }
+
     router.refresh();
   }
 

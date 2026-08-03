@@ -70,7 +70,8 @@ export function suggestedProfileStatus(
   batchYear: number | null,
   now = new Date(),
 ): ProfileStatus {
-  if (batchYear == null) return "graduate";
+  // Unknown batch → student (never grant graduate powers by default).
+  if (batchYear == null) return "student";
   const year = now.getFullYear();
   const month = now.getMonth() + 1; // 1–12
   if (batchYear < year) return "graduate";
@@ -90,13 +91,14 @@ export function hasBatchYearPassed(
 export function getProfileRole(
   status: ProfileStatus | null | undefined,
 ): ProfileRole {
-  return status === "student" ? "Student" : "Graduate";
+  // Only an explicit "graduate" row is a Graduate. null/legacy → Student.
+  return status === "graduate" ? "Graduate" : "Student";
 }
 
 export function isGraduateStatus(
   status: ProfileStatus | null | undefined,
 ): boolean {
-  return getProfileRole(status) === "Graduate";
+  return status === "graduate";
 }
 
 export function getInitials(name: string | null): string {

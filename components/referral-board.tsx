@@ -216,12 +216,13 @@ export function ReferralBoard({
     setBusyId(request.id);
     setError(null);
 
+    const trimmed = content.trim();
     const { error: insertError } = await supabase
       .from("referral_questions")
       .insert({
         request_id: request.id,
         asker_id: currentUserId,
-        content: content.trim(),
+        content: trimmed,
       });
 
     if (insertError) {
@@ -229,6 +230,14 @@ export function ReferralBoard({
       setBusyId(null);
       return;
     }
+
+    // Seed the question into the unlocked chat so the thread isn't empty.
+    await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      receiver_id: request.student_id,
+      content: trimmed,
+      read: false,
+    });
 
     setAskTarget(null);
     setBusyId(null);

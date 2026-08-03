@@ -82,14 +82,14 @@ export function SuggestedPeople({
   return (
     <>
       <ul
-        className={`grid grid-cols-1 gap-4 ${
+        className={`mx-auto grid min-w-0 grid-cols-1 gap-4 ${
           compact ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
         {profiles.map((profile) => {
           const props = actionProps(profile);
           return (
-            <li key={profile.id}>
+            <li key={profile.id} className="min-w-0">
               <ProfileCard
                 profile={profile}
                 currentYear={currentYear}

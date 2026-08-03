@@ -595,10 +595,10 @@ export function MessagesInbox({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 border-b border-teal-900/8 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-3 border-b border-teal-900/8 px-3 py-3 sm:px-4">
               <button
                 type="button"
-                className="rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
+                className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
                 onClick={() => {
                   setMobileShowChat(false);
                   setSelectedId(null);
@@ -612,7 +612,7 @@ export function MessagesInbox({
                 url={selectedPartner.avatar_url}
                 size="sm"
               />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-slate-900">
                   {partnerName}
                 </p>
@@ -630,11 +630,11 @@ export function MessagesInbox({
                     url={selectedPartner.avatar_url}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="break-safe text-sm font-semibold text-slate-900">
                       {partnerName} wants to connect
                     </p>
                     {thread[0] && (
-                      <p className="mt-1 rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                      <p className="mt-1 break-safe rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
                         “{thread[0].content}”
                       </p>
                     )}
@@ -729,10 +729,10 @@ export function MessagesInbox({
                   </p>
                 )}
                 {isLockedForSender ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <div
                       aria-disabled="true"
-                      className="min-w-0 flex-1 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
+                      className="min-w-0 flex-1 cursor-not-allowed break-safe rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
                     >
                       Waiting for {partnerFirst} to accept your request. You can
                       send more messages once they do.
@@ -740,7 +740,7 @@ export function MessagesInbox({
                     <button
                       type="button"
                       disabled
-                      className="btn-primary shrink-0 cursor-not-allowed opacity-40"
+                      className="btn-primary w-full shrink-0 cursor-not-allowed opacity-40 sm:w-auto"
                     >
                       Send
                     </button>

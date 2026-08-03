@@ -30,7 +30,7 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
   }, [items, filter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-x-clip">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div
           className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-teal-50 p-1"
@@ -46,13 +46,13 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(option.id)}
-                className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
+                className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
                   active
                     ? "bg-white text-teal-900 shadow-sm"
                     : "text-teal-700/70 hover:text-teal-900"
                 }`}
               >
-                {option.label}
+                <span className="truncate">{option.label}</span>
               </button>
             );
           })}
@@ -90,7 +90,7 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
       ) : (
         <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {filtered.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="min-w-0">
               <OpportunityCard opportunity={item} />
             </li>
           ))}
@@ -288,30 +288,30 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   const urgent = isDeadlineUrgent(opportunity.deadline);
 
   return (
-    <SurfaceCard as="article" interactive className="flex h-full flex-col p-5">
-      <div className="flex items-start justify-between gap-3">
+    <SurfaceCard as="article" interactive className="flex h-full min-w-0 flex-col p-4 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           {opportunity.company?.trim() && (
-            <p className="text-xs font-bold uppercase tracking-wide text-indigo-700/80">
+            <p className="break-safe text-xs font-bold uppercase tracking-wide text-indigo-700/80">
               {opportunity.company.trim()}
             </p>
           )}
-          <h3 className="card-title mt-1">{opportunity.title}</h3>
+          <h3 className="card-title mt-1 break-safe">{opportunity.title}</h3>
         </div>
-        <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+        <span className="max-w-[40%] shrink-0 truncate rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
           {opportunity.type}
         </span>
       </div>
 
       {opportunity.description?.trim() && (
-        <p className="mt-3 line-clamp-3 text-sm text-slate-600">
+        <p className="mt-3 line-clamp-3 break-safe text-sm text-slate-600">
           {opportunity.description.trim()}
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+      <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs">
         {opportunity.location?.trim() && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+          <span className="max-w-full break-safe rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
             {opportunity.location.trim()}
           </span>
         )}
@@ -329,7 +329,7 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       </div>
 
       {opportunity.poster?.full_name && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 break-safe text-xs text-slate-500">
           Posted by {opportunity.poster.full_name}
           {opportunity.poster.batch_year != null
             ? ` · Batch ${opportunity.poster.batch_year}`
@@ -343,7 +343,7 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
             href={opportunity.apply_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary"
+            className="btn-primary w-full sm:w-auto"
           >
             Apply
           </a>

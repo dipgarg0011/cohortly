@@ -76,9 +76,9 @@ export function MentorsBoard({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-x-clip">
       <div
-        className={`grid w-full gap-1 rounded-xl bg-teal-50 p-1 ${
+        className={`grid w-full min-w-0 gap-1 rounded-xl bg-teal-50 p-1 ${
           tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"
         } sm:max-w-xl`}
         role="tablist"
@@ -488,8 +488,8 @@ function MatchAskCard({
     : ask.student_full_name?.trim() || "Student";
 
   return (
-    <li className="surface-card p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <li className="surface-card min-w-0 max-w-full p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             <Avatar
@@ -498,7 +498,7 @@ function MatchAskCard({
               anonymous={masked}
             />
             <div className="min-w-0">
-              <p className="font-semibold text-slate-900">{name}</p>
+              <p className="truncate font-semibold text-slate-900">{name}</p>
               <p className="meta-text mt-0.5">
                 {[
                   ask.student_department,
@@ -517,8 +517,10 @@ function MatchAskCard({
             </div>
           </div>
 
-          <h3 className="mt-3 text-lg font-bold text-slate-900">{ask.title}</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+          <h3 className="mt-3 break-safe text-lg font-bold text-slate-900">
+            {ask.title}
+          </h3>
+          <p className="mt-2 break-safe whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {ask.description}
           </p>
 
@@ -872,7 +874,9 @@ function MyAsks({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-slate-900">{req.title}</h3>
+                    <h3 className="break-safe font-bold text-slate-900">
+                      {req.title}
+                    </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         req.status === "matched"
@@ -948,7 +952,7 @@ function MyAsks({
                       <p className="text-sm font-semibold text-slate-900">
                         {answer.mentor?.full_name?.trim() || "Mentor"}
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                      <p className="mt-1 break-safe whitespace-pre-wrap text-sm text-slate-700">
                         {answer.content}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">

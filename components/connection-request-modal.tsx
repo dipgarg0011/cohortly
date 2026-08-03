@@ -94,7 +94,7 @@ export function ConnectionRequestModal({
         >
           Send a connection request
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 break-safe text-sm text-slate-600">
           You can send one message.{" "}
           <span className="font-semibold text-slate-800">
             {recipientName?.trim() || name}

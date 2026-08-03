@@ -118,7 +118,7 @@ export function ProfileCard({
             {openTo.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
+                className="inline-flex max-w-full break-safe rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
               >
                 Open to {tag}
               </span>

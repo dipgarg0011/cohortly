@@ -124,8 +124,8 @@ export function Navbar() {
     pathname === "/messages" || pathname.startsWith("/messages/");
 
   return (
-    <header className="sticky top-0 z-30 border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
+    <header className="sticky top-0 z-30 overflow-x-clip border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
         <Link
           href="/dashboard"
           className="min-w-0 shrink-0 truncate font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] sm:text-xl"

@@ -240,13 +240,13 @@ export function NetworkDirectory({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setStatus(option)}
-                  className={`rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+                  className={`min-w-0 truncate rounded-lg px-1.5 py-2 text-[11px] font-semibold transition sm:px-2 sm:text-sm ${
                     active
                       ? "bg-white text-teal-900 shadow-sm"
                       : "text-teal-700/70 hover:text-teal-900"
                   }`}
                 >
-                  {label}
+                  <span className="truncate">{label}</span>
                 </button>
               );
             })}
@@ -275,7 +275,7 @@ export function NetworkDirectory({
           {filtered.map((profile) => {
             const props = actionProps(profile);
             return (
-              <li key={profile.id}>
+              <li key={profile.id} className="min-w-0">
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}
@@ -352,7 +352,7 @@ function FilterSelect({
   children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-medium text-slate-500">{label}</span>
       <select
         value={value}

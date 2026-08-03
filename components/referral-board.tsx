@@ -136,9 +136,9 @@ export function ReferralBoard({ currentUserId, initialRequests }: Props) {
   const list = view === "need" ? needList : helpList;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-x-clip">
       {/* Two clear POVs */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <ViewCard
           active={view === "need"}
           onClick={() => {
@@ -266,7 +266,7 @@ export function ReferralBoard({ currentUserId, initialRequests }: Props) {
       ) : (
         <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {list.map((request) => (
-            <li key={request.id}>
+            <li key={request.id} className="min-w-0">
               <ReferralCard
                 request={request}
                 currentUserId={currentUserId}
@@ -489,7 +489,7 @@ function ReferralRequestForm({
             value={jobLink}
             onChange={(e) => setJobLink(e.target.value)}
             placeholder="https://…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
         </label>
         <label className="block">
@@ -501,7 +501,7 @@ function ReferralRequestForm({
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
         </label>
         <label className="block">
@@ -525,7 +525,7 @@ function ReferralRequestForm({
               setError(null);
               setResumeFile(file);
             }}
-            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-rose-800 hover:file:bg-rose-100"
+            className="block w-full min-w-0 max-w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-rose-800 hover:file:bg-rose-100"
           />
           <p className="mt-1.5 text-xs text-slate-500">
             You can post without a resume and add it later when messaging.
@@ -585,7 +585,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+        className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
       />
     </label>
   );

@@ -209,13 +209,13 @@ export default async function DashboardPage() {
                 {completion.message}
               </p>
             </div>
-            <Link href="/profile" className="btn-primary shrink-0">
+            <Link href="/profile" className="btn-primary w-full shrink-0 sm:w-auto">
               Finish profile
             </Link>
           </div>
         )}
 
-        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4 animate-fade-up">
+        <div className="mb-8 grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 animate-fade-up">
           <StatTile
             href="/network"
             label="In the network"
@@ -311,10 +311,10 @@ function StatTile({
   highlight?: boolean;
 }) {
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block min-w-0">
       <SurfaceCard
         interactive
-        className={`h-full p-3.5 sm:p-4 ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
+        className={`h-full min-w-0 p-3 sm:p-4 ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
       >
         <div
           className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-xl"
@@ -322,12 +322,17 @@ function StatTile({
         >
           {icon}
         </div>
-        <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-slate-900 sm:text-3xl">
+        <p className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900 sm:text-3xl">
           {value}
         </p>
-        <p className="mt-0.5 text-xs font-semibold text-slate-500">{label}</p>
+        <p className="mt-0.5 break-safe text-[11px] font-semibold leading-snug text-slate-500 sm:text-xs">
+          {label}
+        </p>
         {sublabel && (
-          <p className="mt-1 truncate text-[11px] font-medium" style={{ color: solid }}>
+          <p
+            className="mt-1 truncate text-[11px] font-medium"
+            style={{ color: solid }}
+          >
             {sublabel}
           </p>
         )}

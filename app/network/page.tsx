@@ -3,10 +3,52 @@ import { Navbar } from "@/components/navbar";
 import { NetworkDirectory } from "@/components/network-directory";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
 import type { ConversationRow } from "@/lib/conversations";
-import type { NetworkProfile } from "@/lib/network";
+import type { NetworkProfile, ProfileRole } from "@/lib/network";
 
-export default async function NetworkPage() {
+type SearchParams = Promise<{
+  batch?: string;
+  dept?: string;
+  status?: string;
+}>;
+
+function parseInitialFilters(params: {
+  batch?: string;
+  dept?: string;
+  status?: string;
+}): {
+  batchYear: string;
+  department: string;
+  status: "All" | ProfileRole;
+} {
+  const batchRaw = params.batch?.trim() ?? "";
+  const batchNum = Number(batchRaw);
+  const batchYear =
+    batchRaw &&
+    Number.isFinite(batchNum) &&
+    Number.isInteger(batchNum) &&
+    batchNum >= 1900 &&
+    batchNum <= 2100
+      ? String(batchNum)
+      : "all";
+
+  const department = params.dept?.trim() || "all";
+
+  const statusRaw = params.status?.trim().toLowerCase() ?? "";
+  let status: "All" | ProfileRole = "All";
+  if (statusRaw === "student") status = "Student";
+  else if (statusRaw === "graduate") status = "Graduate";
+
+  return { batchYear, department, status };
+}
+
+export default async function NetworkPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const { supabase, user } = await requireProfile();
+  const params = await searchParams;
+  const initialFilters = parseInitialFilters(params);
 
   const [{ data, error }, { data: conversationRows }] = await Promise.all([
     supabase
@@ -51,6 +93,7 @@ export default async function NetworkPage() {
             profiles={profiles}
             currentUserId={user.id}
             initialConversations={conversations}
+            initialFilters={initialFilters}
           />
         )}
       </main>

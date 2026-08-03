@@ -289,6 +289,10 @@ export default async function DashboardPage() {
     },
   );
 
+  const unreadCount = messages.filter(
+    (message) => message.receiver_id === user.id && !message.read,
+  ).length;
+
   return (
     <PageShell accent="home">
       <Navbar />
@@ -302,7 +306,7 @@ export default async function DashboardPage() {
 
         <DashboardNeedsYou items={needItems} />
 
-        <DashboardCommunity stats={communityStats} />
+        <DashboardCommunity stats={communityStats} unreadCount={unreadCount} />
 
         <DashboardWorthALook items={lookItems} />
 

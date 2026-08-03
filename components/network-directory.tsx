@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ProfileCard } from "@/components/profile-card";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionCard } from "@/components/ui/section-card";
 import { IconNetworkEmpty } from "@/components/ui/icons";
 import {
   connectionActionFor,
@@ -173,7 +174,7 @@ export function NetworkDirectory({
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="space-y-3">
+      <SectionCard className="space-y-3">
         <label className="block min-w-0">
           <span className="sr-only">Search by name or company</span>
           <input
@@ -273,7 +274,7 @@ export function NetworkDirectory({
             })}
           </div>
         </div>
-      </div>
+      </SectionCard>
 
       {visible.length === 0 ? (
         <EmptyState

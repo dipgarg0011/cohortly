@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, SKILL_OPTIONS } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SurfaceCard } from "@/components/ui/surface-card";
+import { SectionCard } from "@/components/ui/section-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconMentorEmpty } from "@/components/ui/icons";
 import {
@@ -33,6 +33,7 @@ import {
   type RequestAnswer,
   type RequestMatch,
 } from "@/lib/mentorship";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 
 type Tab = "ask" | "inbox" | "my_asks";
 
@@ -317,7 +318,7 @@ function AskForHelpForm({
   }
 
   return (
-    <SurfaceCard className="p-5 sm:p-6">
+    <SectionCard className="!p-5 sm:!p-6">
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900">
           What do you need help with?
@@ -538,7 +539,7 @@ function AskForHelpForm({
           {loading ? "Sending…" : "Post ask"}
         </button>
       </form>
-    </SurfaceCard>
+    </SectionCard>
   );
 }
 
@@ -753,21 +754,33 @@ function MatchAskCard({
   const name = masked
     ? "Anonymous student"
     : ask.student_full_name?.trim() || "Student";
+  const previewId = masked ? null : ask.student_id;
 
   return (
     <li className="surface-card min-w-0 max-w-full p-4 sm:p-5">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
-            <Avatar
-              name={masked ? null : ask.student_full_name}
-              url={masked ? null : ask.student_avatar_url}
-              anonymous={masked}
-            />
+            <ProfilePreviewTrigger
+              userId={previewId}
+              enabled={!masked}
+              className="shrink-0"
+            >
+              <Avatar
+                name={masked ? null : ask.student_full_name}
+                url={masked ? null : ask.student_avatar_url}
+                anonymous={masked}
+              />
+            </ProfilePreviewTrigger>
             <div className="min-w-0">
-              <p title={name} className="truncate font-semibold text-slate-900">
-                {name}
-              </p>
+              <ProfilePreviewTrigger userId={previewId} enabled={!masked}>
+                <p
+                  title={name}
+                  className="truncate font-semibold text-slate-900"
+                >
+                  {name}
+                </p>
+              </ProfilePreviewTrigger>
               <p className="meta-text mt-0.5">
                 {[
                   ask.student_department,
@@ -1313,7 +1326,9 @@ function MyAsks({
                   {connected?.mentor && (
                     <p className="mt-2 text-sm font-medium text-teal-800">
                       Connected with{" "}
-                      {connected.mentor.full_name?.trim() || "a mentor"}
+                      <ProfilePreviewTrigger userId={connected.mentor_id}>
+                        {connected.mentor.full_name?.trim() || "a mentor"}
+                      </ProfilePreviewTrigger>
                     </p>
                   )}
                 </div>
@@ -1394,12 +1409,14 @@ function MyAsks({
                       key={answer.id}
                       className="rounded-xl bg-amber-50/50 px-3.5 py-3"
                     >
-                      <p
-                        title={answer.mentor?.full_name?.trim() || "Mentor"}
-                        className="truncate text-sm font-semibold text-slate-900"
-                      >
-                        {answer.mentor?.full_name?.trim() || "Mentor"}
-                      </p>
+                      <ProfilePreviewTrigger userId={answer.mentor_id}>
+                        <p
+                          title={answer.mentor?.full_name?.trim() || "Mentor"}
+                          className="truncate text-sm font-semibold text-slate-900"
+                        >
+                          {answer.mentor?.full_name?.trim() || "Mentor"}
+                        </p>
+                      </ProfilePreviewTrigger>
                       <p className="mt-1 break-safe whitespace-pre-wrap text-sm text-slate-700">
                         {answer.content}
                       </p>

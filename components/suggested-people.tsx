@@ -152,13 +152,6 @@ export function SuggestedPeople({
               {dense ? (
                 <PersonRow
                   profile={profile}
-                  onClick={
-                    state.disabled
-                      ? undefined
-                      : () => {
-                          onSayHi();
-                        }
-                  }
                   action={
                     <button
                       type="button"

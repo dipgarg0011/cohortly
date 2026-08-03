@@ -7,9 +7,11 @@ import { createClient } from "@/lib/supabase/client";
 import { deadlineLabel, isDeadlineUrgent } from "@/lib/referrals";
 import { getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionCard } from "@/components/ui/section-card";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconOpportunityEmpty } from "@/components/ui/icons";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   APPLICATION_SELECT,
   APPLICATION_STATUS_LABEL,
@@ -133,41 +135,43 @@ export function OpportunitiesBoard({
 
       {view === "board" && (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div
-              className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-slate-100 p-1"
-              role="tablist"
-              aria-label="Opportunity type"
-            >
-              {TYPE_FILTERS.map((option) => {
-                const active = filter === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setFilter(option.id)}
-                    className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
-                      active
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    <span className="truncate">{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <SectionCard>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div
+                className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-slate-100 p-1"
+                role="tablist"
+                aria-label="Opportunity type"
+              >
+                {TYPE_FILTERS.map((option) => {
+                  const active = filter === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setFilter(option.id)}
+                      className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
+                        active
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <span className="truncate">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="btn-primary w-full shrink-0 sm:w-auto"
-            >
-              Post an Opportunity
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="btn-primary w-full shrink-0 sm:w-auto"
+              >
+                Post an Opportunity
+              </button>
+            </div>
+          </SectionCard>
 
           {filtered.length === 0 ? (
             <EmptyState
@@ -505,11 +509,16 @@ function OpportunityCard({
       </div>
 
       {opportunity.poster?.full_name && (
-        <p
-          className="mt-3 min-w-0 truncate text-xs text-slate-500"
-          title={opportunity.poster.full_name}
-        >
-          Posted by {opportunity.poster.full_name}
+        <p className="mt-3 min-w-0 truncate text-xs text-slate-500">
+          Posted by{" "}
+          <ProfilePreviewTrigger
+            userId={opportunity.posted_by}
+            className="font-semibold text-slate-600 hover:text-teal-800"
+          >
+            <span title={opportunity.poster.full_name}>
+              {opportunity.poster.full_name}
+            </span>
+          </ProfilePreviewTrigger>
           {opportunity.poster.batch_year != null
             ? ` · Batch ${opportunity.poster.batch_year}`
             : ""}
@@ -980,24 +989,31 @@ function ApplicantsList({
             <li key={app.id}>
               <SurfaceCard className="p-4 sm:p-5">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100 text-sm font-bold text-teal-800">
-                    {app.applicant?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={app.applicant.avatar_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      getInitials(name)
-                    )}
-                  </div>
+                  <ProfilePreviewTrigger
+                    userId={app.applicant_id}
+                    className="shrink-0"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100 text-sm font-bold text-teal-800">
+                      {app.applicant?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={app.applicant.avatar_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        getInitials(name)
+                      )}
+                    </div>
+                  </ProfilePreviewTrigger>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="truncate font-semibold text-slate-900">
-                          {name}
-                        </h3>
+                        <ProfilePreviewTrigger userId={app.applicant_id}>
+                          <h3 className="truncate font-semibold text-slate-900">
+                            {name}
+                          </h3>
+                        </ProfilePreviewTrigger>
                         <p className="truncate text-xs text-slate-500">
                           {[
                             app.applicant?.batch_year != null

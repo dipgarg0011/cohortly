@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { firstName, getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconChatEmpty } from "@/components/ui/icons";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   mapMessagingError,
   partnerIdFromConversation,
@@ -467,7 +468,7 @@ export function MessagesInbox({
   const partnerFirst = firstName(selectedPartner?.full_name);
 
   return (
-    <div className="surface-card flex min-h-[min(32rem,calc(100dvh-9rem))] w-full max-w-full flex-1 overflow-hidden p-0 md:min-h-[calc(100dvh-9rem)]">
+    <div className="section-card flex min-h-[min(32rem,calc(100dvh-9rem))] w-full max-w-full flex-1 overflow-hidden !p-0 md:min-h-[calc(100dvh-9rem)]">
       <aside
         className={`w-full max-w-full shrink-0 border-teal-900/8 md:w-80 md:border-r lg:w-96 ${
           mobileShowChat ? "hidden md:flex" : "flex"
@@ -542,30 +543,39 @@ export function MessagesInbox({
                 item.conversation.initiator_id === currentUserId;
               return (
                 <li key={item.conversation.id}>
-                  <button
-                    type="button"
+                  <div
                     onClick={() =>
                       openConversation(
                         item.partner.id,
                         tab === "requests" ? "requests" : "chats",
                       )
                     }
-                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition ${
+                    className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition ${
                       active ? "bg-teal-50" : "hover:bg-teal-50/60"
                     }`}
                   >
-                    <Avatar
-                      name={item.partner.full_name}
-                      url={item.partner.avatar_url}
-                    />
+                    <ProfilePreviewTrigger
+                      userId={item.partner.id}
+                      className="shrink-0"
+                    >
+                      <Avatar
+                        name={item.partner.full_name}
+                        url={item.partner.avatar_url}
+                      />
+                    </ProfilePreviewTrigger>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span
-                          title={name}
-                          className="min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
+                        <ProfilePreviewTrigger
+                          userId={item.partner.id}
+                          className="min-w-0 truncate"
                         >
-                          {name}
-                        </span>
+                          <span
+                            title={name}
+                            className="min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
+                          >
+                            {name}
+                          </span>
+                        </ProfilePreviewTrigger>
                         <span className="shrink-0 text-[11px] text-slate-400">
                           {item.lastMessage
                             ? formatMessageTime(item.lastMessage.created_at)
@@ -591,7 +601,7 @@ export function MessagesInbox({
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 </li>
               );
             })}
@@ -629,18 +639,22 @@ export function MessagesInbox({
               >
                 ← Back
               </button>
-              <Avatar
-                name={selectedPartner.full_name}
-                url={selectedPartner.avatar_url}
-                size="sm"
-              />
+              <ProfilePreviewTrigger userId={selectedId} className="shrink-0">
+                <Avatar
+                  name={selectedPartner.full_name}
+                  url={selectedPartner.avatar_url}
+                  size="sm"
+                />
+              </ProfilePreviewTrigger>
               <div className="min-w-0 flex-1">
-                <p
-                  title={partnerName}
-                  className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
-                >
-                  {partnerName}
-                </p>
+                <ProfilePreviewTrigger userId={selectedId}>
+                  <p
+                    title={partnerName}
+                    className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
+                  >
+                    {partnerName}
+                  </p>
+                </ProfilePreviewTrigger>
                 {selectedConversation.status === "pending" && (
                   <p className="text-xs text-slate-500">Connection request</p>
                 )}
@@ -650,13 +664,18 @@ export function MessagesInbox({
             {isIncomingRequest && (
               <div className="border-b border-teal-900/8 bg-teal-50/70 px-4 py-4">
                 <div className="flex items-start gap-3">
-                  <Avatar
-                    name={selectedPartner.full_name}
-                    url={selectedPartner.avatar_url}
-                  />
+                  <ProfilePreviewTrigger userId={selectedId} className="shrink-0">
+                    <Avatar
+                      name={selectedPartner.full_name}
+                      url={selectedPartner.avatar_url}
+                    />
+                  </ProfilePreviewTrigger>
                   <div className="min-w-0 flex-1">
                     <p className="break-safe text-sm font-semibold text-slate-900">
-                      {partnerName} wants to connect
+                      <ProfilePreviewTrigger userId={selectedId}>
+                        {partnerName}
+                      </ProfilePreviewTrigger>{" "}
+                      wants to connect
                     </p>
                     {thread[0] && (
                       <p className="mt-1 break-safe rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">

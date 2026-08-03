@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SectionCard } from "@/components/ui/section-card";
 import { PersonAvatar } from "@/components/ui/person-avatar";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   IconBriefcase,
   IconChatEmpty,
@@ -22,6 +23,16 @@ type Props = {
   currentUserId: string;
 };
 
+/** Shared header band so People title and Messages tabs sit in the same strip. */
+export const DASHBOARD_PAIR_HEADER =
+  "flex h-[5.5rem] shrink-0 items-center overflow-hidden border-b border-slate-100 px-4 py-3 sm:px-5";
+
+export const DASHBOARD_PAIR_FOOTER =
+  "flex h-[3.25rem] shrink-0 items-center border-t border-slate-100 px-4 sm:px-5";
+
+export const DASHBOARD_PAIR_CARD =
+  "flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0 lg:min-h-[26rem]";
+
 export function DashboardFeed({
   conversations,
   opportunities,
@@ -30,13 +41,10 @@ export function DashboardFeed({
   const [tab, setTab] = useState<"messages" | "opportunities">("messages");
 
   return (
-    <SectionCard
-      stagger={4}
-      className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0"
-    >
-      <div className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-4 sm:px-5 sm:pb-3.5 sm:pt-5">
+    <SectionCard stagger={4} className={DASHBOARD_PAIR_CARD}>
+      <div className={DASHBOARD_PAIR_HEADER}>
         <div
-          className="flex min-w-0 gap-1 rounded-xl bg-slate-100/90 p-1"
+          className="flex w-full min-w-0 gap-1 rounded-xl bg-slate-100/90 p-1"
           role="tablist"
           aria-label="Feed"
         >
@@ -74,14 +82,17 @@ export function DashboardFeed({
                   convo.partner.full_name?.trim() || "Unnamed member";
                 const unread = convo.unreadCount > 0;
                 return (
-                  <li key={convo.partner.id} className="min-w-0 max-w-full">
-                    <Link
-                      href={`/messages?with=${convo.partner.id}`}
-                      className={`flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
-                        unread
-                          ? "bg-[var(--accent-home-soft)]/70"
-                          : "hover:bg-slate-50"
-                      }`}
+                  <li
+                    key={convo.partner.id}
+                    className={`flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
+                      unread
+                        ? "bg-[var(--accent-home-soft)]/70"
+                        : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <ProfilePreviewTrigger
+                      userId={convo.partner.id}
+                      className="shrink-0"
                     >
                       <PersonAvatar
                         id={convo.partner.id}
@@ -89,15 +100,20 @@ export function DashboardFeed({
                         url={convo.partner.avatar_url}
                         size="sm"
                       />
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <div className="flex min-w-0 items-center justify-between gap-2">
-                          <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-                            {unread && (
-                              <span
-                                aria-hidden
-                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]"
-                              />
-                            )}
+                    </ProfilePreviewTrigger>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex min-w-0 items-center justify-between gap-2">
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                          {unread && (
+                            <span
+                              aria-hidden
+                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]"
+                            />
+                          )}
+                          <ProfilePreviewTrigger
+                            userId={convo.partner.id}
+                            className="min-w-0 truncate"
+                          >
                             <span
                               title={name}
                               className={`min-w-0 truncate text-sm ${
@@ -108,19 +124,25 @@ export function DashboardFeed({
                             >
                               {name}
                             </span>
-                          </span>
-                          <span className="meta-text shrink-0">
-                            {formatMessageTime(convo.lastMessage.created_at)}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 min-w-0 truncate text-xs text-slate-500">
-                          {convo.lastMessage.sender_id === currentUserId
-                            ? "You: "
-                            : ""}
-                          {convo.lastMessage.content}
-                        </p>
+                          </ProfilePreviewTrigger>
+                        </span>
+                        <Link
+                          href={`/messages?with=${convo.partner.id}`}
+                          className="meta-text shrink-0 hover:text-[var(--brand)]"
+                        >
+                          {formatMessageTime(convo.lastMessage.created_at)}
+                        </Link>
                       </div>
-                    </Link>
+                      <Link
+                        href={`/messages?with=${convo.partner.id}`}
+                        className="mt-0.5 block min-w-0 truncate text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        {convo.lastMessage.sender_id === currentUserId
+                          ? "You: "
+                          : ""}
+                        {convo.lastMessage.content}
+                      </Link>
+                    </div>
                   </li>
                 );
               })}
@@ -168,7 +190,7 @@ export function DashboardFeed({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5">
+      <div className={DASHBOARD_PAIR_FOOTER}>
         <Link
           href={tab === "messages" ? "/messages" : "/opportunities"}
           className="text-sm font-bold text-[var(--brand)] hover:underline"
@@ -262,9 +284,7 @@ export function PeoplePreviewHeader() {
       subtitle="From your department or batch — start a conversation."
       accent="home"
       icon={<IconUsers size={16} />}
-      actionHref="/network"
-      actionLabel="See all →"
-      className="mb-0"
+      className="mb-0 w-full"
     />
   );
 }

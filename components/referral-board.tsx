@@ -6,9 +6,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionCard } from "@/components/ui/section-card";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconReferralEmpty } from "@/components/ui/icons";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   REFERRAL_SELECT,
   deadlineLabel,
@@ -383,9 +385,12 @@ export function ReferralBoard({
             >
               <p className="min-w-0 flex-1 text-sm text-rose-950">
                 Did you manage to refer{" "}
-                <span className="font-bold">
+                <ProfilePreviewTrigger
+                  userId={r.student_id}
+                  className="font-bold"
+                >
                   {r.student?.full_name?.trim() || "them"}
-                </span>
+                </ProfilePreviewTrigger>
                 ?
               </p>
               <div className="flex shrink-0 gap-2">
@@ -474,35 +479,39 @@ export function ReferralBoard({
       )}
 
       {view === "need" ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <FilterChips
-            ariaLabel="My requests"
-            options={[
-              { id: "open", label: "Waiting", count: needCounts.open },
-              { id: "matched", label: "Matched", count: needCounts.matched },
-              { id: "all", label: "All mine", count: needCounts.all },
-            ]}
-            value={needFilter}
-            onChange={setNeedFilter}
-          />
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className="btn-primary w-full sm:w-auto"
-          >
-            {showForm ? "Cancel" : "Ask for a referral"}
-          </button>
-        </div>
+        <SectionCard>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <FilterChips
+              ariaLabel="My requests"
+              options={[
+                { id: "open", label: "Waiting", count: needCounts.open },
+                { id: "matched", label: "Matched", count: needCounts.matched },
+                { id: "all", label: "All mine", count: needCounts.all },
+              ]}
+              value={needFilter}
+              onChange={setNeedFilter}
+            />
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className="btn-primary w-full sm:w-auto"
+            >
+              {showForm ? "Cancel" : "Ask for a referral"}
+            </button>
+          </div>
+        </SectionCard>
       ) : (
-        <FilterChips
-          ariaLabel="Help others"
-          options={[
-            { id: "open", label: "Needs help", count: helpCounts.open },
-            { id: "helping", label: "I'm helping", count: helpCounts.helping },
-          ]}
-          value={helpFilter}
-          onChange={setHelpFilter}
-        />
+        <SectionCard>
+          <FilterChips
+            ariaLabel="Help others"
+            options={[
+              { id: "open", label: "Needs help", count: helpCounts.open },
+              { id: "helping", label: "I'm helping", count: helpCounts.helping },
+            ]}
+            value={helpFilter}
+            onChange={setHelpFilter}
+          />
+        </SectionCard>
       )}
 
       {showForm && view === "need" && (
@@ -1041,17 +1050,24 @@ function ReferralCard({
 
       {mode === "help" && (
         <div className="mt-3 flex min-w-0 items-center gap-3">
-          <Avatar
-            name={request.student?.full_name ?? null}
-            url={request.student?.avatar_url ?? null}
-          />
+          <ProfilePreviewTrigger
+            userId={request.student_id}
+            className="shrink-0"
+          >
+            <Avatar
+              name={request.student?.full_name ?? null}
+              url={request.student?.avatar_url ?? null}
+            />
+          </ProfilePreviewTrigger>
           <div className="min-w-0 text-sm">
-            <p
-              title={studentName}
-              className="truncate font-medium text-slate-800"
-            >
-              {studentName}
-            </p>
+            <ProfilePreviewTrigger userId={request.student_id}>
+              <p
+                title={studentName}
+                className="truncate font-medium text-slate-800"
+              >
+                {studentName}
+              </p>
+            </ProfilePreviewTrigger>
             <p className="truncate text-xs text-slate-500">
               {[
                 request.student?.batch_year != null

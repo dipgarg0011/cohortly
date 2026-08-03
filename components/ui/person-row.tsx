@@ -7,21 +7,21 @@ import {
 } from "@/lib/network";
 import { PersonAvatar } from "@/components/ui/person-avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ProfilePreviewTrigger } from "@/components/profile-preview";
 
 type Props = {
   profile: NetworkProfile;
   action?: ReactNode;
-  onClick?: () => void;
   className?: string;
 };
 
 /**
  * Interactive person mini-card for dense lists (dashboard suggestions, etc.).
+ * Avatar/name open the shared profile preview; action buttons stay independent.
  */
 export function PersonRow({
   profile,
   action,
-  onClick,
   className = "",
 }: Props) {
   const role = getProfileRole(profile.status);
@@ -37,32 +37,26 @@ export function PersonRow({
 
   return (
     <article
-      className={`person-row group flex w-full min-w-0 cursor-pointer items-center gap-3 ${className}`}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (!onClick) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      className={`person-row group flex w-full min-w-0 items-center gap-3 ${className}`}
     >
-      <PersonAvatar
-        id={profile.id}
-        name={profile.full_name}
-        url={profile.avatar_url}
-        size="md"
-      />
+      <ProfilePreviewTrigger userId={profile.id} className="shrink-0">
+        <PersonAvatar
+          id={profile.id}
+          name={profile.full_name}
+          url={profile.avatar_url}
+          size="md"
+        />
+      </ProfilePreviewTrigger>
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 items-center gap-2">
-          <h3
-            title={name}
-            className="min-w-0 flex-1 truncate text-[15px] font-bold leading-tight text-slate-900"
-          >
-            {name}
-          </h3>
+          <ProfilePreviewTrigger userId={profile.id} className="min-w-0 flex-1">
+            <h3
+              title={name}
+              className="min-w-0 truncate text-[15px] font-bold leading-tight text-slate-900 group-hover:text-teal-900"
+            >
+              {name}
+            </h3>
+          </ProfilePreviewTrigger>
           <StatusBadge role={role} className="shrink-0" />
         </div>
         {substance ? (

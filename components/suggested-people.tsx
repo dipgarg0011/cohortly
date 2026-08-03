@@ -164,7 +164,7 @@ export function SuggestedPeople({
                       type="button"
                       onClick={onSayHi}
                       disabled={state.disabled}
-                      className="shrink-0 rounded-lg bg-[var(--accent-network)] px-2.5 py-1.5 text-[11px] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-55"
+                      className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--brand)] px-2.5 py-1.5 text-[11px] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       {state.label}
                     </button>

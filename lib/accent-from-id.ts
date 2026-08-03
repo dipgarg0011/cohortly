@@ -5,11 +5,12 @@ export type AccentTone = {
   ring: string;
 };
 
+/** Brand-aligned tones only (teal + warm accents — no sky/indigo CTAs). */
 const TONES: AccentTone[] = [
   {
-    soft: "var(--accent-network-soft)",
-    solid: "var(--accent-network)",
-    ring: "rgba(2,132,199,0.35)",
+    soft: "var(--brand-soft)",
+    solid: "var(--brand)",
+    ring: "rgba(15,118,110,0.35)",
   },
   {
     soft: "var(--accent-messages-soft)",
@@ -22,19 +23,19 @@ const TONES: AccentTone[] = [
     ring: "rgba(217,119,6,0.35)",
   },
   {
-    soft: "var(--accent-opportunities-soft)",
-    solid: "var(--accent-opportunities)",
-    ring: "rgba(79,70,229,0.35)",
-  },
-  {
     soft: "var(--accent-referrals-soft)",
     solid: "var(--accent-referrals)",
     ring: "rgba(225,29,72,0.28)",
   },
   {
-    soft: "var(--brand-soft)",
-    solid: "var(--brand)",
-    ring: "rgba(15,118,110,0.35)",
+    soft: "var(--accent-home-soft)",
+    solid: "var(--accent-home)",
+    ring: "rgba(15,118,110,0.28)",
+  },
+  {
+    soft: "var(--accent-profile-soft)",
+    solid: "var(--accent-profile)",
+    ring: "rgba(71,85,105,0.28)",
   },
 ];
 

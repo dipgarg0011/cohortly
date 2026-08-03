@@ -183,7 +183,7 @@ export default async function DashboardPage() {
         return { row, score };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
+      .slice(0, 4)
       .map((item) => item.row);
   }
 
@@ -261,7 +261,7 @@ export default async function DashboardPage() {
     user.id,
   ).slice(0, 4);
 
-  const latestOpportunities = recentOpportunities.slice(0, 3);
+  const latestOpportunities = recentOpportunities.slice(0, 4);
 
   const showGradNudge =
     (profile?.status as ProfileStatus | null | undefined) === "student" &&
@@ -296,30 +296,39 @@ export default async function DashboardPage() {
           </SectionCard>
         )}
 
-        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip">
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 items-stretch gap-5 overflow-x-clip lg:grid-cols-2">
           {suggestions.length > 0 && (
-            <SectionCard stagger={3} className="w-full min-w-0 max-w-full overflow-x-clip">
-              <PeoplePreviewHeader />
-              <div className="mt-4">
+            <SectionCard
+              stagger={3}
+              className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0"
+            >
+              <div className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-4 sm:px-5 sm:pb-3.5 sm:pt-5">
+                <PeoplePreviewHeader />
+              </div>
+              <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto px-3 py-3 sm:px-4 sm:py-3.5">
                 <SuggestedPeople
                   profiles={suggestions}
                   currentUserId={user.id}
                   initialConversations={conversations}
                   compact
                   dense
-                  limit={3}
+                  limit={4}
                 />
               </div>
             </SectionCard>
           )}
 
-          <section className="w-full min-w-0 max-w-full overflow-x-clip">
+          <div
+            className={`h-full min-h-0 w-full min-w-0 max-w-full ${
+              suggestions.length > 0 ? "" : "lg:col-span-2"
+            }`}
+          >
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}
               currentUserId={user.id}
             />
-          </section>
+          </div>
         </div>
       </main>
     </PageShell>

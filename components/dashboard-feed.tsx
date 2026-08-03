@@ -30,8 +30,11 @@ export function DashboardFeed({
   const [tab, setTab] = useState<"messages" | "opportunities">("messages");
 
   return (
-    <SectionCard stagger={4} className="flex h-full w-full min-w-0 max-w-full flex-col !p-0 overflow-hidden">
-      <div className="border-b border-slate-100 px-4 pt-4 sm:px-5 sm:pt-5">
+    <SectionCard
+      stagger={4}
+      className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0"
+    >
+      <div className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-4 sm:px-5 sm:pb-3.5 sm:pt-5">
         <div
           className="flex min-w-0 gap-1 rounded-xl bg-slate-100/90 p-1"
           role="tablist"
@@ -43,7 +46,6 @@ export function DashboardFeed({
             icon={<IconMessage size={14} />}
             label="Messages"
             shortLabel="Chats"
-            accent="messages"
           />
           <TabButton
             active={tab === "opportunities"}
@@ -51,12 +53,11 @@ export function DashboardFeed({
             icon={<IconBriefcase size={14} />}
             label="Opportunities"
             shortLabel="Jobs"
-            accent="opportunities"
           />
         </div>
       </div>
 
-      <div className="min-w-0 max-w-full flex-1 overflow-x-clip px-2.5 py-2 sm:px-3 sm:py-2.5">
+      <div className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-clip overflow-y-auto px-2.5 py-2 sm:px-3 sm:py-2.5">
         {tab === "messages" ? (
           conversations.length === 0 ? (
             <CompactEmpty
@@ -65,8 +66,6 @@ export function DashboardFeed({
               description="Say hi to someone in the Network."
               actionHref="/network"
               actionLabel="Find people"
-              soft="var(--accent-messages-soft)"
-              solid="var(--accent-messages)"
             />
           ) : (
             <ul className="min-w-0 space-y-0.5">
@@ -80,7 +79,7 @@ export function DashboardFeed({
                       href={`/messages?with=${convo.partner.id}`}
                       className={`flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
                         unread
-                          ? "bg-[var(--accent-messages-soft)]/55"
+                          ? "bg-[var(--accent-home-soft)]/70"
                           : "hover:bg-slate-50"
                       }`}
                     >
@@ -92,11 +91,11 @@ export function DashboardFeed({
                       />
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <div className="flex min-w-0 items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                             {unread && (
                               <span
                                 aria-hidden
-                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-messages)]"
+                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]"
                               />
                             )}
                             <span
@@ -134,8 +133,6 @@ export function DashboardFeed({
             description="Internships and jobs will show up here."
             actionHref="/opportunities"
             actionLabel="Browse"
-            soft="var(--accent-opportunities-soft)"
-            solid="var(--accent-opportunities)"
           />
         ) : (
           <ul className="min-w-0 space-y-1">
@@ -145,9 +142,9 @@ export function DashboardFeed({
                 <li key={item.id} className="min-w-0 max-w-full">
                   <Link
                     href="/opportunities"
-                    className="block min-w-0 max-w-full rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-indigo-50/60 sm:px-2.5 sm:py-2"
+                    className="block min-w-0 max-w-full rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-soft)]/50 sm:px-2.5 sm:py-2"
                   >
-                    <span className="inline-flex max-w-full truncate rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                    <span className="inline-flex max-w-full truncate rounded-full bg-[var(--brand-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--brand-dark)]">
                       {item.type}
                     </span>
                     <p className="mt-1 truncate text-sm font-bold text-slate-900">
@@ -159,7 +156,7 @@ export function DashboardFeed({
                       </p>
                     )}
                     {deadlineText && (
-                      <p className="mt-1 text-xs font-semibold text-indigo-700/80">
+                      <p className="mt-1 text-xs font-semibold text-[var(--brand)]">
                         {deadlineText}
                       </p>
                     )}
@@ -171,10 +168,10 @@ export function DashboardFeed({
         )}
       </div>
 
-      <div className="border-t border-slate-100 px-4 py-3 sm:px-5">
+      <div className="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5">
         <Link
           href={tab === "messages" ? "/messages" : "/opportunities"}
-          className="text-sm font-bold text-[var(--accent-messages)] hover:underline"
+          className="text-sm font-bold text-[var(--brand)] hover:underline"
         >
           {tab === "messages" ? "View all messages" : "View all opportunities"} →
         </Link>
@@ -189,23 +186,16 @@ function CompactEmpty({
   description,
   actionHref,
   actionLabel,
-  soft,
-  solid,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   actionHref: string;
   actionLabel: string;
-  soft: string;
-  solid: string;
 }) {
   return (
     <div className="px-1 py-6 text-center sm:py-8">
-      <div
-        className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl"
-        style={{ background: soft, color: solid }}
-      >
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]">
         {icon}
       </div>
       <p className="text-sm font-bold text-slate-900">{title}</p>
@@ -214,8 +204,7 @@ function CompactEmpty({
       </p>
       <Link
         href={actionHref}
-        className="mt-3 inline-flex text-sm font-bold hover:underline"
-        style={{ color: solid }}
+        className="mt-3 inline-flex text-sm font-bold text-[var(--brand)] hover:underline"
       >
         {actionLabel} →
       </Link>
@@ -229,19 +218,13 @@ function TabButton({
   icon,
   label,
   shortLabel,
-  accent,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   shortLabel: string;
-  accent: "messages" | "opportunities";
 }) {
-  const solid =
-    accent === "messages"
-      ? "var(--accent-messages)"
-      : "var(--accent-opportunities)";
   return (
     <button
       type="button"
@@ -254,15 +237,17 @@ function TabButton({
           : "text-slate-500 hover:text-slate-700"
       }`}
     >
-      <span className="shrink-0" style={{ color: active ? solid : undefined }}>
+      <span
+        className="shrink-0"
+        style={{ color: active ? "var(--brand)" : undefined }}
+      >
         {icon}
       </span>
       <span className="truncate lg:hidden">{shortLabel}</span>
       <span className="hidden truncate lg:inline">{label}</span>
       {active && (
         <span
-          className="absolute inset-x-3 -bottom-px h-0.5 rounded-full"
-          style={{ background: solid }}
+          className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-[var(--brand)]"
           aria-hidden
         />
       )}
@@ -275,7 +260,7 @@ export function PeoplePreviewHeader() {
     <SectionHeader
       title="People you might know"
       subtitle="From your department or batch — start a conversation."
-      accent="network"
+      accent="home"
       icon={<IconUsers size={16} />}
       actionHref="/network"
       actionLabel="See all →"

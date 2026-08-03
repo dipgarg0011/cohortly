@@ -25,19 +25,19 @@ const ICONS: Record<NeedType, typeof IconMessage> = {
 };
 
 const ICON_SOFT: Record<NeedType, string> = {
-  connection: "var(--accent-network-soft)",
+  connection: "var(--brand-soft)",
   mentorship: "var(--accent-mentors-soft)",
   referral: "var(--accent-referrals-soft)",
-  application: "var(--accent-opportunities-soft)",
+  application: "var(--brand-soft)",
   unread_turn: "var(--accent-messages-soft)",
   followup: "var(--accent-messages-soft)",
 };
 
 const ICON_SOLID: Record<NeedType, string> = {
-  connection: "var(--accent-network)",
+  connection: "var(--brand)",
   mentorship: "var(--accent-mentors)",
   referral: "var(--accent-referrals)",
-  application: "var(--accent-opportunities)",
+  application: "var(--brand)",
   unread_turn: "var(--accent-messages)",
   followup: "var(--accent-messages)",
 };

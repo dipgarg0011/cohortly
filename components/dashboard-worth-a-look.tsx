@@ -16,7 +16,7 @@ export function DashboardWorthALook({ items }: Props) {
       <SectionHeader
         title="Worth a look"
         subtitle="Fresh things that might matter this week"
-        accent="opportunities"
+        accent="home"
         icon={<IconSpark size={16} />}
       />
       <ul className="min-w-0 space-y-2">
@@ -29,7 +29,7 @@ export function DashboardWorthALook({ items }: Props) {
               <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
                 {item.text}
               </p>
-              <span className="shrink-0 text-xs font-bold text-[var(--accent-opportunities)]">
+              <span className="shrink-0 text-xs font-bold text-[var(--brand)]">
                 {item.actionLabel} →
               </span>
             </Link>

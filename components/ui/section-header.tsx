@@ -60,7 +60,7 @@ export function SectionHeader({
   const a = ACCENT_VARS[accent];
   return (
     <div
-      className={`mb-4 flex min-w-0 max-w-full flex-wrap items-end justify-between gap-x-3 gap-y-2 ${className}`}
+      className={`flex min-w-0 max-w-full flex-wrap items-start justify-between gap-x-3 gap-y-2 ${className}`}
     >
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -75,7 +75,7 @@ export function SectionHeader({
           <h2 className="section-title min-w-0 truncate">{title}</h2>
         </div>
         {subtitle ? (
-          <p className="section-subtitle mt-1 min-w-0 pl-0 sm:pl-11">
+          <p className="section-subtitle mt-1 min-w-0 truncate pl-0 sm:pl-11">
             {subtitle}
           </p>
         ) : null}
@@ -83,7 +83,7 @@ export function SectionHeader({
       {actionHref && actionLabel ? (
         <Link
           href={actionHref}
-          className="shrink-0 text-sm font-bold hover:underline"
+          className="shrink-0 self-center text-sm font-bold hover:underline"
           style={{ color: a.solid }}
         >
           {actionLabel}

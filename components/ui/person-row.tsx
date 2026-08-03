@@ -59,11 +59,11 @@ export function PersonRow({
         <div className="flex min-w-0 items-center gap-2">
           <h3
             title={name}
-            className="min-w-0 truncate text-[15px] font-bold leading-tight text-slate-900"
+            className="min-w-0 flex-1 truncate text-[15px] font-bold leading-tight text-slate-900"
           >
             {name}
           </h3>
-          <StatusBadge role={role} />
+          <StatusBadge role={role} className="shrink-0" />
         </div>
         {substance ? (
           <p

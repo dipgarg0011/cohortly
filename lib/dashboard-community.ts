@@ -1,16 +1,13 @@
-import type { ProfileStatus } from "@/lib/network";
-
 export type CommunityProfileRow = {
   id: string;
   batch_year: number | null;
-  status: ProfileStatus | null;
+  status: string | null;
   department: string | null;
 };
 
 export type CommunityStats = {
   yourBatch: number;
   yourBranch: number;
-  graduates: number;
   total: number;
   batchYear: number | null;
   department: string | null;
@@ -21,7 +18,7 @@ const COMMUNITY_SELECT = "id, batch_year, status, department";
 export { COMMUNITY_SELECT };
 
 /**
- * Aggregate authenticated-visible profiles into four dashboard community counts.
+ * Aggregate authenticated-visible profiles into dashboard community counts.
  * Includes the viewer in totals/counts.
  */
 export function buildCommunityStats(
@@ -39,7 +36,6 @@ export function buildCommunityStats(
 
   let yourBatch = 0;
   let yourBranch = 0;
-  let graduates = 0;
 
   for (const row of profiles) {
     if (
@@ -54,16 +50,11 @@ export function buildCommunityStats(
     if (department && row.department?.trim() === department) {
       yourBranch += 1;
     }
-
-    if (row.status === "graduate") {
-      graduates += 1;
-    }
   }
 
   return {
     yourBatch: batchYear != null ? yourBatch : 0,
     yourBranch: department != null ? yourBranch : 0,
-    graduates,
     total: profiles.length,
     batchYear,
     department,

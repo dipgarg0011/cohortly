@@ -5,7 +5,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import {
   IconBriefcase,
-  IconMentor,
+  IconMessage,
   IconSpark,
   IconUsers,
 } from "@/components/ui/icons";
@@ -13,6 +13,7 @@ import type { CommunityStats } from "@/lib/dashboard-community";
 
 type Props = {
   stats: CommunityStats;
+  unreadCount: number;
 };
 
 type CommunityCard = {
@@ -20,13 +21,23 @@ type CommunityCard = {
   href: string;
   value: number;
   label: string;
+  subtitle?: string | null;
   icon: ReactNode;
   soft: string;
   solid: string;
 };
 
-export function DashboardCommunity({ stats }: Props) {
+export function DashboardCommunity({ stats, unreadCount }: Props) {
   const cards: CommunityCard[] = [
+    {
+      key: "community",
+      href: "/network",
+      value: stats.total,
+      label: "IIT BHU community",
+      icon: <IconUsers size={16} />,
+      soft: "var(--brand-soft)",
+      solid: "var(--brand)",
+    },
     {
       key: "batch",
       href:
@@ -35,7 +46,8 @@ export function DashboardCommunity({ stats }: Props) {
           : "/network",
       value: stats.yourBatch,
       label: "Your batch",
-      icon: <IconUsers size={16} />,
+      subtitle: stats.batchYear != null ? `Batch ${stats.batchYear}` : null,
+      icon: <IconSpark size={16} />,
       soft: "var(--brand-soft)",
       solid: "var(--brand)",
     },
@@ -46,27 +58,19 @@ export function DashboardCommunity({ stats }: Props) {
         : "/network",
       value: stats.yourBranch,
       label: "Your branch",
+      subtitle: stats.department,
       icon: <IconBriefcase size={16} />,
-      soft: "var(--accent-home-soft)",
-      solid: "var(--accent-home)",
+      soft: "var(--brand-soft)",
+      solid: "var(--brand)",
     },
     {
-      key: "graduates",
-      href: "/network?status=graduate",
-      value: stats.graduates,
-      label: "Graduates",
-      icon: <IconMentor size={16} />,
-      soft: "#ccfbf1",
-      solid: "#0f766e",
-    },
-    {
-      key: "community",
-      href: "/network",
-      value: stats.total,
-      label: "Community",
-      icon: <IconSpark size={16} />,
-      soft: "#d8f3ee",
-      solid: "#0d5f59",
+      key: "unread",
+      href: "/messages",
+      value: unreadCount,
+      label: "Unread messages",
+      icon: <IconMessage size={16} />,
+      soft: "var(--brand-soft)",
+      solid: "var(--brand)",
     },
   ];
 
@@ -100,6 +104,14 @@ export function DashboardCommunity({ stats }: Props) {
               <p className="mt-0.5 text-xs font-semibold text-slate-500">
                 {card.label}
               </p>
+              {card.subtitle ? (
+                <p
+                  className="mt-0.5 text-[11px] font-semibold"
+                  style={{ color: card.solid }}
+                >
+                  {card.subtitle}
+                </p>
+              ) : null}
             </SurfaceCard>
           </Link>
         ))}

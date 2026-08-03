@@ -12,7 +12,7 @@ export default async function NetworkPage() {
     supabase
       .from("profiles")
       .select(
-        "id, full_name, batch_year, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio",
+        "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio",
       )
       .neq("id", user.id)
       .order("batch_year", { ascending: false })

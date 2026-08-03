@@ -82,7 +82,7 @@ export function NetworkDirectory({
     const q = search.trim().toLowerCase();
 
     return others.filter((profile) => {
-      const role = getProfileRole(profile.batch_year, currentYear);
+      const role = getProfileRole(profile.status);
       const name = profile.full_name?.toLowerCase() ?? "";
       const company = profile.company?.toLowerCase() ?? "";
 
@@ -120,7 +120,6 @@ export function NetworkDirectory({
     openToFilter,
     skillFilter,
     status,
-    currentYear,
   ]);
 
   // Resolve Message / Request sent / Send Request for every visible card from one list.

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { deadlineLabel, isDeadlineUrgent } from "@/lib/referrals";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { AppModal } from "@/components/ui/app-modal";
 import { IconOpportunityEmpty } from "@/components/ui/icons";
 import {
   OPPORTUNITY_TYPES,
@@ -68,14 +69,22 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
       </div>
 
       {showForm && (
-        <OpportunityForm
-          onCreated={(item) => {
-            setItems((prev) => [item, ...prev]);
-            setShowForm(false);
-            setFilter("all");
-          }}
-          onCancel={() => setShowForm(false)}
-        />
+        <AppModal
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          title="Post an opportunity"
+          description="Share an internship, job, research role, or early-stage opening."
+          maxWidthClass="sm:max-w-lg"
+        >
+          <OpportunityForm
+            onCreated={(item) => {
+              setItems((prev) => [item, ...prev]);
+              setShowForm(false);
+              setFilter("all");
+            }}
+            onCancel={() => setShowForm(false)}
+          />
+        </AppModal>
       )}
 
       {filtered.length === 0 ? (
@@ -164,8 +173,7 @@ function OpportunityForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="surface-card space-y-4 p-5 sm:p-6">
-      <h2 className="card-title">Post an opportunity</h2>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -329,7 +337,10 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       </div>
 
       {opportunity.poster?.full_name && (
-        <p className="mt-3 break-safe text-xs text-slate-500">
+        <p
+          className="mt-3 min-w-0 truncate text-xs text-slate-500"
+          title={opportunity.poster.full_name}
+        >
           Posted by {opportunity.poster.full_name}
           {opportunity.poster.batch_year != null
             ? ` · Batch ${opportunity.poster.batch_year}`

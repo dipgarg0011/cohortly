@@ -76,7 +76,10 @@ export function DashboardFeed({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-bold text-slate-900">
+                          <span
+                            title={name}
+                            className="min-w-0 truncate whitespace-nowrap text-sm font-bold text-slate-900"
+                          >
                             {name}
                           </span>
                           <span className="meta-text shrink-0">

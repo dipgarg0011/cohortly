@@ -127,8 +127,8 @@ export function Navbar() {
     <header className="sticky top-0 z-30 overflow-x-clip border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
         <Link
-          href="/dashboard"
-          className="min-w-0 shrink-0 truncate font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] sm:text-xl"
+          href={userId ? "/dashboard" : "/"}
+          className="relative z-10 min-w-0 shrink-0 truncate rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98] sm:text-xl"
         >
           Cohortly
         </Link>

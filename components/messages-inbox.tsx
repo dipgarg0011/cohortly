@@ -541,7 +541,10 @@ export function MessagesInbox({
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-semibold text-slate-900">
+                        <span
+                          title={name}
+                          className="min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
+                        >
                           {name}
                         </span>
                         <span className="shrink-0 text-[11px] text-slate-400">
@@ -613,7 +616,10 @@ export function MessagesInbox({
                 size="sm"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-slate-900">
+                <p
+                  title={partnerName}
+                  className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
+                >
                   {partnerName}
                 </p>
                 {selectedConversation.status === "pending" && (

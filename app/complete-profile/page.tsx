@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CompleteProfileForm } from "@/components/complete-profile-form";
 import { isCollegeEmail, COLLEGE_EMAIL_ERROR } from "@/lib/college";
@@ -42,9 +43,12 @@ export default async function CompleteProfilePage() {
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-12 sm:px-6">
         <div className="mb-8 text-center">
-          <p className="font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--brand)]">
+          <Link
+            href="/dashboard"
+            className="inline-block rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98]"
+          >
             Cohortly
-          </p>
+          </Link>
           <h1 className="mt-4 font-[family-name:var(--font-display)] text-2xl font-bold text-slate-900">
             Complete your profile
           </h1>

@@ -1,5 +1,8 @@
 export type ProfileRole = "Student" | "Graduate";
 
+/** Stored on profiles.status — explicit, not inferred from year alone. */
+export type ProfileStatus = "student" | "graduate";
+
 export const OPEN_TO_OPTIONS = [
   "Mentoring",
   "Referrals",
@@ -29,6 +32,8 @@ export type NetworkProfile = {
   id: string;
   full_name: string | null;
   batch_year: number | null;
+  /** Explicit student / graduate — prefer this over guessing from batch_year */
+  status: ProfileStatus | null;
   department: string | null;
   current_job: string | null;
   company: string | null;
@@ -44,6 +49,7 @@ export type NetworkProfile = {
 export type EditableProfile = {
   full_name: string;
   batch_year: number | null;
+  status: ProfileStatus;
   department: string;
   company: string;
   role_title: string;
@@ -54,12 +60,42 @@ export type EditableProfile = {
   bio: string;
 };
 
-export function getProfileRole(
+/**
+ * Suggested default for the student/graduate control.
+ * Graduation assumed end of June: if batch_year < current year, or
+ * batch_year == current year and month is July or later → graduate.
+ */
+export function suggestedProfileStatus(
   batchYear: number | null,
-  currentYear = new Date().getFullYear(),
+  now = new Date(),
+): ProfileStatus {
+  if (batchYear == null) return "graduate";
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1–12
+  if (batchYear < year) return "graduate";
+  if (batchYear === year && month >= 7) return "graduate";
+  return "student";
+}
+
+/** True when batch year has passed the June graduation cutoff. */
+export function hasBatchYearPassed(
+  batchYear: number | null,
+  now = new Date(),
+): boolean {
+  return suggestedProfileStatus(batchYear, now) === "graduate";
+}
+
+/** Badge / role label from explicit profiles.status. */
+export function getProfileRole(
+  status: ProfileStatus | null | undefined,
 ): ProfileRole {
-  if (batchYear == null) return "Graduate";
-  return batchYear >= currentYear ? "Student" : "Graduate";
+  return status === "student" ? "Student" : "Graduate";
+}
+
+export function isGraduateStatus(
+  status: ProfileStatus | null | undefined,
+): boolean {
+  return getProfileRole(status) === "Graduate";
 }
 
 export function getInitials(name: string | null): string {

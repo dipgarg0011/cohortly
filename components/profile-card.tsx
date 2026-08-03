@@ -34,7 +34,8 @@ export function ProfileCard({
   dense = false,
   accent = "network",
 }: Props) {
-  const role = getProfileRole(profile.batch_year, currentYear);
+  void currentYear;
+  const role = getProfileRole(profile.status);
   const name = profile.full_name?.trim() || "Unnamed member";
   const isStudent = role === "Student";
   const roleTitle =
@@ -48,9 +49,9 @@ export function ProfileCard({
       <SurfaceCard
         as="article"
         interactive
-        className="w-full max-w-full min-w-0 overflow-hidden px-3 py-2.5"
+        className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-2.5 py-2"
       >
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           <Avatar
             name={profile.full_name}
             url={profile.avatar_url}
@@ -61,7 +62,7 @@ export function ProfileCard({
             <div className="flex min-w-0 items-center gap-1.5">
               <h2
                 title={name}
-                className="min-w-0 truncate text-sm font-bold text-slate-900"
+                className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-bold text-slate-900"
               >
                 {name}
               </h2>
@@ -79,22 +80,11 @@ export function ProfileCard({
                   {profile.batch_year}
                 </span>
               )}
-              {profile.linkedin_url ? (
-                <a
-                  href={profile.linkedin_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${name} on LinkedIn`}
-                  className="ml-auto shrink-0 rounded-md p-0.5 text-[#0A66C2] hover:bg-sky-50"
-                >
-                  <LinkedInIcon />
-                </a>
-              ) : null}
             </div>
-            <div className="mt-1 flex min-w-0 items-center gap-2">
+            <div className="mt-0.5 flex min-w-0 items-center gap-2">
               <p
                 title={department || roleTitle || company || undefined}
-                className="min-w-0 flex-1 truncate text-xs text-slate-500"
+                className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-slate-500"
               >
                 {department || roleTitle || company || "—"}
               </p>
@@ -103,7 +93,7 @@ export function ProfileCard({
                   type="button"
                   onClick={onSayHi}
                   disabled={sayHiDisabled}
-                  className="shrink-0 rounded-lg bg-[var(--brand)] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+                  className="shrink-0 rounded-md bg-[var(--brand)] px-2 py-0.5 text-[11px] font-bold leading-5 text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {sayHiLabel}
                 </button>
@@ -132,7 +122,7 @@ export function ProfileCard({
           <div className="flex min-w-0 items-start gap-2">
             <h2
               title={name}
-              className="min-w-0 flex-1 truncate text-base font-bold text-slate-900"
+              className="min-w-0 flex-1 truncate whitespace-nowrap text-base font-bold text-slate-900"
             >
               {name}
             </h2>
@@ -176,22 +166,52 @@ export function ProfileCard({
             {roleTitle && (
               <p
                 title={roleTitle}
-                className="truncate font-semibold text-slate-800"
+                className="truncate whitespace-nowrap font-semibold text-slate-800"
               >
                 {roleTitle}
               </p>
             )}
             {company && (
-              <p title={company} className="truncate text-slate-600">
+              <p
+                title={company}
+                className="truncate whitespace-nowrap text-slate-600"
+              >
                 {company}
               </p>
             )}
           </div>
         )}
         {department && (
-          <p title={department} className="truncate text-slate-500">
-            {department}
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p
+              title={department}
+              className="min-w-0 flex-1 truncate whitespace-nowrap text-slate-500"
+            >
+              {department}
+            </p>
+            {!isSelf && onSayHi && (
+              <button
+                type="button"
+                onClick={onSayHi}
+                disabled={sayHiDisabled}
+                className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55 sm:hidden"
+              >
+                {sayHiLabel}
+              </button>
+            )}
+          </div>
+        )}
+        {!department && !isSelf && onSayHi && (
+          <div className="flex justify-end sm:hidden">
+            <button
+              type="button"
+              onClick={onSayHi}
+              disabled={sayHiDisabled}
+              className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {sayHiLabel}
+            </button>
+          </div>
         )}
         {openTo.length > 0 && (
           <div className="flex min-w-0 flex-wrap gap-1.5 pt-1">
@@ -212,7 +232,7 @@ export function ProfileCard({
           type="button"
           onClick={onSayHi}
           disabled={sayHiDisabled}
-          className="btn-primary mt-4 w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55"
+          className="btn-primary mt-4 hidden w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55 sm:block"
         >
           {sayHiLabel}
         </button>
@@ -232,7 +252,7 @@ function Avatar({
   ring: string;
   size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "h-9 w-9 text-[10px]" : "h-12 w-12";
+  const dim = size === "sm" ? "h-8 w-8 text-[10px]" : "h-12 w-12";
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

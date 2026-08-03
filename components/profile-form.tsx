@@ -3,10 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileStatusField } from "@/components/profile-status-field";
 import {
   OPEN_TO_OPTIONS,
   SKILL_OPTIONS,
+  suggestedProfileStatus,
   type EditableProfile,
+  type ProfileStatus,
 } from "@/lib/network";
 
 type Props = {
@@ -23,6 +26,8 @@ export function ProfileForm({ initialProfile }: Props) {
   const [batchYear, setBatchYear] = useState(
     initialProfile.batch_year != null ? String(initialProfile.batch_year) : "",
   );
+  const [status, setStatus] = useState<ProfileStatus>(initialProfile.status);
+  const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState(initialProfile.department);
   const [company, setCompany] = useState(initialProfile.company);
   const [roleTitle, setRoleTitle] = useState(initialProfile.role_title);
@@ -31,6 +36,28 @@ export function ProfileForm({ initialProfile }: Props) {
   const [skills, setSkills] = useState<string[]>(initialProfile.skills);
   const [linkedinUrl, setLinkedinUrl] = useState(initialProfile.linkedin_url);
   const [bio, setBio] = useState(initialProfile.bio);
+
+  const isGraduate = status === "graduate";
+  const openToOptions = isGraduate
+    ? OPEN_TO_OPTIONS
+    : OPEN_TO_OPTIONS.filter((tag) => tag !== "Mentoring");
+
+  function onBatchYearChange(value: string) {
+    setBatchYear(value);
+    if (statusTouched) return;
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
+      setStatus(suggestedProfileStatus(year));
+    }
+  }
+
+  function onStatusChange(next: ProfileStatus) {
+    setStatusTouched(true);
+    setStatus(next);
+    if (next === "student") {
+      setOpenTo((prev) => prev.filter((tag) => tag !== "Mentoring"));
+    }
+  }
 
   function toggleTag(
     list: string[],
@@ -70,12 +97,15 @@ export function ProfileForm({ initialProfile }: Props) {
     const payload = {
       full_name: fullName.trim(),
       batch_year: year,
+      status,
       department: department.trim() || null,
       company: company.trim() || null,
       role_title: roleTitle.trim() || null,
       current_job: roleTitle.trim() || null,
       is_founder: isFounder,
-      open_to: openTo,
+      open_to: isGraduate
+        ? openTo
+        : openTo.filter((tag) => tag !== "Mentoring"),
       skills,
       linkedin_url: linkedinUrl.trim() || null,
       bio: bio.trim() || null,
@@ -112,14 +142,19 @@ export function ProfileForm({ initialProfile }: Props) {
             required
             className="sm:col-span-2"
           />
-          <Field
-            label="Batch year"
-            id="batchYear"
-            type="number"
-            value={batchYear}
-            onChange={setBatchYear}
-            required
-          />
+          <div className="space-y-1.5">
+            <Field
+              label="Batch year"
+              id="batchYear"
+              type="number"
+              value={batchYear}
+              onChange={onBatchYearChange}
+              required
+            />
+            <p className="text-xs text-slate-500">
+              Batch year is your graduation year.
+            </p>
+          </div>
           <Field
             label="Department"
             id="department"
@@ -127,6 +162,13 @@ export function ProfileForm({ initialProfile }: Props) {
             onChange={setDepartment}
             placeholder="CSE"
           />
+          <div className="sm:col-span-2">
+            <ProfileStatusField
+              value={status}
+              onChange={onStatusChange}
+              idPrefix="profile-status"
+            />
+          </div>
           <Field
             label="LinkedIn URL"
             id="linkedinUrl"
@@ -196,9 +238,14 @@ export function ProfileForm({ initialProfile }: Props) {
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           What kinds of help or connections are you open to?
+          {!isGraduate && (
+            <span className="block text-xs text-slate-500">
+              Mentoring is available once you mark yourself as a graduate.
+            </span>
+          )}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {OPEN_TO_OPTIONS.map((tag) => {
+          {openToOptions.map((tag) => {
             const active = openTo.includes(tag);
             return (
               <button

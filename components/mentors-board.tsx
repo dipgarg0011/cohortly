@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials, SKILL_OPTIONS } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { AppModal } from "@/components/ui/app-modal";
 import { IconMentorEmpty } from "@/components/ui/icons";
 import {
   formatRelativeExpiry,
@@ -715,65 +716,57 @@ function AnswerModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-3 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
+    <AppModal
+      open
+      onClose={onClose}
+      title="Instant reply"
+      description="Write a quick answer. Chat unlocks so you can follow up if needed."
+      maxWidthClass="sm:max-w-lg"
     >
-      <div
-        className="my-auto w-full max-w-lg max-h-[min(92dvh,42rem)] overflow-y-auto rounded-2xl border border-teal-900/10 bg-white p-4 shadow-xl sm:p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900">
-          Instant reply
-        </h3>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Write a quick answer. Chat unlocks so you can follow up if needed.
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            placeholder="Be specific — steps, resources, what you'd do in their shoes…"
-            className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            autoFocus
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={6}
+          placeholder="Be specific — steps, resources, what you'd do in their shoes…"
+          className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+          autoFocus
+        />
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700"
           />
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700"
-            />
-            Allow this answer in a future public archive
-          </label>
-          {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary flex-1 disabled:opacity-60"
-            >
-              {loading ? "Saving…" : existingId ? "Update reply" : "Send reply"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          Allow this answer in a future public archive
+        </label>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary flex-1 disabled:opacity-60"
+          >
+            {loading ? "Saving…" : existingId ? "Update reply" : "Send reply"}
+          </button>
+        </div>
+      </form>
+    </AppModal>
   );
 }
 

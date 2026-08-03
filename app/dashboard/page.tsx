@@ -14,7 +14,13 @@ import {
   IconUsers,
 } from "@/components/ui/icons";
 import { getProfileCompletion } from "@/lib/profile-completion";
-import { firstName, type NetworkProfile } from "@/lib/network";
+import {
+  firstName,
+  hasBatchYearPassed,
+  type NetworkProfile,
+  type ProfileStatus,
+} from "@/lib/network";
+import { GraduationNudgeBanner } from "@/components/graduation-nudge-banner";
 import type { ConversationRow } from "@/lib/conversations";
 import {
   buildConversations,
@@ -29,7 +35,7 @@ import {
 import type { ReactNode } from "react";
 
 const PROFILE_SELECT =
-  "id, full_name, batch_year, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
+  "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
 
 export default async function DashboardPage() {
   const { user, supabase } = await requireProfile();
@@ -187,6 +193,10 @@ export default async function DashboardPage() {
     completion.message ||
     "complete your profile";
 
+  const showGradNudge =
+    (profile?.status as ProfileStatus | null | undefined) === "student" &&
+    hasBatchYearPassed(profile?.batch_year ?? null);
+
   return (
     <PageShell accent="home">
       <Navbar />
@@ -202,6 +212,8 @@ export default async function DashboardPage() {
             community.
           </p>
         </div>
+
+        {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 
         {completion.percent < 100 && (
           <div className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up sm:mb-6 sm:gap-4 sm:px-4 sm:py-3">
@@ -230,8 +242,8 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* Compact horizontal stats on mobile; grid on large screens */}
-        <div className="mb-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 animate-fade-up sm:mx-0 sm:mb-8 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 sm:gap-3">
+        {/* Compact horizontal stats — never a tall 2×2 on mobile/tablet */}
+        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 animate-fade-up [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mb-8 lg:grid lg:grid-cols-4 lg:gap-3 lg:overflow-visible lg:pb-0">
           <StatTile
             href="/network"
             label="Network"
@@ -322,27 +334,27 @@ function StatTile({
   return (
     <Link
       href={href}
-      className="block min-w-[4.75rem] shrink-0 sm:min-w-0 sm:shrink"
+      className="block min-w-[4.5rem] flex-1 basis-0 shrink-0 lg:min-w-0 lg:flex-none"
     >
       <SurfaceCard
         interactive
-        className={`flex h-full min-w-0 flex-col items-center px-2.5 py-2 text-center sm:items-start sm:p-3.5 sm:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
+        className={`flex h-full min-w-0 flex-col items-center px-2 py-1.5 text-center lg:items-start lg:p-3.5 lg:text-left ${highlight ? "ring-1 ring-teal-500/25" : ""}`}
       >
         <div
-          className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-lg sm:mb-2 sm:h-8 sm:w-8 sm:rounded-xl"
+          className="mb-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md lg:mb-2 lg:h-8 lg:w-8 lg:rounded-xl"
           style={{ background: soft, color: solid }}
         >
           {icon}
         </div>
-        <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-none text-slate-900 sm:text-3xl">
+        <p className="font-[family-name:var(--font-display)] text-base font-bold leading-none text-slate-900 lg:text-3xl">
           {value}
         </p>
-        <p className="mt-1 text-[10px] font-semibold leading-tight text-slate-500 sm:mt-0.5 sm:text-xs">
+        <p className="mt-0.5 text-[10px] font-semibold leading-tight text-slate-500 lg:mt-0.5 lg:text-xs">
           {label}
         </p>
         {sublabel && (
           <p
-            className="mt-0.5 max-w-full truncate text-[10px] font-medium sm:text-[11px]"
+            className="mt-0.5 hidden max-w-full truncate text-[11px] font-medium lg:block"
             style={{ color: solid }}
           >
             {sublabel}

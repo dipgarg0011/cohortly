@@ -2,7 +2,7 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MentorsBoard } from "@/components/mentors-board";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
-import { getProfileRole } from "@/lib/network";
+import { isGraduateStatus } from "@/lib/network";
 import {
   normalizeMatchedAsk,
   normalizeMentorshipRequest,
@@ -37,7 +37,7 @@ export default async function MentorsPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("batch_year, skills, bio")
+      .select("batch_year, status, skills, bio")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -48,7 +48,9 @@ export default async function MentorsPage() {
     supabase.rpc("list_my_matched_asks"),
   ]);
 
-  const isGraduate = getProfileRole(profile?.batch_year ?? null) === "Graduate";
+  const isGraduate = isGraduateStatus(
+    (profile?.status as "student" | "graduate" | null | undefined) ?? null,
+  );
 
   // Graduates are auto-opted in — no profile setup needed. Matching uses skills.
   if (isGraduate) {

@@ -2,7 +2,11 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { ProfileForm } from "@/components/profile-form";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
-import type { EditableProfile } from "@/lib/network";
+import {
+  suggestedProfileStatus,
+  type EditableProfile,
+  type ProfileStatus,
+} from "@/lib/network";
 
 export default async function ProfilePage() {
   const { supabase, user } = await requireProfile();
@@ -10,14 +14,19 @@ export default async function ProfilePage() {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "full_name, batch_year, department, company, role_title, is_founder, open_to, skills, linkedin_url, bio",
+      "full_name, batch_year, status, department, company, role_title, is_founder, open_to, skills, linkedin_url, bio",
     )
     .eq("id", user.id)
     .maybeSingle();
 
+  const status =
+    (profile?.status as ProfileStatus | null | undefined) ??
+    suggestedProfileStatus(profile?.batch_year ?? null);
+
   const initialProfile: EditableProfile = {
     full_name: profile?.full_name ?? "",
     batch_year: profile?.batch_year ?? null,
+    status,
     department: profile?.department ?? "",
     company: profile?.company ?? "",
     role_title: profile?.role_title ?? "",

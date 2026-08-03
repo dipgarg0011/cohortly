@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { AppModal } from "@/components/ui/app-modal";
 import { IconReferralEmpty } from "@/components/ui/icons";
 import {
   deadlineLabel,
@@ -206,10 +207,18 @@ export function ReferralBoard({ currentUserId, initialRequests }: Props) {
       )}
 
       {showForm && view === "need" && (
-        <ReferralRequestForm
-          onCreated={onCreated}
-          onCancel={() => setShowForm(false)}
-        />
+        <AppModal
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          title="What do you need referred for?"
+          description="Keep it short — company, role, and optional resume or job link."
+          maxWidthClass="sm:max-w-lg"
+        >
+          <ReferralRequestForm
+            onCreated={onCreated}
+            onCancel={() => setShowForm(false)}
+          />
+        </AppModal>
       )}
 
       {error && (
@@ -457,13 +466,7 @@ function ReferralRequestForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="surface-card space-y-4 p-5 sm:p-6">
-      <div>
-        <h2 className="card-title">What do you need referred for?</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Keep it short — company, role, and optional resume or job link.
-        </p>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Company"

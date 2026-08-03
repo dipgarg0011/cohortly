@@ -168,7 +168,10 @@ export default async function DashboardPage() {
       .limit(12);
 
     const rows = (data ?? []) as NetworkProfile[];
+    // Belt-and-suspenders: never surface the logged-in user even if OR
+    // filter parsing drops an id.neq branch.
     suggestions = rows
+      .filter((row) => row.id !== uid)
       .map((row) => {
         let score = 0;
         if (

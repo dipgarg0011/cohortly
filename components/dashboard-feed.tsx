@@ -76,11 +76,14 @@ export function DashboardFeed({
               actionLabel="Find people"
             />
           ) : (
-            <ul className="min-w-0 space-y-0.5">
+            <ul className="min-w-0 max-w-full space-y-0.5">
               {conversations.map((convo) => {
                 const name =
                   convo.partner.full_name?.trim() || "Unnamed member";
                 const unread = convo.unreadCount > 0;
+                const preview = `${
+                  convo.lastMessage.sender_id === currentUserId ? "You: " : ""
+                }${convo.lastMessage.content}`;
                 return (
                   <li
                     key={convo.partner.id}
@@ -102,7 +105,7 @@ export function DashboardFeed({
                       />
                     </ProfilePreviewTrigger>
                     <div className="min-w-0 flex-1 overflow-hidden">
-                      <div className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center justify-between gap-2 leading-5">
                         <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                           {unread && (
                             <span
@@ -112,11 +115,11 @@ export function DashboardFeed({
                           )}
                           <ProfilePreviewTrigger
                             userId={convo.partner.id}
-                            className="min-w-0 truncate"
+                            className="block min-w-0 flex-1 overflow-hidden"
                           >
                             <span
                               title={name}
-                              className={`min-w-0 truncate text-sm ${
+                              className={`block min-w-0 truncate text-sm leading-5 ${
                                 unread
                                   ? "font-extrabold text-slate-950"
                                   : "font-semibold text-slate-800"
@@ -128,19 +131,17 @@ export function DashboardFeed({
                         </span>
                         <Link
                           href={`/messages?with=${convo.partner.id}`}
-                          className="meta-text shrink-0 hover:text-[var(--brand)]"
+                          className="meta-text shrink-0 leading-5 hover:text-[var(--brand)]"
                         >
                           {formatMessageTime(convo.lastMessage.created_at)}
                         </Link>
                       </div>
                       <Link
                         href={`/messages?with=${convo.partner.id}`}
-                        className="mt-0.5 block min-w-0 truncate text-xs text-slate-500 hover:text-slate-700"
+                        title={preview}
+                        className="mt-0.5 block min-w-0 max-w-full overflow-hidden truncate text-xs leading-4 text-slate-500 hover:text-slate-700"
                       >
-                        {convo.lastMessage.sender_id === currentUserId
-                          ? "You: "
-                          : ""}
-                        {convo.lastMessage.content}
+                        {preview}
                       </Link>
                     </div>
                   </li>

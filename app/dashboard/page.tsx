@@ -11,6 +11,7 @@ import {
 } from "@/components/dashboard-feed";
 import { DashboardNeedsYou } from "@/components/dashboard-needs";
 import { DashboardWorthALook } from "@/components/dashboard-worth-a-look";
+import { DashboardCommunity } from "@/components/dashboard-community";
 import { PageShell } from "@/components/ui/page-shell";
 import { SectionCard } from "@/components/ui/section-card";
 import { getProfileCompletion } from "@/lib/profile-completion";
@@ -46,6 +47,11 @@ import {
   buildWorthALookItems,
   needExclusionSet,
 } from "@/lib/dashboard-look";
+import {
+  COMMUNITY_SELECT,
+  buildCommunityStats,
+  type CommunityProfileRow,
+} from "@/lib/dashboard-community";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
@@ -66,6 +72,7 @@ export default async function DashboardPage() {
     { data: acceptedReferralRows },
     { data: applicationRows },
     { data: openMentorshipRows },
+    { data: communityRows },
   ] = await Promise.all([
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
     supabase
@@ -126,6 +133,7 @@ export default async function DashboardPage() {
       .neq("student_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase.from("profiles").select(COMMUNITY_SELECT),
   ]);
 
   const profile = myProfile as NetworkProfile | null;
@@ -273,6 +281,15 @@ export default async function DashboardPage() {
     (profile?.status as ProfileStatus | null | undefined) === "student" &&
     hasBatchYearPassed(profile?.batch_year ?? null);
 
+  const communityStats = buildCommunityStats(
+    (communityRows ?? []) as CommunityProfileRow[],
+    {
+      id: user.id,
+      batch_year: profile?.batch_year ?? null,
+      department: profile?.department ?? null,
+    },
+  );
+
   return (
     <PageShell accent="home">
       <Navbar />
@@ -285,6 +302,8 @@ export default async function DashboardPage() {
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 
         <DashboardNeedsYou items={needItems} />
+
+        <DashboardCommunity stats={communityStats} />
 
         <DashboardWorthALook items={lookItems} />
 

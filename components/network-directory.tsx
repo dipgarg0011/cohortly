@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { ProfileCard } from "@/components/profile-card";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
@@ -22,24 +28,57 @@ import {
 
 type StatusFilter = "All" | ProfileRole;
 
+export type NetworkInitialFilters = {
+  batchYear?: string;
+  department?: string;
+  status?: StatusFilter;
+};
+
 type Props = {
   profiles: NetworkProfile[];
   currentUserId: string;
   initialConversations: ConversationRow[];
+  initialFilters?: NetworkInitialFilters;
 };
+
+function syncNetworkUrl(filters: {
+  batchYear: string;
+  department: string;
+  status: StatusFilter;
+}) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams();
+  if (filters.batchYear !== "all") params.set("batch", filters.batchYear);
+  if (filters.department !== "all") params.set("dept", filters.department);
+  if (filters.status === "Student") params.set("status", "student");
+  if (filters.status === "Graduate") params.set("status", "graduate");
+  const qs = params.toString();
+  const next = qs ? `/network?${qs}` : "/network";
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (current !== next) {
+    window.history.replaceState(null, "", next);
+  }
+}
 
 export function NetworkDirectory({
   profiles,
   currentUserId,
   initialConversations,
+  initialFilters,
 }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [batchYear, setBatchYear] = useState("all");
-  const [department, setDepartment] = useState("all");
+  const [batchYear, setBatchYear] = useState(
+    initialFilters?.batchYear ?? "all",
+  );
+  const [department, setDepartment] = useState(
+    initialFilters?.department ?? "all",
+  );
   const [openToFilter, setOpenToFilter] = useState("all");
   const [skillFilter, setSkillFilter] = useState("all");
-  const [status, setStatus] = useState<StatusFilter>("All");
+  const [status, setStatus] = useState<StatusFilter>(
+    initialFilters?.status ?? "All",
+  );
   const [conversations, setConversations] =
     useState<ConversationRow[]>(initialConversations);
   const [requestTarget, setRequestTarget] = useState<NetworkProfile | null>(
@@ -47,6 +86,16 @@ export function NetworkDirectory({
   );
 
   const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    syncNetworkUrl({ batchYear, department, status });
+  }, [batchYear, department, status]);
+
+  const clearActiveFilters = useCallback(() => {
+    setBatchYear("all");
+    setDepartment("all");
+    setStatus("All");
+  }, []);
 
   const others = useMemo(
     () => profiles.filter((p) => p.id !== currentUserId),
@@ -58,16 +107,22 @@ export function NetworkDirectory({
     for (const p of others) {
       if (p.batch_year != null) years.add(p.batch_year);
     }
+    // Keep deep-linked year visible even if empty after exclude-self.
+    if (batchYear !== "all") {
+      const y = Number(batchYear);
+      if (Number.isFinite(y)) years.add(y);
+    }
     return Array.from(years).sort((a, b) => b - a);
-  }, [others]);
+  }, [others, batchYear]);
 
   const departments = useMemo(() => {
     const deps = new Set<string>();
     for (const p of others) {
       if (p.department?.trim()) deps.add(p.department.trim());
     }
+    if (department !== "all") deps.add(department);
     return Array.from(deps).sort((a, b) => a.localeCompare(b));
-  }, [others]);
+  }, [others, department]);
 
   const skillOptions = useMemo(() => {
     const fromProfiles = new Set<string>(SKILL_OPTIONS);
@@ -172,9 +227,64 @@ export function NetworkDirectory({
     [filtered, actionById],
   );
 
+  const activeChips: { key: string; label: string; onClear: () => void }[] =
+    [];
+  if (batchYear !== "all") {
+    activeChips.push({
+      key: "batch",
+      label: `Batch ${batchYear}`,
+      onClear: () => setBatchYear("all"),
+    });
+  }
+  if (department !== "all") {
+    activeChips.push({
+      key: "dept",
+      label: department,
+      onClear: () => setDepartment("all"),
+    });
+  }
+  if (status !== "All") {
+    activeChips.push({
+      key: "status",
+      label: status === "Student" ? "Students" : "Graduates",
+      onClear: () => setStatus("All"),
+    });
+  }
+
   return (
     <div className="space-y-6 min-w-0">
       <SectionCard className="space-y-3">
+        {activeChips.length > 0 ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">
+              Active filters
+            </span>
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.onClear}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-900 transition hover:bg-teal-100"
+                aria-label={`Remove filter ${chip.label}`}
+              >
+                <span className="max-w-[12rem] truncate">{chip.label}</span>
+                <span aria-hidden className="text-teal-700/70">
+                  ×
+                </span>
+              </button>
+            ))}
+            {activeChips.length > 1 ? (
+              <button
+                type="button"
+                onClick={clearActiveFilters}
+                className="text-xs font-semibold text-[var(--brand)] hover:underline"
+              >
+                Clear all
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <label className="block min-w-0">
           <span className="sr-only">Search by name or company</span>
           <input

@@ -16,7 +16,7 @@ import {
 } from "@/lib/mentorship";
 
 const REQUEST_COLS =
-  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score";
+  "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score, reach_stage, last_escalated_at, nudge_count, resolution, is_public_after_expiry, awaiting_resolution_at";
 
 const MATCH_COLS =
   "id, request_id, mentor_id, match_score, match_reasons, status, referred_to, referred_by, responded_at, created_at";
@@ -37,7 +37,7 @@ export default async function MentorsPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("batch_year, status, skills, bio")
+      .select("batch_year, status, skills, bio, department")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -69,6 +69,13 @@ export default async function MentorsPage() {
   }
 
   const loadError = requestError || matchError;
+
+  // Best-effort lifecycle jobs — ignore failures so the page still loads.
+  await Promise.all([
+    supabase.rpc("escalate_open_mentorship_requests"),
+    supabase.rpc("nudge_unresponsive_matches"),
+    supabase.rpc("apply_mentorship_expiry_rules"),
+  ]);
 
   if (loadError) {
     return (
@@ -178,6 +185,9 @@ export default async function MentorsPage() {
           initialMatchedAsks={initialMatchedAsks}
           initialAnswers={initialAnswers}
           connectedByRequestId={connectedByRequest}
+          studentDepartment={
+            (profile?.department as string | null | undefined) ?? null
+          }
         />
       </main>
     </PageShell>

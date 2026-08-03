@@ -121,8 +121,8 @@ export function SuggestedPeople({
           dense
             ? ""
             : compact
-              ? "sm:grid-cols-2"
-              : "sm:grid-cols-2 lg:grid-cols-3"
+              ? "lg:grid-cols-2"
+              : "md:grid-cols-2 lg:grid-cols-3"
         }`}
       >
         {visible.map((profile, index) => {
@@ -136,7 +136,7 @@ export function SuggestedPeople({
           if (!state || state.kind === "hidden") return null;
 
           const itemClass = `min-w-0 max-w-full overflow-hidden${
-            hideOnMobile ? " hidden sm:block" : ""
+            hideOnMobile ? " hidden lg:block" : ""
           }`;
 
           const onSayHi =

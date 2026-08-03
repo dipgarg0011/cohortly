@@ -59,13 +59,13 @@ export function ProfileCard({
             size="sm"
           />
           <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 items-center gap-1">
-              <h2
-                title={name}
-                className="min-w-0 flex-1 truncate text-sm font-bold leading-tight text-slate-900"
-              >
-                {name}
-              </h2>
+            <h2
+              title={name}
+              className="min-w-0 truncate text-sm font-bold leading-tight text-slate-900"
+            >
+              {name}
+            </h2>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
               <span
                 className={`shrink-0 rounded px-1 py-px text-[10px] font-bold leading-4 ${
                   isStudent
@@ -80,8 +80,6 @@ export function ProfileCard({
                   {profile.batch_year}
                 </span>
               )}
-            </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
               <p
                 title={department || roleTitle || company || undefined}
                 className="min-w-0 flex-1 truncate text-xs leading-4 text-slate-500"

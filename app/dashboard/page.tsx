@@ -11,6 +11,7 @@ import { SurfaceCard } from "@/components/ui/surface-card";
 import {
   IconBriefcase,
   IconMessage,
+  IconMentor,
   IconReferral,
   IconUsers,
 } from "@/components/ui/icons";
@@ -85,14 +86,38 @@ export default async function DashboardPage() {
   const isGraduate = isGraduateStatus(profile?.status);
 
   let companyReferralAsks = 0;
+  let waitingStudents: { count: number; maxAgeDays: number } | null = null;
   if (isGraduate) {
-    const { count } = await supabase
-      .from("referral_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "open")
-      .neq("student_id", user.id);
+    const [{ count }, { data: matchedAskRows }] = await Promise.all([
+      supabase
+        .from("referral_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open")
+        .neq("student_id", user.id),
+      supabase.rpc("list_my_matched_asks"),
+    ]);
     // RLS can_view_referral already filters what this graduate can see
     companyReferralAsks = count ?? 0;
+
+    const pending = (
+      (matchedAskRows ?? []) as Record<string, unknown>[]
+    ).filter((row) => row.match_status === "pending");
+    if (pending.length > 0) {
+      let maxAgeDays = 0;
+      for (const row of pending) {
+        const created = new Date(String(row.request_created_at ?? ""));
+        if (Number.isNaN(created.getTime())) continue;
+        const age =
+          (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+        if (age > maxAgeDays) maxAgeDays = age;
+      }
+      if (maxAgeDays >= 1) {
+        waitingStudents = {
+          count: pending.length,
+          maxAgeDays: Math.max(1, Math.floor(maxAgeDays)),
+        };
+      }
+    }
   }
 
   const displayName = firstName(
@@ -216,7 +241,7 @@ export default async function DashboardPage() {
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
         <div className="mb-4 min-w-0 animate-fade-up sm:mb-6">
           <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
             Your home base
@@ -251,6 +276,31 @@ export default async function DashboardPage() {
               </p>
             </div>
             <span className="shrink-0 text-xs font-bold text-[var(--accent-referrals)]">
+              View →
+            </span>
+          </Link>
+        )}
+
+        {isGraduate && waitingStudents && (
+          <Link
+            href="/mentors"
+            className="surface-card mb-4 flex min-w-0 items-center gap-3 overflow-hidden px-3 py-2.5 animate-fade-up hover:border-amber-200 sm:mb-6 sm:px-4"
+          >
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-mentors-soft)] text-[var(--accent-mentors)]">
+              <IconMentor size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900">
+                {waitingStudents.count} student
+                {waitingStudents.count === 1 ? "" : "s"} still waiting —{" "}
+                {waitingStudents.maxAgeDays} day
+                {waitingStudents.maxAgeDays === 1 ? "" : "s"}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                Open Mentors to accept or reply.
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-bold text-[var(--accent-mentors)]">
               View →
             </span>
           </Link>
@@ -320,8 +370,9 @@ export default async function DashboardPage() {
           />
         </div>
 
-        <div className="grid min-w-0 max-w-full gap-5 lg:grid-cols-5 lg:gap-6 animate-fade-up">
-          <section className="min-w-0 max-w-full lg:col-span-3">
+        {/* Below-the-fold: force phone width — never expand into a desktop strip */}
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip lg:grid-cols-5 lg:gap-6 animate-fade-up">
+          <section className="w-full min-w-0 max-w-full overflow-x-clip lg:col-span-3">
             <PeoplePreviewHeader />
             <SuggestedPeople
               profiles={suggestions}
@@ -334,7 +385,7 @@ export default async function DashboardPage() {
             />
           </section>
 
-          <section className="min-w-0 max-w-full lg:col-span-2">
+          <section className="w-full min-w-0 max-w-full overflow-x-clip lg:col-span-2">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}

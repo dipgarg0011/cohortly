@@ -78,7 +78,19 @@ export type MentorshipRequestStatus =
   | "open"
   | "matched"
   | "closed"
-  | "expired";
+  | "expired"
+  | "awaiting_resolution";
+
+export type MentorshipResolution =
+  | "answered"
+  | "accepted"
+  | "no_match"
+  | "withdrawn"
+  | "archived_unanswered"
+  | "posted_public"
+  | "reposted"
+  | "moved_referrals"
+  | "watching";
 
 export type MatchStatus =
   | "pending"
@@ -104,7 +116,26 @@ export type MentorshipRequest = {
   is_anonymous: boolean;
   revealed_at: string | null;
   quality_score: number;
+  reach_stage: number;
+  last_escalated_at: string | null;
+  nudge_count: number;
+  resolution: MentorshipResolution | null;
+  is_public_after_expiry: boolean;
+  awaiting_resolution_at: string | null;
   student?: MentorProfileSnippet | null;
+};
+
+export type MentorshipLiveState = {
+  request_id: string;
+  computed_stage: number;
+  stored_stage: number;
+  match_count: number;
+  pending_count: number;
+  unanswered_pending: number;
+  has_answer: boolean;
+  age_days: number;
+  status: MentorshipRequestStatus;
+  resolution: MentorshipResolution | null;
 };
 
 export type RequestMatch = {
@@ -266,10 +297,85 @@ export function normalizeMentorshipRequest(
     is_anonymous: Boolean(row.is_anonymous),
     revealed_at: (row.revealed_at as string | null) ?? null,
     quality_score: Number(row.quality_score ?? 0),
+    reach_stage: Number(row.reach_stage ?? 1),
+    last_escalated_at: (row.last_escalated_at as string | null) ?? null,
+    nudge_count: Number(row.nudge_count ?? 0),
+    resolution: (row.resolution as MentorshipResolution | null) ?? null,
+    is_public_after_expiry:
+      row.is_public_after_expiry == null
+        ? true
+        : Boolean(row.is_public_after_expiry),
+    awaiting_resolution_at:
+      (row.awaiting_resolution_at as string | null) ?? null,
     student: asOne(
       row.student as MentorProfileSnippet | MentorProfileSnippet[] | null,
     ),
   };
+}
+
+export function normalizeLiveState(
+  row: Record<string, unknown>,
+): MentorshipLiveState {
+  return {
+    request_id: row.request_id as string,
+    computed_stage: Number(row.computed_stage ?? 1),
+    stored_stage: Number(row.stored_stage ?? 1),
+    match_count: Number(row.match_count ?? 0),
+    pending_count: Number(row.pending_count ?? 0),
+    unanswered_pending: Number(row.unanswered_pending ?? 0),
+    has_answer: Boolean(row.has_answer),
+    age_days: Number(row.age_days ?? 0),
+    status: row.status as MentorshipRequestStatus,
+    resolution: (row.resolution as MentorshipResolution | null) ?? null,
+  };
+}
+
+/** Plain-language status for My asks — never silent. */
+export function liveStateCopy(
+  state: MentorshipLiveState,
+  department?: string | null,
+): string {
+  if (state.has_answer) {
+    return "You have a reply — ask a follow-up if you need more.";
+  }
+  if (state.status === "awaiting_resolution") {
+    return "Still unanswered — here's what you can do";
+  }
+  if (state.resolution === "watching") {
+    return "We'll notify you when someone relevant joins.";
+  }
+  if (state.resolution === "posted_public") {
+    return "Posted publicly — any graduate can pick this up.";
+  }
+  if (state.match_count === 0) {
+    return "No graduates matched yet — we'll widen this automatically.";
+  }
+
+  const stage = state.computed_stage;
+  const pending = state.pending_count;
+  const openedish = Math.max(0, state.match_count - state.unanswered_pending);
+
+  if (stage >= 4) {
+    return "Still unanswered — visible to all graduates";
+  }
+  if (stage === 3) {
+    const dept = department?.trim();
+    return dept
+      ? `Now visible to all graduates in ${dept}`
+      : "Now visible to more graduates in your department";
+  }
+  if (pending > 0 && openedish === 0) {
+    return `Sent to ${state.match_count} graduate${state.match_count === 1 ? "" : "s"} · ${pending} haven't opened it yet`;
+  }
+  if (pending > 0) {
+    return `No response yet — opening this to more people ${stage < 2 ? "in a few days" : "soon"}`;
+  }
+  return `Sent to ${state.match_count} graduate${state.match_count === 1 ? "" : "s"} — waiting on a reply`;
+}
+
+export function stageLabel(stage: number): string {
+  const s = Math.min(4, Math.max(1, Math.round(stage)));
+  return `Stage ${s} of 4`;
 }
 
 export function normalizeMatchedAsk(row: Record<string, unknown>): MatchedAsk {
@@ -401,6 +507,12 @@ export function mapMentorshipError(
 ): string {
   const msg = error?.message ?? "";
 
+  if (msg.includes("TURN_GATE_LIMIT")) {
+    return "Follow-ups are limited to 500 characters until the chat opens fully.";
+  }
+  if (msg.includes("INVALID_ACTION")) {
+    return "That resolution option isn't available.";
+  }
   if (msg.includes("REQUEST_NOT_FOUND")) {
     return "That mentorship request could not be found.";
   }
@@ -442,4 +554,5 @@ export const REQUEST_STATUS_LABEL: Record<MentorshipRequestStatus, string> = {
   matched: "Matched",
   closed: "Closed",
   expired: "Expired",
+  awaiting_resolution: "Needs a decision",
 };

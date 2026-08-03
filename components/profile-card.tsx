@@ -43,7 +43,7 @@ export function ProfileCard({
     <SurfaceCard
       as="article"
       interactive
-      className="flex h-full flex-col p-5"
+      className="flex h-full min-w-0 flex-col p-4 sm:p-5"
     >
       <div className="flex items-start gap-3">
         {profile.avatar_url ? (
@@ -101,15 +101,17 @@ export function ProfileCard({
 
       <div className="mt-4 flex-1 space-y-2 text-sm">
         {(roleTitle || company) && (
-          <div>
+          <div className="min-w-0">
             {roleTitle && (
-              <p className="font-semibold text-slate-800">{roleTitle}</p>
+              <p className="break-safe font-semibold text-slate-800">{roleTitle}</p>
             )}
-            {company && <p className="text-slate-600">{company}</p>}
+            {company && (
+              <p className="break-safe text-slate-600">{company}</p>
+            )}
           </div>
         )}
         {profile.department?.trim() && (
-          <p className="text-slate-500">{profile.department.trim()}</p>
+          <p className="break-safe text-slate-500">{profile.department.trim()}</p>
         )}
         {openTo.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">

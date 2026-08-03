@@ -176,13 +176,13 @@ export default async function DashboardPage() {
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
         <div className="mb-6 animate-fade-up">
           <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
             Your home base
           </p>
-          <h1 className="page-title">Welcome, {displayName}</h1>
-          <p className="mt-2 max-w-xl text-base text-[var(--muted)]">
+          <h1 className="page-title break-safe">Welcome, {displayName}</h1>
+          <p className="mt-2 max-w-xl text-sm text-[var(--muted)] sm:text-base">
             Catch up on people, messages, and openings from your college
             community.
           </p>
@@ -257,8 +257,8 @@ export default async function DashboardPage() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5 animate-fade-up">
-          <section className="lg:col-span-3">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-5 animate-fade-up">
+          <section className="min-w-0 lg:col-span-3">
             <PeoplePreviewHeader />
             <SuggestedPeople
               profiles={suggestions}
@@ -278,7 +278,7 @@ export default async function DashboardPage() {
             </div>
           </section>
 
-          <section className="lg:col-span-2">
+          <section className="min-w-0 lg:col-span-2">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}

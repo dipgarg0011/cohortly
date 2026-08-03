@@ -21,7 +21,7 @@ export function EmptyState({
   accentSoft = "var(--brand-soft)",
 }: Props) {
   return (
-    <div className="surface-card animate-fade-up px-6 py-14 text-center sm:px-10">
+    <div className="surface-card animate-fade-up px-4 py-10 text-center sm:px-10 sm:py-14">
       <div
         className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl"
         style={{ background: accentSoft, color: "var(--brand)" }}

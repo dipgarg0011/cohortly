@@ -38,20 +38,35 @@
   --font-display: var(--font-fraunces);
 }
 
+html {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: clip;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Keep long names / URLs from forcing horizontal scroll */
+.break-safe {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Typography hierarchy */
 .page-title {
   font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-size: clamp(1.85rem, 2.5vw, 2.35rem);
+  font-size: clamp(1.65rem, 6vw, 2.35rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: #0f172a;
+  overflow-wrap: anywhere;
 }
 
 .section-title {
@@ -87,14 +102,34 @@ body {
     border-color 180ms ease;
 }
 
-.surface-card-interactive:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(15, 118, 110, 0.22);
+@media (hover: hover) and (pointer: fine) {
+  .surface-card-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(15, 118, 110, 0.22);
+  }
 }
 
 .surface-card-interactive:active {
   transform: translateY(-1px);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row > .btn-primary,
+  .btn-row > .btn-secondary,
+  .btn-row > a {
+    width: 100%;
+  }
 }
 
 /* Soft page atmospheres */

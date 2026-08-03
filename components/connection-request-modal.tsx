@@ -79,7 +79,7 @@ export function ConnectionRequestModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-3 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -87,7 +87,7 @@ export function ConnectionRequestModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-2xl border border-teal-900/10 bg-white p-5 shadow-xl shadow-teal-900/10">
+      <div className="my-auto w-full max-w-md max-h-[min(92dvh,40rem)] overflow-y-auto rounded-2xl border border-teal-900/10 bg-white p-4 shadow-xl shadow-teal-900/10 sm:p-5">
         <h2
           id={titleId}
           className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900"

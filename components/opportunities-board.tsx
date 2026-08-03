@@ -31,9 +31,9 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div
-          className="flex flex-wrap gap-1 rounded-xl bg-teal-50 p-1"
+          className="flex w-full min-w-0 flex-wrap gap-1 rounded-xl bg-teal-50 p-1"
           role="tablist"
           aria-label="Opportunity type"
         >
@@ -46,7 +46,7 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(option.id)}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
                   active
                     ? "bg-white text-teal-900 shadow-sm"
                     : "text-teal-700/70 hover:text-teal-900"
@@ -61,7 +61,7 @@ export function OpportunitiesBoard({ initialOpportunities }: Props) {
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="btn-primary shrink-0"
+          className="btn-primary w-full shrink-0 sm:w-auto"
         >
           {showForm ? "Cancel" : "Post an Opportunity"}
         </button>

@@ -59,7 +59,7 @@ export default async function MessagesPage({
   return (
     <PageShell accent="messages">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-5 sm:px-6 sm:py-8">
         <PageHeader
           accent="messages"
           eyebrow="Inbox"

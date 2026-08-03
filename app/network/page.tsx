@@ -30,7 +30,7 @@ export default async function NetworkPage() {
   return (
     <PageShell accent="network">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
         <PageHeader
           accent="network"
           eyebrow="Community"

@@ -188,7 +188,7 @@ export function ReferralBoard({ currentUserId, initialRequests }: Props) {
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
-            className="btn-primary"
+            className="btn-primary w-full sm:w-auto"
           >
             {showForm ? "Cancel" : "Ask for a referral"}
           </button>
@@ -299,13 +299,13 @@ function ViewCard({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border px-5 py-4 text-left transition ${
+      className={`rounded-2xl border px-4 py-4 text-left transition sm:px-5 ${
         active
           ? "border-rose-300 bg-rose-50/80 shadow-sm ring-2 ring-rose-200/70"
           : "border-slate-200 bg-white/80 hover:border-rose-200 hover:bg-rose-50/40"
       }`}
     >
-      <p className="font-[family-name:var(--font-display)] text-lg font-bold text-slate-900">
+      <p className="break-safe font-[family-name:var(--font-display)] text-base font-bold text-slate-900 sm:text-lg">
         {title}
       </p>
       <p className="mt-1 text-sm text-slate-600">{blurb}</p>
@@ -333,7 +333,7 @@ function FilterChips<T extends string>({
 }) {
   return (
     <div
-      className="flex flex-wrap gap-2"
+      className="flex w-full min-w-0 flex-wrap gap-2"
       role="tablist"
       aria-label={ariaLabel}
     >
@@ -629,13 +629,13 @@ function ReferralCard({
   }
 
   return (
-    <SurfaceCard as="article" interactive className="flex h-full flex-col p-5">
+    <SurfaceCard as="article" interactive className="flex h-full min-w-0 flex-col p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-rose-700/80">
+          <p className="break-safe text-xs font-bold uppercase tracking-wide text-rose-700/80">
             {request.company}
           </p>
-          <h3 className="card-title mt-1 truncate">{request.role}</h3>
+          <h3 className="card-title mt-1 break-safe">{request.role}</h3>
         </div>
         <StatusBadge status={request.status} />
       </div>
@@ -718,7 +718,7 @@ function ReferralCard({
         </div>
       )}
 
-      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+      <div className="mt-auto btn-row pt-4">
         {canAccept && (
           <button
             type="button"

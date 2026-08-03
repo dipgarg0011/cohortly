@@ -78,13 +78,19 @@ export function MentorsBoard({
   return (
     <div className="space-y-6">
       <div
-        className={`grid gap-1 rounded-xl bg-teal-50 p-1 ${
+        className={`grid w-full gap-1 rounded-xl bg-teal-50 p-1 ${
           tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"
         } sm:max-w-xl`}
         role="tablist"
       >
         {tabs.map((option) => {
           const active = tab === option.id;
+          const shortLabel =
+            option.id === "ask"
+              ? "Ask"
+              : option.id === "my_asks"
+                ? "Mine"
+                : option.label;
           return (
             <button
               key={option.id}
@@ -92,15 +98,16 @@ export function MentorsBoard({
               role="tab"
               aria-selected={active}
               onClick={() => setTab(option.id)}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+              className={`min-w-0 rounded-lg px-1.5 py-2 text-[11px] font-semibold leading-tight transition sm:px-2 sm:text-sm ${
                 active
                   ? "bg-white text-teal-900 shadow-sm"
                   : "text-teal-700/70 hover:text-teal-900"
               }`}
             >
-              {option.label}
+              <span className="sm:hidden">{shortLabel}</span>
+              <span className="hidden sm:inline">{option.label}</span>
               {option.badge != null && option.badge > 0 && (
-                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[10px] font-bold text-white">
+                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[10px] font-bold text-white sm:ml-1.5">
                   {option.badge > 9 ? "9+" : option.badge}
                 </span>
               )}
@@ -556,7 +563,7 @@ function MatchAskCard({
           )}
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+        <div className="btn-row w-full shrink-0 sm:w-auto sm:flex-col">
           {!readonly && ask.match_status === "pending" && (
             <>
               <button
@@ -705,13 +712,13 @@ function AnswerModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-3 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-teal-900/10 bg-white p-5 shadow-xl"
+        className="my-auto w-full max-w-lg max-h-[min(92dvh,42rem)] overflow-y-auto rounded-2xl border border-teal-900/10 bg-white p-4 shadow-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-[family-name:var(--font-display)] text-xl font-bold text-slate-900">

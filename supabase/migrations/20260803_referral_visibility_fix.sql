@@ -259,6 +259,9 @@ end;
 $$;
 
 -- Reach stats for UI (syncs tier columns for display)
+-- OUT/return row type changed vs older 4-column signature; CREATE OR REPLACE cannot alter it.
+drop function if exists public.referral_reach_stats(uuid);
+
 create or replace function public.referral_reach_stats(p_request_id uuid)
 returns table (
   tier int,

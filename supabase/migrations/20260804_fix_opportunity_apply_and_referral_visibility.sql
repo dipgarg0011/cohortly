@@ -668,6 +668,10 @@ $$;
 revoke all on function public.can_view_referral(uuid, uuid) from public;
 grant execute on function public.can_view_referral(uuid, uuid) to authenticated;
 
+-- OUT/return row type changed vs older 4-column signature; CREATE OR REPLACE cannot alter it.
+-- No CASCADE: nothing depends on this function as a hard object dependency.
+drop function if exists public.referral_reach_stats(uuid);
+
 create or replace function public.referral_reach_stats(p_request_id uuid)
 returns table (
   tier int,

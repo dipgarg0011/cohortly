@@ -131,8 +131,23 @@ export function mapApplicationError(message: string): string {
   if (message.includes("APPLICATION_RATE_LIMIT")) {
     return "You can submit at most 5 applications every 7 days.";
   }
+  if (message.includes("MESSAGE_NOT_ALLOWED")) {
+    return "Couldn't start the application chat. Please try again, or ask an admin if this keeps happening.";
+  }
+  if (message.includes("expired")) {
+    return "This opportunity has expired.";
+  }
+  if (message.includes("own posting")) {
+    return "You can't apply to your own posting.";
+  }
   if (message.includes("NOT_ALLOWED")) {
     return "You're not allowed to do that.";
+  }
+  if (
+    message.includes("row-level security") ||
+    message.includes("violates row-level security")
+  ) {
+    return "You're not allowed to apply to this opportunity.";
   }
   if (message.includes("duplicate key") || message.includes("unique")) {
     return "You've already applied to this opportunity.";

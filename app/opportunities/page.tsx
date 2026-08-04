@@ -6,11 +6,12 @@ import {
   normalizeApplication,
   normalizeOpportunity,
 } from "@/lib/opportunities";
+import { isGraduateStatus, type ProfileStatus } from "@/lib/network";
 
 export default async function OpportunitiesPage() {
   const { supabase, user } = await requireProfile();
 
-  const [opportunitiesRes, applicationsRes] = await Promise.all([
+  const [opportunitiesRes, applicationsRes, meRes] = await Promise.all([
     supabase
       .from("opportunities")
       .select(
@@ -35,7 +36,12 @@ export default async function OpportunitiesPage() {
     `,
       )
       .order("created_at", { ascending: false }),
+    supabase.from("profiles").select("status").eq("id", user.id).maybeSingle(),
   ]);
+
+  const isGraduate = isGraduateStatus(
+    (meRes.data?.status as ProfileStatus | null | undefined) ?? null,
+  );
 
   const opportunities = (opportunitiesRes.data ?? []).map((row) =>
     normalizeOpportunity(row as Record<string, unknown>),
@@ -75,6 +81,7 @@ export default async function OpportunitiesPage() {
         ) : (
           <OpportunitiesBoard
             currentUserId={user.id}
+            isGraduate={isGraduate}
             initialOpportunities={opportunities}
             initialMyApplications={myApplications}
             initialReceivedApplications={receivedApplications}

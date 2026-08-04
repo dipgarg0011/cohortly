@@ -116,18 +116,13 @@ export function referralAgeTier(createdAt: string, now = new Date()): number {
   return 3;
 }
 
-/**
- * Effective visibility tier for UI.
- * If no graduates work at the company, treat as open-to-all (tier 3).
- */
+/** Effective visibility tier for UI — age only (matches SQL referral_age_tier). */
 export function referralEffectiveTier(
   createdAt: string,
-  matchingGraduateCount: number | null | undefined,
+  _matchingGraduateCount?: number | null,
   now = new Date(),
 ): number {
-  const age = referralAgeTier(createdAt, now);
-  if ((matchingGraduateCount ?? 0) === 0) return 3;
-  return age;
+  return referralAgeTier(createdAt, now);
 }
 
 export function daysUntil(iso: string | null, now = new Date()): number | null {
@@ -155,9 +150,6 @@ export function reachLabel(
   }
 
   if (tier >= 3) {
-    if (matchCount === 0) {
-      return "Now visible to all graduates (no one from this company on Cohortly yet)";
-    }
     return "Now visible to all graduates";
   }
 
@@ -200,9 +192,9 @@ export function postingExpectation(
   const name = company.trim() || "that company";
   if (graduateCount == null) return "Checking who’s on Cohortly…";
   if (graduateCount > 0) {
-    return `${graduateCount} ${graduateCount === 1 ? "graduate" : "graduates"} at ${name} ${graduateCount === 1 ? "is" : "are"} on Cohortly — they’ll see this first (48h), then it widens.`;
+    return `${graduateCount} ${graduateCount === 1 ? "graduate" : "graduates"} at ${name} ${graduateCount === 1 ? "is" : "are"} on Cohortly — they’ll see this first (48h), then past coworkers, then everyone after 5 days.`;
   }
-  return `No one from ${name} on Cohortly yet — your request goes to all graduates right away.`;
+  return `No one from ${name} on Cohortly yet — graduates with matching past companies see it after 48h; all graduates after 5 days.`;
 }
 
 export function deadlineLabel(deadline: string | null): string | null {

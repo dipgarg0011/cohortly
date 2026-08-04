@@ -2,7 +2,6 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MentorsBoard } from "@/components/mentors-board";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
-import { isGraduateStatus } from "@/lib/network";
 import {
   normalizeMatchedAsk,
   normalizeMentorshipRequest,
@@ -25,7 +24,7 @@ const ANSWER_COLS =
   "id, request_id, match_id, mentor_id, content, is_public, helpful, created_at";
 
 const PROFILE_COLS =
-  "id, full_name, batch_year, company, role_title, current_job, avatar_url, department";
+  "id, full_name, batch_year, company, role_title, current_job, avatar_url, department, status";
 
 export default async function MentorsPage() {
   const { supabase, user } = await requireProfile();
@@ -34,6 +33,7 @@ export default async function MentorsPage() {
     { data: profile },
     { data: myRequestRows, error: requestError },
     { data: matchedAskRows, error: matchError },
+    { data: availabilityRow },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -46,27 +46,12 @@ export default async function MentorsPage() {
       .eq("student_id", user.id)
       .order("created_at", { ascending: false }),
     supabase.rpc("list_my_matched_asks"),
+    supabase
+      .from("mentor_availability")
+      .select("mentor_id, is_available, topics, max_open_requests, bio_note")
+      .eq("mentor_id", user.id)
+      .maybeSingle(),
   ]);
-
-  const isGraduate = isGraduateStatus(
-    (profile?.status as "student" | "graduate" | null | undefined) ?? null,
-  );
-
-  // Graduates are auto-opted in — no profile setup needed. Matching uses skills.
-  if (isGraduate) {
-    const skills = (profile?.skills as string[] | null) ?? [];
-    await supabase.from("mentor_availability").upsert(
-      {
-        mentor_id: user.id,
-        is_available: true,
-        session_lengths: [30, 60],
-        topics: skills,
-        max_open_requests: 5,
-        bio_note: (profile?.bio as string | null)?.trim() || null,
-      },
-      { onConflict: "mentor_id" },
-    );
-  }
 
   const loadError = requestError || matchError;
 
@@ -86,7 +71,7 @@ export default async function MentorsPage() {
             accent="mentors"
             eyebrow="Guidance"
             title="Mentors"
-            description="Post what you need — we route each ask only to graduates whose skills strongly match."
+            description="Post what you need — we route each ask to mentors whose skills strongly match."
           />
           <div className="surface-card border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
             <p>Couldn&apos;t load mentorship data.</p>
@@ -167,6 +152,10 @@ export default async function MentorsPage() {
     }
   }
 
+  const initialAvailable = Boolean(availabilityRow?.is_available);
+  const profileSkills = (profile?.skills as string[] | null) ?? [];
+  const profileBio = (profile?.bio as string | null)?.trim() || null;
+
   return (
     <PageShell accent="mentors">
       <Navbar />
@@ -175,12 +164,14 @@ export default async function MentorsPage() {
           accent="mentors"
           eyebrow="Guidance"
           title="Mentors"
-          description="Students ask for help. Graduates see matching asks here and respond."
+          description="Anyone can ask for help or offer to mentor. Asks are routed by relevance — senior mentors first."
         />
 
         <MentorsBoard
           currentUserId={user.id}
-          isGraduate={isGraduate}
+          initialAvailable={initialAvailable}
+          profileSkills={profileSkills}
+          profileBio={profileBio}
           initialRequests={initialRequests}
           initialMatchedAsks={initialMatchedAsks}
           initialAnswers={initialAnswers}

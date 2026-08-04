@@ -52,6 +52,7 @@ import {
   buildCommunityStats,
   type CommunityProfileRow,
 } from "@/lib/dashboard-community";
+import { pickCaughtUpNudge } from "@/lib/dashboard-nudge";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
@@ -289,9 +290,38 @@ export default async function DashboardPage() {
     },
   );
 
-  const unreadCount = messages.filter(
-    (message) => message.receiver_id === user.id && !message.read,
-  ).length;
+  // Optional: profiles.created_at may be missing on older schemas — ignore errors.
+  let newBranchJoins = 0;
+  const dept = profile?.department?.trim();
+  if (dept) {
+    const weekAgoIso = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const { count, error: joinError } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("department", dept)
+      .gte("created_at", weekAgoIso)
+      .neq("id", user.id);
+    if (!joinError && typeof count === "number") {
+      newBranchJoins = count;
+    }
+  }
+
+  const emptySuggestion =
+    needItems.length === 0
+      ? pickCaughtUpNudge({
+          profile,
+          newBranchJoins,
+          department: profile?.department ?? null,
+        })
+      : null;
+
+  // Never show profile tip banner alongside the caught-up suggested action.
+  const showProfileTipBanner =
+    needItems.length > 0 &&
+    completion.percent < 100 &&
+    Boolean(completion.nextTip);
 
   return (
     <PageShell accent="home">
@@ -304,27 +334,32 @@ export default async function DashboardPage() {
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 
-        <DashboardNeedsYou items={needItems} />
+        <DashboardNeedsYou
+          items={needItems}
+          emptySuggestion={emptySuggestion}
+        />
 
-        <DashboardCommunity stats={communityStats} unreadCount={unreadCount} />
+        <DashboardCommunity stats={communityStats} />
 
         <DashboardWorthALook items={lookItems} />
 
-        {completion.percent < 100 && completion.nextTip && (
-          <SectionCard
-            stagger={3}
-            className="@container/tip mb-5 flex min-w-0 flex-col items-stretch gap-2 sm:mb-6 @[28rem]/tip:flex-row @[28rem]/tip:items-center @[28rem]/tip:gap-3"
-          >
-            <p className="min-w-0 flex-1 line-clamp-2 text-sm leading-snug text-slate-600">
-              {completion.nextTip}
-            </p>
-            <Link
-              href="/profile"
-              className="shrink-0 self-start text-sm font-bold text-[var(--brand)] hover:underline @[28rem]/tip:self-center"
+        {showProfileTipBanner && (
+          <div className="@container/tip mb-5 sm:mb-6">
+            <SectionCard
+              stagger={3}
+              className="flex min-w-0 flex-col items-stretch gap-2 @[24rem]/tip:flex-row @[24rem]/tip:items-center @[24rem]/tip:justify-between @[24rem]/tip:gap-3"
             >
-              Edit profile →
-            </Link>
-          </SectionCard>
+              <p className="min-w-0 flex-1 line-clamp-2 text-sm leading-snug text-slate-600">
+                {completion.nextTip}
+              </p>
+              <Link
+                href="/profile"
+                className="shrink-0 self-start text-sm font-bold text-[var(--brand)] hover:underline @[24rem]/tip:self-center"
+              >
+                Edit profile →
+              </Link>
+            </SectionCard>
+          </div>
         )}
 
         <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip lg:grid-cols-2 lg:items-stretch">

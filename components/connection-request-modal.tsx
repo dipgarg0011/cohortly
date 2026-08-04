@@ -24,14 +24,13 @@ export function ConnectionRequestModal({
   onSent,
 }: Props) {
   const displayName = recipientName?.trim() || firstName(recipientName);
-  const shortName = firstName(recipientName);
-  const [draft, setDraft] = useState(`Hi ${shortName}, I'd love to connect!`);
+  const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setDraft(`Hi ${firstName(recipientName)}, I'd love to connect!`);
+    setDraft("");
     setError(null);
     setSending(false);
   }, [open, recipientName]);
@@ -92,8 +91,9 @@ export function ConnectionRequestModal({
             rows={4}
             maxLength={INTRO_MESSAGE_MAX + 20}
             className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            placeholder="Write a short intro…"
+            placeholder={`Hi ${firstName(recipientName)}, write a short intro…`}
             autoFocus
+            required
           />
         </label>
 
@@ -109,7 +109,9 @@ export function ConnectionRequestModal({
           >
             {remaining < 0
               ? `${Math.abs(remaining)} over limit`
-              : `${remaining} characters left`}
+              : !trimmed
+                ? "Write a personal intro to send"
+                : `${remaining} characters left`}
           </span>
         </div>
 

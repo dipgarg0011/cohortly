@@ -109,6 +109,29 @@ export function IconSpark(props: IconProps) {
   );
 }
 
+/** Calendar — batch / year cue (not a loading spinner). */
+export function IconCalendar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+    </svg>
+  );
+}
+
+/** Graduation cap — graduates / alumni cue. */
+export function IconGradCap(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M2 9.5 12 4l10 5.5-10 5.5L2 9.5z" />
+      <path d="M6 12v4.5c0 1 2.5 2.5 6 2.5s6-1.5 6-2.5V12" />
+      <path d="M22 9.5V15" />
+    </svg>
+  );
+}
+
 export function IconChatEmpty(props: IconProps) {
   return (
     <svg {...base({ size: 40, ...props })}>

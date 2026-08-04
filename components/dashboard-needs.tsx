@@ -14,6 +14,7 @@ import {
   type NeedItem,
   type NeedType,
 } from "@/lib/dashboard-needs";
+import type { CaughtUpNudge } from "@/lib/dashboard-nudge";
 
 const ICONS: Record<NeedType, typeof IconMessage> = {
   connection: IconUsers,
@@ -44,10 +45,30 @@ const ICON_SOLID: Record<NeedType, string> = {
 
 type Props = {
   items: NeedItem[];
+  /** When needs are empty — one suggested action (never also show profile tip banner). */
+  emptySuggestion?: CaughtUpNudge | null;
 };
 
-export function DashboardNeedsYou({ items }: Props) {
+export function DashboardNeedsYou({ items, emptySuggestion = null }: Props) {
   if (items.length === 0) {
+    if (emptySuggestion) {
+      return (
+        <SectionCard stagger={1} className="@container/nudge mb-5 sm:mb-6">
+          <div className="flex min-w-0 flex-col items-stretch gap-2 @[24rem]/nudge:flex-row @[24rem]/nudge:items-center @[24rem]/nudge:justify-between @[24rem]/nudge:gap-3">
+            <p className="min-w-0 flex-1 line-clamp-2 text-sm leading-snug text-slate-600">
+              {emptySuggestion.text}
+            </p>
+            <Link
+              href={emptySuggestion.href}
+              className="shrink-0 self-start text-sm font-bold text-[var(--brand)] hover:underline @[24rem]/nudge:self-center"
+            >
+              {emptySuggestion.actionLabel} →
+            </Link>
+          </div>
+        </SectionCard>
+      );
+    }
+
     return (
       <p className="mb-5 text-sm text-slate-500 stagger-1 sm:mb-6">
         You&apos;re all caught up.

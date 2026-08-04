@@ -8,6 +8,7 @@ export type CommunityProfileRow = {
 export type CommunityStats = {
   yourBatch: number;
   yourBranch: number;
+  graduates: number;
   total: number;
   batchYear: number | null;
   department: string | null;
@@ -36,6 +37,7 @@ export function buildCommunityStats(
 
   let yourBatch = 0;
   let yourBranch = 0;
+  let graduates = 0;
 
   for (const row of profiles) {
     if (
@@ -50,11 +52,16 @@ export function buildCommunityStats(
     if (department && row.department?.trim() === department) {
       yourBranch += 1;
     }
+
+    if (row.status === "graduate") {
+      graduates += 1;
+    }
   }
 
   return {
     yourBatch: batchYear != null ? yourBatch : 0,
     yourBranch: department != null ? yourBranch : 0,
+    graduates,
     total: profiles.length,
     batchYear,
     department,

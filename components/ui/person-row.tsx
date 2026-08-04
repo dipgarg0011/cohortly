@@ -5,6 +5,7 @@ import {
   getProfileRole,
   type NetworkProfile,
 } from "@/lib/network";
+import { compactDisplayName } from "@/lib/display-name";
 import { PersonAvatar } from "@/components/ui/person-avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProfilePreviewTrigger } from "@/components/profile-preview";
@@ -39,7 +40,8 @@ export function PersonRow({
   className = "",
 }: Props) {
   const role = getProfileRole(profile.status);
-  const name = profile.full_name?.trim() || "Unnamed member";
+  const fullName = profile.full_name?.trim() || "Unnamed member";
+  const name = compactDisplayName(profile.full_name);
 
   const rawRoleTitle =
     profile.role_title?.trim() || profile.current_job?.trim() || "";
@@ -81,10 +83,10 @@ export function PersonRow({
         <div className="flex min-w-0 items-center gap-1.5 @[16rem]/pr:gap-2">
           <ProfilePreviewTrigger
             userId={profile.id}
-            className="block min-w-[10ch] flex-1 overflow-hidden"
+            className="block min-w-0 flex-1 overflow-hidden"
           >
             <h3
-              title={name}
+              title={fullName}
               className="block min-w-0 truncate text-[0.9375rem] font-bold leading-tight text-slate-900 group-hover:text-teal-900"
             >
               {name}

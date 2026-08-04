@@ -33,6 +33,7 @@ type BoardView = "board" | "mine" | "applicants";
 
 type Props = {
   currentUserId: string;
+  isGraduate: boolean;
   initialOpportunities: Opportunity[];
   initialMyApplications: OpportunityApplication[];
   initialReceivedApplications: OpportunityApplication[];
@@ -40,6 +41,7 @@ type Props = {
 
 export function OpportunitiesBoard({
   currentUserId,
+  isGraduate,
   initialOpportunities,
   initialMyApplications,
   initialReceivedApplications,
@@ -163,13 +165,19 @@ export function OpportunitiesBoard({
                 })}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowForm(true)}
-                className="btn-primary w-full shrink-0 sm:w-auto"
-              >
-                Post an Opportunity
-              </button>
+              {isGraduate ? (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="btn-primary w-full shrink-0 sm:w-auto"
+                >
+                  Post an Opportunity
+                </button>
+              ) : (
+                <p className="text-sm text-slate-600 sm:max-w-xs sm:text-right">
+                  Graduates can post openings. Anyone can apply.
+                </p>
+              )}
             </div>
           </SectionCard>
 
@@ -177,9 +185,13 @@ export function OpportunitiesBoard({
             <EmptyState
               icon={<IconOpportunityEmpty />}
               title="The board is wide open"
-              description="Share an internship, job, research role, or early-stage startup opening with your college community."
-              actionLabel="Post an Opportunity"
-              onAction={() => setShowForm(true)}
+              description={
+                isGraduate
+                  ? "Share an internship, job, research role, or early-stage startup opening with your college community."
+                  : "Browse openings and apply with a short pitch. Graduates post the roles."
+              }
+              actionLabel={isGraduate ? "Post an Opportunity" : undefined}
+              onAction={isGraduate ? () => setShowForm(true) : undefined}
               accentSoft="var(--accent-opportunities-soft)"
             />
           ) : (
@@ -223,7 +235,7 @@ export function OpportunitiesBoard({
         />
       )}
 
-      {showForm && (
+      {showForm && isGraduate && (
         <AppModal
           open={showForm}
           onClose={() => setShowForm(false)}
@@ -324,7 +336,12 @@ function OpportunityForm({
       .single();
 
     if (insertError) {
-      setError(insertError.message);
+      const msg = insertError.message.toLowerCase();
+      setError(
+        msg.includes("row-level security")
+          ? "Only graduates can post opportunities. Update your status on Profile if you’ve graduated."
+          : insertError.message,
+      );
       setLoading(false);
       return;
     }

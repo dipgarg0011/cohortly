@@ -40,7 +40,7 @@ import {
 } from "@/lib/referrals";
 import {
   normalizeMatchedAsk,
-  normalizeMentorshipRequest,
+  type MentorshipRequest,
 } from "@/lib/mentorship";
 import { buildNeedsYouItems } from "@/lib/dashboard-needs";
 import {
@@ -72,7 +72,6 @@ export default async function DashboardPage() {
     { data: openReferralRows },
     { data: acceptedReferralRows },
     { data: applicationRows },
-    { data: openMentorshipRows },
     { data: communityRows },
   ] = await Promise.all([
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
@@ -125,15 +124,8 @@ export default async function DashboardPage() {
       .eq("opportunity.posted_by", user.id)
       .order("created_at", { ascending: true })
       .limit(15),
-    supabase
-      .from("mentorship_requests")
-      .select(
-        "id, student_id, title, description, tags, category, target_company, urgency, preferred_duration, status, expires_at, created_at, is_anonymous, revealed_at, quality_score, reach_stage, last_escalated_at",
-      )
-      .eq("status", "open")
-      .neq("student_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20),
+    // Mentors must not SELECT mentorship_requests directly (unmatched leak /
+    // student_id exposure). Matched asks come from list_my_matched_asks above.
     supabase.from("profiles").select(COMMUNITY_SELECT),
   ]);
 
@@ -238,9 +230,8 @@ export default async function DashboardPage() {
   const pendingApplications = (
     (applicationRows ?? []) as Record<string, unknown>[]
   ).map((row) => normalizeApplication(row));
-  const openMentorshipAsks = (
-    (openMentorshipRows ?? []) as Record<string, unknown>[]
-  ).map((row) => normalizeMentorshipRequest(row));
+  // Do not list unmatched mentorship asks on the dashboard (RLS + privacy).
+  const openMentorshipAsks: MentorshipRequest[] = [];
 
   const needItems = buildNeedsYouItems({
     currentUserId: user.id,

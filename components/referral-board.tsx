@@ -473,8 +473,8 @@ export function ReferralBoard({
             Profile
           </Link>{" "}
           so new asks for your workplace show up in the first 48 hours. Without
-          it, you’ll only see asks after they open to everyone (or when no one
-          from that company is on Cohortly).
+          it, you’ll only see asks after they widen (past companies at 48h, all
+          graduates after 5 days).
         </div>
       )}
 
@@ -584,8 +584,8 @@ export function ReferralBoard({
                 : !isGraduate
                   ? "Switch to “I need a referral” to post, or mark yourself as a graduate on Profile to help others."
                   : viewerCompany?.trim()
-                    ? "Nothing matching your company in the first 48 hours. Asks with no one at that company go to all graduates immediately; others open to everyone after 5 days."
-                    : "Add your company on Profile to see matching asks early. Broader asks appear after 48h / 5 days, or right away if no one works there."
+                    ? "Nothing matching your company in the first 48 hours. After 48h, asks matching your past companies appear; after 5 days, all open asks are visible to graduates."
+                    : "Add your company on Profile to see matching asks in the first 48 hours. Broader asks appear after 48h (past companies) and 5 days (all graduates)."
             }
             accentSoft="var(--accent-referrals-soft)"
           />

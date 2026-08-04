@@ -9,11 +9,12 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getInitials, SKILL_OPTIONS } from "@/lib/network";
+import { getInitials, getProfileRole, SKILL_OPTIONS } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconMentorEmpty } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { formatAbsoluteTime } from "@/lib/format-time";
 import {
   evaluateDraftHelp,
@@ -40,7 +41,9 @@ type Tab = "ask" | "inbox" | "my_asks";
 
 type Props = {
   currentUserId: string;
-  isGraduate: boolean;
+  initialAvailable: boolean;
+  profileSkills: string[];
+  profileBio: string | null;
   initialRequests: MentorshipRequest[];
   initialMatchedAsks: MatchedAsk[];
   initialAnswers: RequestAnswer[];
@@ -55,14 +58,24 @@ const ANSWER_COLS =
   "id, request_id, match_id, mentor_id, content, is_public, helpful, created_at";
 
 export function MentorsBoard({
-  isGraduate,
+  currentUserId,
+  initialAvailable,
+  profileSkills,
+  profileBio,
   initialRequests,
   initialMatchedAsks,
   initialAnswers,
   connectedByRequestId = {},
   studentDepartment = null,
 }: Props) {
-  const [tab, setTab] = useState<Tab>(isGraduate ? "inbox" : "ask");
+  const supabase = useMemo(() => createClient(), []);
+  const [available, setAvailable] = useState(initialAvailable);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(
+    null,
+  );
+  const showInbox = available || initialMatchedAsks.length > 0;
+  const [tab, setTab] = useState<Tab>(showInbox ? "inbox" : "ask");
   const [requests, setRequests] = useState(initialRequests);
   const [asks, setAsks] = useState(initialMatchedAsks);
   const [answers, setAnswers] = useState(initialAnswers);
@@ -83,9 +96,38 @@ export function MentorsBoard({
     return ageDays < 9;
   });
 
+  async function toggleAvailability() {
+    setAvailabilityBusy(true);
+    setAvailabilityError(null);
+    const next = !available;
+    const { error } = await supabase.from("mentor_availability").upsert(
+      {
+        mentor_id: currentUserId,
+        is_available: next,
+        session_lengths: [30, 60],
+        topics: profileSkills,
+        max_open_requests: 5,
+        bio_note: profileBio,
+      },
+      { onConflict: "mentor_id" },
+    );
+    if (error) {
+      setAvailabilityError(
+        error.message.includes("row-level security")
+          ? "Couldn't update mentor availability. Make sure you're signed in."
+          : error.message || "Couldn't update availability.",
+      );
+      setAvailabilityBusy(false);
+      return;
+    }
+    setAvailable(next);
+    if (next) setTab("inbox");
+    setAvailabilityBusy(false);
+  }
+
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "ask", label: "Ask for help" },
-    ...(isGraduate
+    ...(showInbox || available
       ? [
           {
             id: "inbox" as const,
@@ -99,6 +141,44 @@ export function MentorsBoard({
 
   return (
     <div className="space-y-6 min-w-0 overflow-x-clip">
+      <SectionCard>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">
+              Available as mentor
+            </p>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Anyone can mentor juniors. Matching still prioritizes seniors and
+              graduates.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={available}
+            disabled={availabilityBusy}
+            onClick={() => void toggleAvailability()}
+            className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+              available ? "bg-teal-700" : "bg-slate-300"
+            } disabled:opacity-60`}
+          >
+            <span
+              className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${
+                available ? "left-7" : "left-1"
+              }`}
+            />
+            <span className="sr-only">
+              {available ? "Turn off mentoring" : "Become available as mentor"}
+            </span>
+          </button>
+        </div>
+        {availabilityError && (
+          <p role="alert" className="mt-2 text-sm text-red-700">
+            {availabilityError}
+          </p>
+        )}
+      </SectionCard>
+
       <div
         className={`grid w-full min-w-0 gap-1 rounded-xl bg-teal-50 p-1 ${
           tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"
@@ -147,7 +227,7 @@ export function MentorsBoard({
         />
       )}
 
-      {tab === "inbox" && isGraduate && (
+      {tab === "inbox" && (showInbox || available) && (
         <MentorInbox
           pending={regularPending}
           unansweredPool={unansweredPool}
@@ -326,7 +406,7 @@ function AskForHelpForm({
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Three things: a title, a short note, and a topic. We&apos;ll find
-          matching graduates for you.
+          matching mentors for you — seniors first.
         </p>
       </div>
 
@@ -428,7 +508,7 @@ function AskForHelpForm({
             ) : preview && preview.match_count >= 4 ? (
               <p>
                 <span className="font-bold text-teal-900">
-                  {preview.match_count} graduates match this
+                  {preview.match_count} mentors match this
                 </span>{" "}
                 — good chance of a reply.
               </p>
@@ -436,7 +516,7 @@ function AskForHelpForm({
               <div className="space-y-2">
                 <p>
                   <span className="font-bold text-amber-900">
-                    Only 1 graduate matches these tags.
+                    Only 1 mentor matches these tags.
                   </span>{" "}
                   Try broader tags, or post anyway and we&apos;ll widen it
                   automatically.
@@ -486,7 +566,7 @@ function AskForHelpForm({
               <div className="space-y-2">
                 <p>
                   <span className="font-bold text-teal-900">
-                    {preview.match_count} graduates match
+                    {preview.match_count} mentors match
                   </span>
                   {preview.match_count < 4
                     ? " — a bit thin. Broader tags help, or post and we'll widen automatically."
@@ -756,6 +836,7 @@ function MatchAskCard({
     ? "Anonymous student"
     : ask.student_full_name?.trim() || "Student";
   const previewId = masked ? null : ask.student_id;
+  const studentRole = getProfileRole(ask.student_status);
 
   return (
     <li className="surface-card min-w-0 max-w-full p-4 sm:p-5">
@@ -774,14 +855,17 @@ function MatchAskCard({
               />
             </ProfilePreviewTrigger>
             <div className="min-w-0">
-              <ProfilePreviewTrigger userId={previewId} enabled={!masked}>
-                <p
-                  title={name}
-                  className="truncate font-semibold text-slate-900"
-                >
-                  {name}
-                </p>
-              </ProfilePreviewTrigger>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <ProfilePreviewTrigger userId={previewId} enabled={!masked}>
+                  <p
+                    title={name}
+                    className="truncate font-semibold text-slate-900"
+                  >
+                    {name}
+                  </p>
+                </ProfilePreviewTrigger>
+                <StatusBadge role={studentRole} />
+              </div>
               <p className="meta-text mt-0.5">
                 {[
                   ask.student_department,
@@ -1226,7 +1310,7 @@ function MyAsks({
       <EmptyState
         icon={<IconMentorEmpty />}
         title="No asks yet"
-        description="Post what you need help with — we'll match you to graduates with the right skills."
+        description="Post what you need help with — we'll match you to mentors with the right skills."
         accentSoft="var(--accent-mentors-soft)"
       />
     );
@@ -1328,12 +1412,22 @@ function MyAsks({
                     {formatRelativeExpiry(req.expires_at)}
                   </p>
                   {connected?.mentor && (
-                    <p className="mt-2 text-sm font-medium text-teal-800">
-                      Connected with{" "}
-                      <ProfilePreviewTrigger userId={connected.mentor_id}>
-                        {connected.mentor.full_name?.trim() || "a mentor"}
-                      </ProfilePreviewTrigger>
-                    </p>
+                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm font-medium text-teal-800">
+                      <span>
+                        Connected with{" "}
+                        <ProfilePreviewTrigger userId={connected.mentor_id}>
+                          {connected.mentor.full_name?.trim() || "a mentor"}
+                        </ProfilePreviewTrigger>
+                      </span>
+                      <StatusBadge
+                        role={getProfileRole(connected.mentor.status)}
+                      />
+                      {connected.mentor.batch_year != null && (
+                        <span className="text-xs font-semibold text-slate-500">
+                          Batch {connected.mentor.batch_year}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
@@ -1413,14 +1507,24 @@ function MyAsks({
                       key={answer.id}
                       className="rounded-xl bg-amber-50/50 px-3.5 py-3"
                     >
-                      <ProfilePreviewTrigger userId={answer.mentor_id}>
-                        <p
-                          title={answer.mentor?.full_name?.trim() || "Mentor"}
-                          className="truncate text-sm font-semibold text-slate-900"
-                        >
-                          {answer.mentor?.full_name?.trim() || "Mentor"}
-                        </p>
-                      </ProfilePreviewTrigger>
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <ProfilePreviewTrigger userId={answer.mentor_id}>
+                          <p
+                            title={answer.mentor?.full_name?.trim() || "Mentor"}
+                            className="truncate text-sm font-semibold text-slate-900"
+                          >
+                            {answer.mentor?.full_name?.trim() || "Mentor"}
+                          </p>
+                        </ProfilePreviewTrigger>
+                        <StatusBadge
+                          role={getProfileRole(answer.mentor?.status)}
+                        />
+                        {answer.mentor?.batch_year != null && (
+                          <span className="text-xs font-semibold text-slate-500">
+                            Batch {answer.mentor.batch_year}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 break-safe whitespace-pre-wrap text-sm text-slate-700">
                         {answer.content}
                       </p>

@@ -36,7 +36,7 @@ const ACCENT: Record<
   opportunities: {
     soft: "var(--accent-opportunities-soft)",
     solid: "var(--accent-opportunities)",
-    blob: "rgba(79,70,229,0.06)",
+    blob: "rgba(15,118,110,0.07)",
   },
   messages: {
     soft: "var(--accent-messages-soft)",

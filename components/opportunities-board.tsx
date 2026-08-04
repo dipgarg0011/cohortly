@@ -5,23 +5,30 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { deadlineLabel, isDeadlineUrgent } from "@/lib/referrals";
-import { getInitials } from "@/lib/network";
+import { getInitials, getProfileRole } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconOpportunityEmpty } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
+  ACTIVE_POSTING_CAP,
   APPLICATION_SELECT,
   APPLICATION_STATUS_LABEL,
+  DESCRIPTION_MIN,
+  OPPORTUNITY_SELECT,
   OPPORTUNITY_TYPES,
   PITCH_MAX,
   PITCH_MIN,
   TYPE_FILTERS,
+  isOpportunityActive,
   mapApplicationError,
+  mapOpportunityPostError,
   normalizeApplication,
   normalizeOpportunity,
+  sortOpportunities,
   type ApplicationStatus,
   type Opportunity,
   type OpportunityApplication,
@@ -33,7 +40,6 @@ type BoardView = "board" | "mine" | "applicants";
 
 type Props = {
   currentUserId: string;
-  isGraduate: boolean;
   initialOpportunities: Opportunity[];
   initialMyApplications: OpportunityApplication[];
   initialReceivedApplications: OpportunityApplication[];
@@ -41,7 +47,6 @@ type Props = {
 
 export function OpportunitiesBoard({
   currentUserId,
-  isGraduate,
   initialOpportunities,
   initialMyApplications,
   initialReceivedApplications,
@@ -75,9 +80,20 @@ export function OpportunitiesBoard({
     [items, currentUserId],
   );
 
+  const myActiveCount = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.posted_by === currentUserId &&
+          isOpportunityActive(item.deadline),
+      ).length,
+    [items, currentUserId],
+  );
+
   const filtered = useMemo(() => {
-    if (filter === "all") return items;
-    return items.filter((item) => item.type === filter);
+    const base =
+      filter === "all" ? items : items.filter((item) => item.type === filter);
+    return sortOpportunities(base);
   }, [items, filter]);
 
   return (
@@ -165,19 +181,19 @@ export function OpportunitiesBoard({
                 })}
               </div>
 
-              {isGraduate ? (
+              <div className="flex w-full shrink-0 flex-col items-stretch gap-1 sm:w-auto sm:items-end">
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="btn-primary w-full shrink-0 sm:w-auto"
+                  className="btn-primary w-full sm:w-auto"
                 >
                   Post an Opportunity
                 </button>
-              ) : (
-                <p className="text-sm text-slate-600 sm:max-w-xs sm:text-right">
-                  Graduates can post openings. Anyone can apply.
+                <p className="text-xs text-slate-500 sm:text-right">
+                  Anyone can post · Anyone can apply · {myActiveCount}/
+                  {ACTIVE_POSTING_CAP} active
                 </p>
-              )}
+              </div>
             </div>
           </SectionCard>
 
@@ -185,24 +201,23 @@ export function OpportunitiesBoard({
             <EmptyState
               icon={<IconOpportunityEmpty />}
               title="The board is wide open"
-              description={
-                isGraduate
-                  ? "Share an internship, job, research role, or early-stage startup opening with your college community."
-                  : "Browse openings and apply with a short pitch. Graduates post the roles."
-              }
-              actionLabel={isGraduate ? "Post an Opportunity" : undefined}
-              onAction={isGraduate ? () => setShowForm(true) : undefined}
+              description="Share an internship, job, research role, or early-stage startup opening — or browse and apply with a short pitch."
+              actionLabel="Post an Opportunity"
+              onAction={() => setShowForm(true)}
               accentSoft="var(--accent-opportunities-soft)"
             />
           ) : (
-            <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ul className="grid auto-rows-fr grid-cols-1 gap-4 lg:grid-cols-2">
               {filtered.map((item) => (
-                <li key={item.id} className="min-w-0">
+                <li key={item.id} className="flex min-w-0">
                   <OpportunityCard
                     opportunity={item}
                     currentUserId={currentUserId}
                     myApplication={myAppByOpportunity.get(item.id) ?? null}
                     onApply={() => setApplyTarget(item)}
+                    onDeleted={(id) =>
+                      setItems((prev) => prev.filter((o) => o.id !== id))
+                    }
                   />
                 </li>
               ))}
@@ -235,17 +250,18 @@ export function OpportunitiesBoard({
         />
       )}
 
-      {showForm && isGraduate && (
+      {showForm && (
         <AppModal
           open={showForm}
           onClose={() => setShowForm(false)}
           title="Post an opportunity"
-          description="Share an internship, job, research role, or early-stage opening."
+          description="Share an internship, job, research role, or early-stage opening. Anyone in your college can post."
           maxWidthClass="sm:max-w-lg"
         >
           <OpportunityForm
+            activeCount={myActiveCount}
             onCreated={(item) => {
-              setItems((prev) => [item, ...prev]);
+              setItems((prev) => sortOpportunities([item, ...prev]));
               setShowForm(false);
               setFilter("all");
               setView("board");
@@ -283,9 +299,11 @@ export function OpportunitiesBoard({
 }
 
 function OpportunityForm({
+  activeCount,
   onCreated,
   onCancel,
 }: {
+  activeCount: number;
   onCreated: (item: Opportunity) => void;
   onCancel: () => void;
 }) {
@@ -295,15 +313,48 @@ function OpportunityForm({
   const [company, setCompany] = useState("");
   const [description, setDescription] = useState("");
   const [applyLink, setApplyLink] = useState("");
+  const [contactMethod, setContactMethod] = useState("");
   const [location, setLocation] = useState("");
   const [deadline, setDeadline] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const descLen = description.trim().length;
+  const descOk = descLen >= DESCRIPTION_MIN;
+  const hasApplyOrContact =
+    Boolean(applyLink.trim()) || Boolean(contactMethod.trim());
+  const atCap = activeCount >= ACTIVE_POSTING_CAP;
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (atCap) {
+      setError(
+        `You already have ${ACTIVE_POSTING_CAP} active opportunities. Delete one or wait for a deadline to pass.`,
+      );
+      setLoading(false);
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Title is required.");
+      setLoading(false);
+      return;
+    }
+
+    if (!descOk) {
+      setError(`Description must be at least ${DESCRIPTION_MIN} characters.`);
+      setLoading(false);
+      return;
+    }
+
+    if (!hasApplyOrContact) {
+      setError("Add an apply link or a contact method so people know how to reach out.");
+      setLoading(false);
+      return;
+    }
 
     const {
       data: { user },
@@ -322,26 +373,17 @@ function OpportunityForm({
         type,
         title: title.trim(),
         company: company.trim() || null,
-        description: description.trim() || null,
+        description: description.trim(),
         apply_link: applyLink.trim() || null,
+        contact_info: contactMethod.trim() || null,
         location: location.trim() || null,
         deadline: deadline || null,
       })
-      .select(
-        `
-        id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
-        poster:profiles!posted_by ( id, full_name, batch_year )
-      `,
-      )
+      .select(OPPORTUNITY_SELECT)
       .single();
 
     if (insertError) {
-      const msg = insertError.message.toLowerCase();
-      setError(
-        msg.includes("row-level security")
-          ? "Only graduates can post opportunities. Update your status on Profile if you’ve graduated."
-          : insertError.message,
-      );
+      setError(mapOpportunityPostError(insertError.message));
       setLoading(false);
       return;
     }
@@ -352,12 +394,23 @@ function OpportunityForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {atCap && (
+        <p
+          role="alert"
+          className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"
+        >
+          You&apos;ve hit the {ACTIVE_POSTING_CAP}-active limit. Delete an
+          older posting or wait for a deadline to pass before posting again.
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
             Type
           </span>
           <select
+            required
             value={type}
             onChange={(e) => setType(e.target.value as OpportunityType)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
@@ -397,16 +450,27 @@ function OpportunityForm({
             Description
           </span>
           <textarea
+            required
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            placeholder="What the role involves, who it's for…"
+            placeholder="What the role involves, who it's for, and what you're looking for…"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
+          <span
+            className={`mt-1 block text-right text-xs ${
+              descOk ? "text-slate-500" : "text-amber-700"
+            }`}
+          >
+            {descLen} chars
+            {!descOk
+              ? ` · ${DESCRIPTION_MIN - descLen} more needed`
+              : ""}
+          </span>
         </label>
         <label className="block sm:col-span-2">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            External apply link (optional)
+            External apply link
           </span>
           <input
             type="url"
@@ -415,6 +479,21 @@ function OpportunityForm({
             placeholder="https://…"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            Contact method
+          </span>
+          <input
+            value={contactMethod}
+            onChange={(e) => setContactMethod(e.target.value)}
+            placeholder="Email, LinkedIn, or how to reach you"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+          />
+          <span className="mt-1 block text-xs text-slate-500">
+            Required if you don&apos;t have an apply link. At least one of the
+            two is needed.
+          </span>
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -452,7 +531,7 @@ function OpportunityForm({
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || atCap}
           className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
         >
           {loading ? "Posting…" : "Post opportunity"}
@@ -474,39 +553,78 @@ function OpportunityCard({
   currentUserId,
   myApplication,
   onApply,
+  onDeleted,
 }: {
   opportunity: Opportunity;
   currentUserId: string;
   myApplication: OpportunityApplication | null;
   onApply: () => void;
+  onDeleted: (id: string) => void;
 }) {
+  const supabase = useMemo(() => createClient(), []);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const deadlineText = deadlineLabel(opportunity.deadline);
   const urgent = isDeadlineUrgent(opportunity.deadline);
   const isMine = opportunity.posted_by === currentUserId;
+  const posterRole = getProfileRole(opportunity.poster?.status ?? null);
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        "Delete this opportunity? Applicants will no longer see it on the board.",
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    const { error } = await supabase
+      .from("opportunities")
+      .delete()
+      .eq("id", opportunity.id)
+      .eq("posted_by", currentUserId);
+    if (error) {
+      setDeleteError(error.message || "Couldn't delete this posting.");
+      setDeleting(false);
+      return;
+    }
+    onDeleted(opportunity.id);
+    setDeleting(false);
+  }
 
   return (
-    <SurfaceCard as="article" interactive className="flex h-full min-w-0 flex-col p-4 sm:p-5">
+    <SurfaceCard as="article" interactive className="flex h-full min-w-0 w-full flex-col p-4 sm:p-5">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          {opportunity.company?.trim() && (
-            <p className="break-safe text-xs font-bold uppercase tracking-wide text-indigo-700/80">
+          {opportunity.company?.trim() ? (
+            <p className="break-safe text-xs font-bold uppercase tracking-wide text-teal-800/80">
               {opportunity.company.trim()}
+            </p>
+          ) : (
+            <p className="text-xs font-bold uppercase tracking-wide text-transparent select-none">
+              —
             </p>
           )}
           <h3 className="card-title mt-1 break-safe">{opportunity.title}</h3>
         </div>
-        <span className="max-w-[40%] shrink-0 truncate rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
-          {opportunity.type}
-        </span>
+        <div className="flex max-w-[48%] shrink-0 flex-wrap items-start justify-end gap-1.5">
+          {isMine && (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900">
+              Your posting
+            </span>
+          )}
+          <span className="truncate rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-800">
+            {opportunity.type}
+          </span>
+        </div>
       </div>
 
-      {opportunity.description?.trim() && (
-        <p className="mt-3 line-clamp-3 break-safe text-sm text-slate-600">
-          {opportunity.description.trim()}
-        </p>
-      )}
+      <p className="mt-3 line-clamp-3 min-h-[3.75rem] break-safe text-sm text-slate-600">
+        {opportunity.description?.trim() || "No description provided."}
+      </p>
 
-      <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs">
+      <div className="mt-4 flex min-h-[1.75rem] min-w-0 flex-wrap gap-2 text-xs">
         {opportunity.location?.trim() && (
           <span className="max-w-full break-safe rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
             {opportunity.location.trim()}
@@ -526,25 +644,47 @@ function OpportunityCard({
       </div>
 
       {opportunity.poster?.full_name && (
-        <p className="mt-3 min-w-0 truncate text-xs text-slate-500">
-          Posted by{" "}
-          <ProfilePreviewTrigger
-            userId={opportunity.posted_by}
-            className="font-semibold text-slate-600 hover:text-teal-800"
-          >
-            <span title={opportunity.poster.full_name}>
-              {opportunity.poster.full_name}
-            </span>
-          </ProfilePreviewTrigger>
-          {opportunity.poster.batch_year != null
-            ? ` · Batch ${opportunity.poster.batch_year}`
-            : ""}
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="min-w-0 truncate">
+            Posted by{" "}
+            <ProfilePreviewTrigger
+              userId={opportunity.posted_by}
+              className="font-semibold text-slate-600 hover:text-teal-800"
+            >
+              <span title={opportunity.poster.full_name}>
+                {opportunity.poster.full_name}
+              </span>
+            </ProfilePreviewTrigger>
+            {opportunity.poster.batch_year != null
+              ? ` · Batch ${opportunity.poster.batch_year}`
+              : ""}
+          </span>
+          <StatusBadge role={posterRole} />
+        </div>
+      )}
+
+      {opportunity.contact_info?.trim() && (
+        <p className="mt-2 break-safe text-xs text-slate-500">
+          Contact: {opportunity.contact_info.trim()}
+        </p>
+      )}
+
+      {deleteError && (
+        <p role="alert" className="mt-2 text-xs text-red-700">
+          {deleteError}
         </p>
       )}
 
       <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:flex-wrap">
         {isMine ? (
-          <span className="text-sm font-medium text-slate-500">Your posting</span>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={() => void handleDelete()}
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+          >
+            {deleting ? "Deleting…" : "Delete posting"}
+          </button>
         ) : myApplication ? (
           <span
             className={`inline-flex items-center rounded-xl px-3 py-2 text-sm font-semibold ${statusTone(myApplication.status)}`}
@@ -699,8 +839,8 @@ function ApplyForm({
         `
         ${APPLICATION_SELECT},
         opportunity:opportunities (
-          id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
-          poster:profiles!posted_by ( id, full_name, batch_year )
+          id, posted_by, type, title, company, description, apply_link, contact_info, location, deadline, created_at,
+          poster:profiles!posted_by ( id, full_name, batch_year, status )
         )
       `,
       )
@@ -871,7 +1011,7 @@ function MyApplicationsList({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     {company && (
-                      <p className="text-xs font-bold uppercase tracking-wide text-indigo-700/80">
+                      <p className="text-xs font-bold uppercase tracking-wide text-teal-800/80">
                         {company}
                       </p>
                     )}
@@ -950,8 +1090,8 @@ function ApplicantsList({
         `
         ${APPLICATION_SELECT},
         opportunity:opportunities (
-          id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
-          poster:profiles!posted_by ( id, full_name, batch_year )
+          id, posted_by, type, title, company, description, apply_link, contact_info, location, deadline, created_at,
+          poster:profiles!posted_by ( id, full_name, batch_year, status )
         ),
         applicant:profiles!applicant_id (
           id, full_name, batch_year, department, skills, avatar_url

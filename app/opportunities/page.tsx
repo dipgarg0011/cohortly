@@ -5,21 +5,18 @@ import { PageShell, PageHeader } from "@/components/ui/page-shell";
 import {
   normalizeApplication,
   normalizeOpportunity,
+  OPPORTUNITY_SELECT,
+  sortOpportunities,
 } from "@/lib/opportunities";
-import { isGraduateStatus, type ProfileStatus } from "@/lib/network";
 
 export default async function OpportunitiesPage() {
   const { supabase, user } = await requireProfile();
 
-  const [opportunitiesRes, applicationsRes, meRes] = await Promise.all([
+  const [opportunitiesRes, applicationsRes] = await Promise.all([
     supabase
       .from("opportunities")
-      .select(
-        `
-      id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
-      poster:profiles!posted_by ( id, full_name, batch_year )
-    `,
-      )
+      .select(OPPORTUNITY_SELECT)
+      .order("deadline", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
     supabase
       .from("opportunity_applications")
@@ -27,8 +24,8 @@ export default async function OpportunitiesPage() {
         `
       id, opportunity_id, applicant_id, pitch, resume_url, status, created_at,
       opportunity:opportunities (
-        id, posted_by, type, title, company, description, apply_link, location, deadline, created_at,
-        poster:profiles!posted_by ( id, full_name, batch_year )
+        id, posted_by, type, title, company, description, apply_link, contact_info, location, deadline, created_at,
+        poster:profiles!posted_by ( id, full_name, batch_year, status )
       ),
       applicant:profiles!applicant_id (
         id, full_name, batch_year, department, skills, avatar_url
@@ -36,15 +33,12 @@ export default async function OpportunitiesPage() {
     `,
       )
       .order("created_at", { ascending: false }),
-    supabase.from("profiles").select("status").eq("id", user.id).maybeSingle(),
   ]);
 
-  const isGraduate = isGraduateStatus(
-    (meRes.data?.status as ProfileStatus | null | undefined) ?? null,
-  );
-
-  const opportunities = (opportunitiesRes.data ?? []).map((row) =>
-    normalizeOpportunity(row as Record<string, unknown>),
+  const opportunities = sortOpportunities(
+    (opportunitiesRes.data ?? []).map((row) =>
+      normalizeOpportunity(row as Record<string, unknown>),
+    ),
   );
 
   const applications = (applicationsRes.data ?? []).map((row) =>
@@ -81,7 +75,6 @@ export default async function OpportunitiesPage() {
         ) : (
           <OpportunitiesBoard
             currentUserId={user.id}
-            isGraduate={isGraduate}
             initialOpportunities={opportunities}
             initialMyApplications={myApplications}
             initialReceivedApplications={receivedApplications}

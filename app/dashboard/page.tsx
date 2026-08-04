@@ -311,13 +311,16 @@ export default async function DashboardPage() {
         <DashboardWorthALook items={lookItems} />
 
         {completion.percent < 100 && completion.nextTip && (
-          <SectionCard stagger={3} className="mb-5 flex min-w-0 items-center gap-3 sm:mb-6">
-            <p className="min-w-0 flex-1 truncate text-sm text-slate-600">
+          <SectionCard
+            stagger={3}
+            className="@container/tip mb-5 flex min-w-0 flex-col items-stretch gap-2 sm:mb-6 @[28rem]/tip:flex-row @[28rem]/tip:items-center @[28rem]/tip:gap-3"
+          >
+            <p className="min-w-0 flex-1 line-clamp-2 text-sm leading-snug text-slate-600">
               {completion.nextTip}
             </p>
             <Link
               href="/profile"
-              className="shrink-0 text-sm font-bold text-[var(--brand)] hover:underline"
+              className="shrink-0 self-start text-sm font-bold text-[var(--brand)] hover:underline @[28rem]/tip:self-center"
             >
               Edit profile →
             </Link>

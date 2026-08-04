@@ -28,6 +28,10 @@ function looksLikeStatusLabel(value: string): boolean {
 /**
  * Interactive person mini-card for dense lists (dashboard suggestions, etc.).
  * Avatar/name open the shared profile preview; action buttons stay independent.
+ *
+ * Uses @container so secondary chrome drops based on the row's own width
+ * (works in half-width columns, not only viewport breakpoints).
+ * Shrink order: button label → skill pills → dept/year → badge → name.
  */
 export function PersonRow({
   profile,
@@ -63,7 +67,7 @@ export function PersonRow({
 
   return (
     <article
-      className={`person-row group flex w-full min-w-0 items-center gap-3 ${className}`}
+      className={`@container/pr person-row group flex w-full min-w-0 items-center gap-2 @[18rem]/pr:gap-3 ${className}`}
     >
       <ProfilePreviewTrigger userId={profile.id} className="shrink-0">
         <PersonAvatar
@@ -74,31 +78,34 @@ export function PersonRow({
         />
       </ProfilePreviewTrigger>
       <div className="min-w-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 @[16rem]/pr:gap-2">
           <ProfilePreviewTrigger
             userId={profile.id}
-            className="block min-w-0 flex-1 overflow-hidden"
+            className="block min-w-[10ch] flex-1 overflow-hidden"
           >
             <h3
               title={name}
-              className="block min-w-0 truncate text-[15px] font-bold leading-tight text-slate-900 group-hover:text-teal-900"
+              className="block min-w-0 truncate text-[0.9375rem] font-bold leading-tight text-slate-900 group-hover:text-teal-900"
             >
               {name}
             </h3>
           </ProfilePreviewTrigger>
-          <StatusBadge role={role} className="shrink-0" />
+          <StatusBadge
+            role={role}
+            className="hidden shrink-0 @[13rem]/pr:inline-flex"
+          />
         </div>
-        {/* Always reserve one meta line so row heights stay uniform. */}
+        {/* Meta line: drop skills then dept/year as the container narrows. */}
         <div className="mt-0.5 flex h-4 min-w-0 items-center overflow-hidden">
           {substance ? (
             <p
               title={substance}
-              className="min-w-0 truncate text-xs font-medium leading-4 text-slate-600"
+              className="hidden min-w-0 truncate text-xs font-medium leading-4 text-slate-600 @[16rem]/pr:block"
             >
               {substance}
             </p>
           ) : skills.length > 0 ? (
-            <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+            <div className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden @[20rem]/pr:flex">
               {skills.map((skill) => (
                 <span
                   key={skill}
@@ -111,7 +118,7 @@ export function PersonRow({
           ) : departmentMeta ? (
             <p
               title={departmentMeta}
-              className="min-w-0 truncate text-xs leading-4 text-slate-500"
+              className="hidden min-w-0 truncate text-xs leading-4 text-slate-500 @[16rem]/pr:block"
             >
               {departmentMeta}
             </p>
@@ -120,7 +127,7 @@ export function PersonRow({
       </div>
       {action ? (
         <div
-          className="flex w-[7.5rem] shrink-0 justify-end"
+          className="flex shrink-0 justify-end"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >

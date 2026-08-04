@@ -77,19 +77,19 @@ export function DashboardCommunity({ stats, unreadCount }: Props) {
   return (
     <SectionCard stagger={2} className="mb-5 sm:mb-6">
       <SectionHeader
-        title="Explore the community"
+        title="Community"
         accent="home"
         icon={<IconUsers size={16} />}
         actionHref="/network"
         actionLabel="Browse all →"
       />
 
-      <div className="mt-4 -mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4">
+      <div className="mt-4 -mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:snap-none md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4">
         {cards.map((card) => (
           <Link
             key={card.key}
             href={card.href}
-            className="block min-w-[9.5rem] shrink-0 md:min-w-0"
+            className="block min-w-0 shrink-0 basis-[70%] snap-start md:w-full md:basis-auto md:shrink"
           >
             <SurfaceCard interactive className="h-full p-3.5 sm:p-4">
               <div

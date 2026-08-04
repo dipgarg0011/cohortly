@@ -87,7 +87,7 @@ export function DashboardFeed({
                 return (
                   <li
                     key={convo.partner.id}
-                    className={`flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
+                    className={`@container/msg flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
                       unread
                         ? "bg-[var(--accent-home-soft)]/70"
                         : "hover:bg-slate-50"
@@ -115,7 +115,7 @@ export function DashboardFeed({
                           )}
                           <ProfilePreviewTrigger
                             userId={convo.partner.id}
-                            className="block min-w-0 flex-1 overflow-hidden"
+                            className="block min-w-[10ch] flex-1 overflow-hidden"
                           >
                             <span
                               title={name}
@@ -131,7 +131,7 @@ export function DashboardFeed({
                         </span>
                         <Link
                           href={`/messages?with=${convo.partner.id}`}
-                          className="meta-text shrink-0 leading-5 hover:text-[var(--brand)]"
+                          className="meta-text hidden shrink-0 leading-5 hover:text-[var(--brand)] @[14rem]/msg:inline"
                         >
                           {formatMessageTime(convo.lastMessage.created_at)}
                         </Link>

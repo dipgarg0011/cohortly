@@ -62,7 +62,7 @@ export function SectionHeader({
     <div
       className={`flex min-w-0 max-w-full flex-wrap items-start justify-between gap-x-3 gap-y-2 ${className}`}
     >
-      <div className="min-w-0 flex-1 overflow-hidden">
+      <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2.5">
           {icon ? (
             <span
@@ -72,10 +72,10 @@ export function SectionHeader({
               {icon}
             </span>
           ) : null}
-          <h2 className="section-title min-w-0 truncate">{title}</h2>
+          <h2 className="section-title min-w-0 break-safe">{title}</h2>
         </div>
         {subtitle ? (
-          <p className="section-subtitle mt-1 min-w-0 truncate pl-0 sm:pl-11">
+          <p className="section-subtitle mt-1 min-w-0 break-safe pl-0 sm:pl-11">
             {subtitle}
           </p>
         ) : null}

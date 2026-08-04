@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { AppModal } from "@/components/ui/app-modal";
 import { IconMentorEmpty } from "@/components/ui/icons";
+import { formatAbsoluteTime } from "@/lib/format-time";
 import {
   evaluateDraftHelp,
   formatRelativeExpiry,
@@ -1320,7 +1321,10 @@ function MyAsks({
                     </div>
                   )}
 
-                  <p className="mt-2 text-xs text-slate-400">
+                  <p
+                    className="mt-2 text-xs text-slate-400"
+                    title={formatAbsoluteTime(req.expires_at)}
+                  >
                     {formatRelativeExpiry(req.expires_at)}
                   </p>
                   {connected?.mentor && (

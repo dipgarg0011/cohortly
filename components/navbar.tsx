@@ -78,17 +78,27 @@ export function Navbar() {
       .channel(`nav-unread:${userId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${userId}`,
+        },
         (payload) => {
-          const row = payload.new as { receiver_id: string; read: boolean };
-          if (row.receiver_id === userId && !row.read) {
+          const row = payload.new as { read: boolean };
+          if (!row.read) {
             setUnreadCount((n) => n + 1);
           }
         },
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${userId}`,
+        },
         () => {
           void supabase
             .from("messages")

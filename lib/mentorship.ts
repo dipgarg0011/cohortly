@@ -1,3 +1,4 @@
+import { formatAbsoluteTime } from "@/lib/format-time";
 import { SKILL_OPTIONS } from "@/lib/network";
 
 export type MentorAvailability = {
@@ -230,16 +231,9 @@ export function formatOfficeHoursSummary(hours: OfficeHour[]): string | null {
   return `Recurring office hours: ${parts.join(", ")}`;
 }
 
+/** Booking slot label — absolute local date/time. */
 export function formatBookingTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatAbsoluteTime(iso) || iso;
 }
 
 export function formatRelativeExpiry(iso: string): string {

@@ -22,11 +22,10 @@ import {
   type ConversationRow,
 } from "@/lib/conversations";
 import {
-  formatMessageTime,
-  otherPartyId,
-  type ChatPartner,
-  type Message,
-} from "@/lib/messages";
+  formatAbsoluteTime,
+  formatRelativeTime,
+} from "@/lib/format-time";
+import { otherPartyId, type ChatPartner, type Message } from "@/lib/messages";
 import { compactDisplayName } from "@/lib/display-name";
 
 type InboxTab = "chats" | "requests";
@@ -98,10 +97,21 @@ export function MessagesInbox({
 
   const upsertMessage = useCallback((incoming: Message) => {
     setMessages((prev) => {
-      if (prev.some((m) => m.id === incoming.id)) {
-        return prev.map((m) => (m.id === incoming.id ? incoming : m));
+      // Reconcile optimistic temp rows (temp-*) with the server row.
+      const withoutTemp = prev.filter((m) => {
+        if (!m.id.startsWith("temp-")) return true;
+        return !(
+          m.sender_id === incoming.sender_id &&
+          m.receiver_id === incoming.receiver_id &&
+          m.content === incoming.content
+        );
+      });
+      if (withoutTemp.some((m) => m.id === incoming.id)) {
+        return withoutTemp.map((m) =>
+          m.id === incoming.id ? incoming : m,
+        );
       }
-      return [...prev, incoming];
+      return [...withoutTemp, incoming];
     });
   }, []);
 
@@ -289,49 +299,48 @@ export function MessagesInbox({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread.length, selectedId]);
 
-  // Realtime: messages + conversations
+  // Realtime inbox: messages addressed to me + my conversations (unsub on unmount)
   useEffect(() => {
     const channel = supabase
       .channel(`messages-inbox:${currentUserId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
         (payload) => {
           const row = payload.new as Message;
-          if (
-            row.sender_id !== currentUserId &&
-            row.receiver_id !== currentUserId
-          ) {
-            return;
-          }
           upsertMessage(row);
           void ensurePartner(otherPartyId(row, currentUserId));
 
-          if (
-            row.receiver_id === currentUserId &&
-            row.sender_id === selectedId
-          ) {
+          if (row.sender_id === selectedId) {
             void markConversationRead(row.sender_id);
           }
         },
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
         (payload) => {
-          const row = payload.new as Message;
-          if (
-            row.sender_id !== currentUserId &&
-            row.receiver_id !== currentUserId
-          ) {
-            return;
-          }
-          upsertMessage(row);
+          upsertMessage(payload.new as Message);
         },
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "conversations" },
+        {
+          event: "*",
+          schema: "public",
+          table: "conversations",
+          filter: `initiator_id=eq.${currentUserId}`,
+        },
         (payload) => {
           if (payload.eventType === "DELETE") {
             const old = payload.old as { id?: string };
@@ -341,16 +350,29 @@ export function MessagesInbox({
             return;
           }
           const row = payload.new as ConversationRow;
-          if (
-            row.initiator_id !== currentUserId &&
-            row.recipient_id !== currentUserId
-          ) {
+          upsertConversation(row);
+          void ensurePartner(partnerIdFromConversation(row, currentUserId));
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversations",
+          filter: `recipient_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as { id?: string };
+            if (old.id) {
+              setConversations((prev) => prev.filter((c) => c.id !== old.id));
+            }
             return;
           }
+          const row = payload.new as ConversationRow;
           upsertConversation(row);
-          void ensurePartner(
-            partnerIdFromConversation(row, currentUserId),
-          );
+          void ensurePartner(partnerIdFromConversation(row, currentUserId));
         },
       )
       .subscribe();
@@ -367,6 +389,44 @@ export function MessagesInbox({
     ensurePartner,
     markConversationRead,
   ]);
+
+  // Realtime thread: filter to the open conversation; unsub when it changes/unmounts
+  useEffect(() => {
+    const conversationId = selectedConversation?.id;
+    if (!conversationId) return;
+
+    const channel = supabase
+      .channel(`messages-thread:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          upsertMessage(payload.new as Message);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          upsertMessage(payload.new as Message);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, selectedConversation?.id, upsertMessage]);
 
   async function handleSend(event: FormEvent) {
     event.preventDefault();
@@ -390,6 +450,22 @@ export function MessagesInbox({
     setSending(true);
     setError(null);
 
+    // Optimistic row — placeholder time only; replaced by DB created_at on success.
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: Message = {
+      id: tempId,
+      sender_id: currentUserId,
+      receiver_id: selectedId,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+      read: false,
+      conversation_id: selectedConversation?.id ?? null,
+      is_system: false,
+    };
+    upsertMessage(optimistic);
+    setDraft("");
+
+    // Do not send client created_at — DB default now() is source of truth.
     const { data, error: insertError } = await supabase
       .from("messages")
       .insert({
@@ -404,13 +480,15 @@ export function MessagesInbox({
       .single();
 
     if (insertError) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft(trimmed);
       setError(mapMessagingError(insertError));
       setSending(false);
       return;
     }
 
     if (data) upsertMessage(data as Message);
-    setDraft("");
+    else setMessages((prev) => prev.filter((m) => m.id !== tempId));
     setSending(false);
   }
 
@@ -578,10 +656,17 @@ export function MessagesInbox({
                             {displayName}
                           </span>
                         </ProfilePreviewTrigger>
-                        <span className="shrink-0 text-[11px] text-slate-400">
-                          {item.lastMessage
-                            ? formatMessageTime(item.lastMessage.created_at)
-                            : formatMessageTime(item.conversation.created_at)}
+                        <span
+                          className="shrink-0 text-[11px] text-slate-400"
+                          title={formatAbsoluteTime(
+                            item.lastMessage?.created_at ??
+                              item.conversation.created_at,
+                          )}
+                        >
+                          {formatRelativeTime(
+                            item.lastMessage?.created_at ??
+                              item.conversation.created_at,
+                          )}
                         </span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-2">
@@ -762,8 +847,9 @@ export function MessagesInbox({
                           className={`mt-1 text-[10px] ${
                             mine ? "text-teal-100" : "text-slate-400"
                           }`}
+                          title={formatAbsoluteTime(message.created_at)}
                         >
-                          {formatMessageTime(message.created_at)}
+                          {formatRelativeTime(message.created_at)}
                         </p>
                       </div>
                     </div>

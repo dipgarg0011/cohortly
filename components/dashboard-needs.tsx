@@ -15,6 +15,7 @@ import {
   type NeedType,
 } from "@/lib/dashboard-needs";
 import type { CaughtUpNudge } from "@/lib/dashboard-nudge";
+import { formatAbsoluteTime } from "@/lib/format-time";
 
 const ICONS: Record<NeedType, typeof IconMessage> = {
   connection: IconUsers,
@@ -107,7 +108,10 @@ export function DashboardNeedsYou({ items, emptySuggestion = null }: Props) {
                   <p className="truncate text-sm font-semibold text-slate-900">
                     {item.text}
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p
+                    className="text-[11px] text-slate-400"
+                    title={formatAbsoluteTime(item.waitedAt)}
+                  >
                     Waiting {waitedLabel(item.waitedAt)}
                   </p>
                 </div>

@@ -1,5 +1,6 @@
 import type { ConversationRow } from "@/lib/conversations";
 import { partnerIdFromConversation } from "@/lib/conversations";
+import { formatRelativeTime } from "@/lib/format-time";
 import type { Message } from "@/lib/messages";
 import { otherPartyId } from "@/lib/messages";
 import type { MatchedAsk } from "@/lib/mentorship";
@@ -220,15 +221,9 @@ export function buildNeedsYouItems(input: {
   return items;
 }
 
+/** Waiting-duration label — shared relative/absolute formatter. */
 export function waitedLabel(iso: string, now = new Date()): string {
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return "";
-  const mins = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 60000));
-  if (mins < 60) return mins <= 1 ? "1m" : `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 48) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "1d" : `${days}d`;
+  return formatRelativeTime(iso, now);
 }
 
 export function seeAllHrefForNeeds(items: NeedItem[]): string {

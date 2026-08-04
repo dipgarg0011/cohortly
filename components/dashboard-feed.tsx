@@ -12,7 +12,11 @@ import {
   IconOpportunityEmpty,
   IconUsers,
 } from "@/components/ui/icons";
-import { formatMessageTime, type Conversation } from "@/lib/messages";
+import {
+  formatAbsoluteTime,
+  formatRelativeTime,
+} from "@/lib/format-time";
+import type { Conversation } from "@/lib/messages";
 import { deadlineLabel } from "@/lib/referrals";
 import type { Opportunity } from "@/lib/opportunities";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -134,8 +138,11 @@ export function DashboardFeed({
                         <Link
                           href={`/messages?with=${convo.partner.id}`}
                           className="meta-text shrink-0 leading-5 hover:text-[var(--brand)]"
+                          title={formatAbsoluteTime(
+                            convo.lastMessage.created_at,
+                          )}
                         >
-                          {formatMessageTime(convo.lastMessage.created_at)}
+                          {formatRelativeTime(convo.lastMessage.created_at)}
                         </Link>
                       </div>
                       <Link

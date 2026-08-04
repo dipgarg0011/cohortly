@@ -7,7 +7,11 @@ import { ProfileCard } from "@/components/profile-card";
 import { PersonRow } from "@/components/ui/person-row";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
 import { EmptyState } from "@/components/ui/empty-state";
-import { IconNetworkEmpty } from "@/components/ui/icons";
+import {
+  IconMessage,
+  IconNetworkEmpty,
+  IconUsers,
+} from "@/components/ui/icons";
 import {
   connectionActionFor,
   findConversationWith,
@@ -157,9 +161,20 @@ export function SuggestedPeople({
                       type="button"
                       onClick={onSayHi}
                       disabled={state.disabled}
-                      className="w-full whitespace-nowrap rounded-lg bg-[var(--brand)] px-2 py-1.5 text-center text-[11px] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+                      aria-label={state.label}
+                      title={state.label}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap rounded-lg bg-[var(--brand)] px-2 py-1.5 text-center text-[0.65rem] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55 @[14rem]/pr:min-w-0 @[14rem]/pr:px-2.5 @[14rem]/pr:text-[0.7rem] @[18rem]/pr:px-3 @[18rem]/pr:text-xs"
                     >
-                      {state.label}
+                      <span className="@[14rem]/pr:hidden" aria-hidden>
+                        {state.kind === "message" ? (
+                          <IconMessage size={16} />
+                        ) : (
+                          <IconUsers size={16} />
+                        )}
+                      </span>
+                      <span className="hidden @[14rem]/pr:inline">
+                        {state.label}
+                      </span>
                     </button>
                   }
                 />

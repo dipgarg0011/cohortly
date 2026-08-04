@@ -83,29 +83,25 @@ export function DashboardCommunity({ stats }: Props) {
         actionLabel="Browse all →"
       />
 
-      <div className="mt-4 -mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:snap-none md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
         {cards.map((card) => (
-          <Link
-            key={card.key}
-            href={card.href}
-            className="block min-w-0 shrink-0 basis-[70%] snap-start md:w-full md:basis-auto md:shrink"
-          >
-            <SurfaceCard interactive className="h-full p-3.5 sm:p-4">
+          <Link key={card.key} href={card.href} className="block min-w-0">
+            <SurfaceCard interactive className="h-full p-2.5 sm:p-3.5 md:p-4">
               <div
-                className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-xl"
+                className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg sm:mb-2 sm:h-8 sm:w-8 sm:rounded-xl"
                 style={{ background: card.soft, color: card.solid }}
               >
                 {card.icon}
               </div>
-              <p className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl">
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums text-slate-900 sm:text-2xl md:text-3xl">
                 {card.value}
               </p>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              <p className="mt-0.5 text-[11px] font-semibold leading-snug text-slate-500 sm:text-xs">
                 {card.label}
               </p>
               {card.subtitle ? (
                 <p
-                  className="mt-0.5 text-[11px] font-semibold"
+                  className="mt-0.5 truncate text-[10px] font-semibold sm:text-[11px]"
                   style={{ color: card.solid }}
                 >
                   {card.subtitle}

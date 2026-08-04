@@ -16,6 +16,7 @@ import { formatMessageTime, type Conversation } from "@/lib/messages";
 import { deadlineLabel } from "@/lib/referrals";
 import type { Opportunity } from "@/lib/opportunities";
 import { SectionHeader } from "@/components/ui/section-header";
+import { compactDisplayName } from "@/lib/display-name";
 
 type Props = {
   conversations: Conversation[];
@@ -78,8 +79,9 @@ export function DashboardFeed({
           ) : (
             <ul className="min-w-0 max-w-full space-y-0.5">
               {conversations.map((convo) => {
-                const name =
+                const fullName =
                   convo.partner.full_name?.trim() || "Unnamed member";
+                const name = compactDisplayName(convo.partner.full_name);
                 const unread = convo.unreadCount > 0;
                 const preview = `${
                   convo.lastMessage.sender_id === currentUserId ? "You: " : ""
@@ -87,7 +89,7 @@ export function DashboardFeed({
                 return (
                   <li
                     key={convo.partner.id}
-                    className={`@container/msg flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
+                    className={`flex min-w-0 max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition-[transform,box-shadow] duration-150 hover:-translate-y-px sm:gap-3 sm:px-2.5 sm:py-2 ${
                       unread
                         ? "bg-[var(--accent-home-soft)]/70"
                         : "hover:bg-slate-50"
@@ -105,7 +107,7 @@ export function DashboardFeed({
                       />
                     </ProfilePreviewTrigger>
                     <div className="min-w-0 flex-1 overflow-hidden">
-                      <div className="flex min-w-0 items-center justify-between gap-2 leading-5">
+                      <div className="flex min-w-0 items-center gap-2 leading-5">
                         <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                           {unread && (
                             <span
@@ -115,10 +117,10 @@ export function DashboardFeed({
                           )}
                           <ProfilePreviewTrigger
                             userId={convo.partner.id}
-                            className="block min-w-[10ch] flex-1 overflow-hidden"
+                            className="block min-w-0 flex-1 overflow-hidden"
                           >
                             <span
-                              title={name}
+                              title={fullName}
                               className={`block min-w-0 truncate text-sm leading-5 ${
                                 unread
                                   ? "font-extrabold text-slate-950"
@@ -131,7 +133,7 @@ export function DashboardFeed({
                         </span>
                         <Link
                           href={`/messages?with=${convo.partner.id}`}
-                          className="meta-text hidden shrink-0 leading-5 hover:text-[var(--brand)] @[14rem]/msg:inline"
+                          className="meta-text shrink-0 leading-5 hover:text-[var(--brand)]"
                         >
                           {formatMessageTime(convo.lastMessage.created_at)}
                         </Link>

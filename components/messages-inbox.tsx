@@ -27,6 +27,7 @@ import {
   type ChatPartner,
   type Message,
 } from "@/lib/messages";
+import { compactDisplayName } from "@/lib/display-name";
 
 type InboxTab = "chats" | "requests";
 
@@ -538,6 +539,7 @@ export function MessagesInbox({
               const active = item.partner.id === selectedId;
               const name =
                 item.partner.full_name?.trim() || "Unnamed member";
+              const displayName = compactDisplayName(item.partner.full_name);
               const pendingOut =
                 item.conversation.status === "pending" &&
                 item.conversation.initiator_id === currentUserId;
@@ -564,16 +566,16 @@ export function MessagesInbox({
                       />
                     </ProfilePreviewTrigger>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <ProfilePreviewTrigger
                           userId={item.partner.id}
-                          className="min-w-0 truncate"
+                          className="min-w-0 flex-1 overflow-hidden"
                         >
                           <span
                             title={name}
-                            className="min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
+                            className="block min-w-0 truncate whitespace-nowrap text-sm font-semibold text-slate-900"
                           >
-                            {name}
+                            {displayName}
                           </span>
                         </ProfilePreviewTrigger>
                         <span className="shrink-0 text-[11px] text-slate-400">

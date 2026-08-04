@@ -5,15 +5,14 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import {
   IconBriefcase,
-  IconMessage,
-  IconSpark,
+  IconCalendar,
+  IconGradCap,
   IconUsers,
 } from "@/components/ui/icons";
 import type { CommunityStats } from "@/lib/dashboard-community";
 
 type Props = {
   stats: CommunityStats;
-  unreadCount: number;
 };
 
 type CommunityCard = {
@@ -27,7 +26,7 @@ type CommunityCard = {
   solid: string;
 };
 
-export function DashboardCommunity({ stats, unreadCount }: Props) {
+export function DashboardCommunity({ stats }: Props) {
   const cards: CommunityCard[] = [
     {
       key: "community",
@@ -47,9 +46,9 @@ export function DashboardCommunity({ stats, unreadCount }: Props) {
       value: stats.yourBatch,
       label: "Your batch",
       subtitle: stats.batchYear != null ? `Batch ${stats.batchYear}` : null,
-      icon: <IconSpark size={16} />,
-      soft: "var(--brand-soft)",
-      solid: "var(--brand)",
+      icon: <IconCalendar size={16} />,
+      soft: "var(--accent-network-soft)",
+      solid: "var(--accent-network)",
     },
     {
       key: "branch",
@@ -60,17 +59,17 @@ export function DashboardCommunity({ stats, unreadCount }: Props) {
       label: "Your branch",
       subtitle: stats.department,
       icon: <IconBriefcase size={16} />,
-      soft: "var(--brand-soft)",
-      solid: "var(--brand)",
+      soft: "var(--accent-opportunities-soft)",
+      solid: "var(--accent-opportunities)",
     },
     {
-      key: "unread",
-      href: "/messages",
-      value: unreadCount,
-      label: "Unread messages",
-      icon: <IconMessage size={16} />,
-      soft: "var(--brand-soft)",
-      solid: "var(--brand)",
+      key: "graduates",
+      href: "/network?status=graduate",
+      value: stats.graduates,
+      label: "Graduates",
+      icon: <IconGradCap size={16} />,
+      soft: "var(--accent-mentors-soft)",
+      solid: "var(--accent-mentors)",
     },
   ];
 

@@ -244,11 +244,22 @@ export function logReferralError(context: string, error: unknown): void {
     details?: string;
     hint?: string;
   } | null;
+  const code = e?.code ?? null;
+  const message = e?.message ?? null;
+  const isAmbiguousFn =
+    code === "42725" ||
+    (typeof message === "string" &&
+      (message.includes("is not unique") ||
+        message.includes("Could not choose a best candidate")));
   console.error(`[referral] ${context}`, {
-    message: e?.message ?? null,
-    code: e?.code ?? null,
+    message,
+    code,
     details: e?.details ?? null,
     hint: e?.hint ?? null,
+    ambiguousFunction: isAmbiguousFn || null,
+    note: isAmbiguousFn
+      ? "Postgres overload ambiguity (42725) — usually upsert_accepted_conversation; run unique hotfix migration"
+      : null,
     raw: error,
     json: (() => {
       try {
@@ -260,9 +271,19 @@ export function logReferralError(context: string, error: unknown): void {
   });
 }
 
-export function mapReferralError(message: string): string {
+export function mapReferralError(
+  message: string,
+  code?: string | null,
+): string {
   const lower = message.toLowerCase();
 
+  if (
+    code === "42725" ||
+    message.includes("is not unique") ||
+    message.includes("Could not choose a best candidate")
+  ) {
+    return "Couldn't open the chat (server function conflict). Please refresh and try again — if it persists, an admin needs to apply the upsert hotfix.";
+  }
   if (message.includes("REFERRAL_ALREADY_TAKEN")) {
     return "Someone else has already taken this.";
   }

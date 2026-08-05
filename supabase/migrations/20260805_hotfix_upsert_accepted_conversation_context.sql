@@ -1,19 +1,29 @@
--- Hotfix: resume after 20260805_conversation_context_request.sql
--- failed mid-script with:
---   ERROR: 42P13: cannot remove parameter defaults from existing function
---   Hint: Use DROP FUNCTION upsert_accepted_conversation(uuid,uuid,text,text,uuid) first.
+-- Hotfix: fully self-contained resume of 20260805_conversation_context_request.sql
 --
--- Use this when section 1 already applied (context_request_id column + index OK)
--- and CREATE OR REPLACE of upsert_accepted_conversation failed (or left a
--- partial 6-arg overload). Safe to re-run: DROP IF EXISTS throughout.
+-- Use when the original migration failed mid-script (e.g. 42P13 on CREATE OR REPLACE
+-- of upsert_accepted_conversation) and the transaction rolled back — so the DB may
+-- have NEITHER conversations.context_request_id NOR the new function overloads.
 --
--- One-liner if you only need to unblock before re-pasting the full migration:
---   DROP FUNCTION IF EXISTS public.upsert_accepted_conversation(uuid, uuid, text, text, uuid);
--- Prefer this hotfix (drops all overloads + finishes remaining statements).
+-- Safe / idempotent: ADD COLUMN IF NOT EXISTS, DROP FUNCTION IF EXISTS, CREATE OR REPLACE.
+-- Paste the entire file once in Supabase → SQL Editor.
 
 -- =============================================================================
--- 2) upsert_accepted_conversation — DROP + recreate all overloads
+-- 1) Column + index (MUST run before any UPDATE/function body referencing the col)
 -- =============================================================================
+
+alter table public.conversations
+  add column if not exists context_request_id uuid
+  references public.mentorship_requests(id) on delete set null;
+
+create index if not exists conversations_context_request_idx
+  on public.conversations (context_request_id)
+  where context_request_id is not null;
+
+-- =============================================================================
+-- 2) upsert_accepted_conversation — DROP all overloads, recreate with context
+-- =============================================================================
+-- Existing 5-arg overload has parameter defaults; CREATE OR REPLACE cannot remove
+-- them (42P13). Drop all known overloads, then recreate cleanly.
 
 drop function if exists public.upsert_accepted_conversation(uuid, uuid, text, text, uuid, uuid);
 drop function if exists public.upsert_accepted_conversation(uuid, uuid, text, text, uuid);

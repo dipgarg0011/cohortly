@@ -236,6 +236,30 @@ export function isDeadlineUrgent(deadline: string | null): boolean {
   return diffDays <= 3;
 }
 
+/** Diagnostic-only: log full PostgREST / Postgres error fields before friendly mapping. */
+export function logReferralError(context: string, error: unknown): void {
+  const e = error as {
+    message?: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+  } | null;
+  console.error(`[referral] ${context}`, {
+    message: e?.message ?? null,
+    code: e?.code ?? null,
+    details: e?.details ?? null,
+    hint: e?.hint ?? null,
+    raw: error,
+    json: (() => {
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return String(error);
+      }
+    })(),
+  });
+}
+
 export function mapReferralError(message: string): string {
   const lower = message.toLowerCase();
 

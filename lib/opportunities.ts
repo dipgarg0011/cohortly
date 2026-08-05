@@ -199,9 +199,6 @@ export function mapOpportunityPostError(message: string): string {
   if (message.includes("OPPORTUNITY_DESCRIPTION_TOO_SHORT")) {
     return `Description must be at least ${DESCRIPTION_MIN} characters.`;
   }
-  if (message.includes("OPPORTUNITY_CONTACT_REQUIRED")) {
-    return "Add an apply link or a contact method (email, phone, or LinkedIn).";
-  }
   if (message.includes("OPPORTUNITY_TITLE_REQUIRED")) {
     return "Title is required.";
   }

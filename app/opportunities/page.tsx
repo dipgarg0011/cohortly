@@ -22,7 +22,7 @@ export default async function OpportunitiesPage() {
       .from("opportunity_applications")
       .select(
         `
-      id, opportunity_id, applicant_id, pitch, resume_url, status, created_at,
+      id, opportunity_id, applicant_id, pitch, resume_url, status, outcome, stage_updated_at, created_at,
       opportunity:opportunities (
         id, posted_by, type, title, company, description, apply_link, contact_info, location, deadline, created_at,
         poster:profiles!posted_by ( id, full_name, batch_year, status )

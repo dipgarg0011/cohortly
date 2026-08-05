@@ -262,6 +262,7 @@ export function OpportunitiesBoard({
           title="Post an opportunity"
           description="Share an internship, job, research role, or early-stage opening. Anyone in your college can post."
           maxWidthClass="sm:max-w-lg"
+          scrollBody={false}
         >
           <OpportunityForm
             activeCount={myActiveCount}
@@ -287,6 +288,7 @@ export function OpportunitiesBoard({
               : applyTarget.title
           }
           maxWidthClass="sm:max-w-lg"
+          scrollBody={false}
         >
           <ApplyForm
             opportunity={applyTarget}
@@ -326,9 +328,8 @@ function OpportunityForm({
 
   const descLen = description.trim().length;
   const descOk = descLen >= DESCRIPTION_MIN;
-  const hasApplyOrContact =
-    Boolean(applyLink.trim()) || Boolean(contactMethod.trim());
   const atCap = activeCount >= ACTIVE_POSTING_CAP;
+  const todayMin = localDateInputValue(new Date());
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -355,8 +356,8 @@ function OpportunityForm({
       return;
     }
 
-    if (!hasApplyOrContact) {
-      setError("Add an apply link or a contact method so people know how to reach out.");
+    if (deadline && deadline < todayMin) {
+      setError("Deadline can't be in the past.");
       setLoading(false);
       return;
     }
@@ -398,156 +399,176 @@ function OpportunityForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {atCap && (
-        <p
-          role="alert"
-          className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"
-        >
-          You&apos;ve hit the {ACTIVE_POSTING_CAP}-active limit. Delete an
-          older posting or wait for a deadline to pass before posting again.
-        </p>
-      )}
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        {atCap && (
+          <p
+            role="alert"
+            className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            You&apos;ve hit the {ACTIVE_POSTING_CAP}-active limit. Delete an
+            older posting or wait for a deadline to pass before posting again.
+          </p>
+        )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Type
-          </span>
-          <select
-            required
-            value={type}
-            onChange={(e) => setType(e.target.value as OpportunityType)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          >
-            {OPPORTUNITY_TYPES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Company
-          </span>
-          <input
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            placeholder="Company or lab"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Title
-          </span>
-          <input
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Software Engineering Intern"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Description
-          </span>
-          <textarea
-            required
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            placeholder="What the role involves, who it's for, and what you're looking for…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-          <span
-            className={`mt-1 block text-right text-xs ${
-              descOk ? "text-slate-500" : "text-amber-700"
-            }`}
-          >
-            {descLen} chars
-            {!descOk
-              ? ` · ${DESCRIPTION_MIN - descLen} more needed`
-              : ""}
-          </span>
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            External apply link
-          </span>
-          <input
-            type="url"
-            value={applyLink}
-            onChange={(e) => setApplyLink(e.target.value)}
-            placeholder="https://…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Contact method
-          </span>
-          <input
-            value={contactMethod}
-            onChange={(e) => setContactMethod(e.target.value)}
-            placeholder="Email, LinkedIn, or how to reach you"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-          <span className="mt-1 block text-xs text-slate-500">
-            Required if you don&apos;t have an apply link. At least one of the
-            two is needed.
-          </span>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Location
-          </span>
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Remote, Bengaluru…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Deadline
-          </span>
-          <input
-            type="date"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-          />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Type
+            </span>
+            <select
+              required
+              value={type}
+              onChange={(e) => setType(e.target.value as OpportunityType)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            >
+              {OPPORTUNITY_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Company
+            </span>
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Company or lab"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Title
+            </span>
+            <input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Software Engineering Intern"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Description
+            </span>
+            <textarea
+              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              placeholder="What the role involves, who it's for, and what you're looking for…"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+            <span
+              className={`mt-1 block text-right text-xs ${
+                descOk ? "text-slate-500" : "text-amber-700"
+              }`}
+            >
+              {descLen} chars
+              {!descOk
+                ? ` · ${DESCRIPTION_MIN - descLen} more needed`
+                : ""}
+            </span>
+          </label>
+
+          <div className="space-y-3 sm:col-span-2">
+            <div>
+              <p className="text-sm font-medium text-slate-700">
+                How should people apply?
+              </p>
+              <p className="mt-1.5 rounded-xl bg-teal-50 px-3.5 py-3 text-sm text-teal-900">
+                Through Cohortly — applicants send you a pitch and you decide who
+                to talk to.
+              </p>
+            </div>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                Optional: external apply link
+              </span>
+              <input
+                type="url"
+                value={applyLink}
+                onChange={(e) => setApplyLink(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Shown publicly on the opportunity card.
+              </span>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                Optional: other contact method
+              </span>
+              <input
+                value={contactMethod}
+                onChange={(e) => setContactMethod(e.target.value)}
+                placeholder="Email, LinkedIn, or how to reach you"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Not shown on the public card — shared only with applicants you
+                move forward.
+              </span>
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Location
+            </span>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Remote, Bengaluru…"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Deadline
+            </span>
+            <input
+              type="date"
+              min={todayMin}
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </label>
+        </div>
       </div>
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={loading || atCap}
-          className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
-        >
-          {loading ? "Posting…" : "Post opportunity"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-        >
-          Cancel
-        </button>
+      <div className="shrink-0 space-y-3 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={loading || atCap}
+            className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+          >
+            {loading ? "Posting…" : "Post opportunity"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -666,12 +687,6 @@ function OpportunityCard({
           </span>
           <StatusBadge role={posterRole} />
         </div>
-      )}
-
-      {opportunity.contact_info?.trim() && (
-        <p className="mt-2 break-safe text-xs text-slate-500">
-          Contact: {opportunity.contact_info.trim()}
-        </p>
       )}
 
       {deleteError && (
@@ -863,90 +878,93 @@ function ApplyForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="rounded-xl bg-teal-50 px-3.5 py-3 text-sm text-teal-900">
-        Your pitch becomes your first message. You won&apos;t be able to send
-        another until the poster accepts your application.
-      </p>
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        <p className="rounded-xl bg-teal-50 px-3.5 py-3 text-sm text-teal-900">
+          Your pitch becomes your first message. You won&apos;t be able to send
+          another until the poster accepts your application.
+        </p>
 
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-slate-700">
-          Why you&apos;re a fit
-        </span>
-        <textarea
-          required
-          value={pitch}
-          onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))}
-          rows={6}
-          placeholder="Skills, relevant projects, and why this role…"
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-        />
-        <span
-          className={`mt-1 block text-right text-xs ${
-            pitchOk ? "text-slate-500" : "text-amber-700"
-          }`}
-        >
-          {pitchLen}/{PITCH_MAX}
-          {pitch.trim().length < PITCH_MIN
-            ? ` · ${PITCH_MIN - pitch.trim().length} more needed`
-            : ""}
-        </span>
-      </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            Why you&apos;re a fit
+          </span>
+          <textarea
+            required
+            value={pitch}
+            onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))}
+            rows={6}
+            placeholder="Skills, relevant projects, and why this role…"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+          />
+          <span
+            className={`mt-1 block text-right text-xs ${
+              pitchOk ? "text-slate-500" : "text-amber-700"
+            }`}
+          >
+            {pitchLen}/{PITCH_MAX}
+            {pitch.trim().length < PITCH_MIN
+              ? ` · ${PITCH_MIN - pitch.trim().length} more needed`
+              : ""}
+          </span>
+        </label>
 
-      <div className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">
-          Resume (optional)
-        </span>
-        {existingResume && (
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={useExisting && !resumeFile}
-              onChange={(e) => {
-                setUseExisting(e.target.checked);
-                if (e.target.checked) setResumeFile(null);
-              }}
-              className="mt-0.5"
-            />
-            <span>Reuse my last uploaded resume</span>
-          </label>
-        )}
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx,application/pdf"
-          onChange={(e) => {
-            const file = e.target.files?.[0] ?? null;
-            setResumeFile(file);
-            if (file) setUseExisting(false);
-          }}
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700"
-        />
+        <div className="space-y-2">
+          <span className="block text-sm font-medium text-slate-700">
+            Resume (optional)
+          </span>
+          {existingResume && (
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={useExisting && !resumeFile}
+                onChange={(e) => {
+                  setUseExisting(e.target.checked);
+                  if (e.target.checked) setResumeFile(null);
+                }}
+                className="mt-0.5"
+              />
+              <span>Reuse my last uploaded resume</span>
+            </label>
+          )}
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,application/pdf"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              setResumeFile(file);
+              if (file) setUseExisting(false);
+            }}
+            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700"
+          />
+        </div>
       </div>
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={loading || !pitchOk}
-          className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
-        >
-          {loading ? "Submitting…" : "Submit application"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-        >
-          Cancel
-        </button>
+      <div className="shrink-0 space-y-3 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={loading || !pitchOk}
+            className="rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+          >
+            {loading ? "Submitting…" : "Submit application"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -1032,6 +1050,15 @@ function MyApplicationsList({
                 <p className="mt-3 line-clamp-3 break-safe text-sm text-slate-600">
                   {app.pitch}
                 </p>
+                {isApplicationChatUnlocked(app.status) &&
+                  app.opportunity?.contact_info?.trim() && (
+                    <p className="mt-3 break-safe rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      <span className="font-semibold text-slate-800">
+                        Contact from poster:{" "}
+                      </span>
+                      {app.opportunity.contact_info.trim()}
+                    </p>
+                  )}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {isApplicationChatUnlocked(app.status) && posterId && (
                     <Link
@@ -1403,4 +1430,11 @@ function statusTone(status: ApplicationStatus): string {
     case "withdrawn":
       return "bg-slate-100 text-slate-500";
   }
+}
+
+function localDateInputValue(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }

@@ -20,6 +20,11 @@ type Props = {
   labelledBy?: string;
   /** Show header close (X). Default true. */
   showClose?: boolean;
+  /**
+   * When false, children fill the body and manage their own scroll
+   * (use for forms with a sticky action footer). Default true.
+   */
+  scrollBody?: boolean;
 };
 
 /**
@@ -35,6 +40,7 @@ export function AppModal({
   maxWidthClass = "sm:max-w-[480px]",
   labelledBy,
   showClose = true,
+  scrollBody = true,
 }: Props) {
   const autoTitleId = useId();
   const titleId = labelledBy ?? autoTitleId;
@@ -122,7 +128,13 @@ export function AppModal({
             </div>
           ) : null}
         </div>
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:pb-5">
+        <div
+          className={
+            scrollBody
+              ? "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:pb-5"
+              : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          }
+        >
           {children}
         </div>
       </div>

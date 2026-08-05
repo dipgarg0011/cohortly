@@ -36,6 +36,9 @@ export default async function ReferralsPage() {
       .eq("user_id", user.id),
   ]);
 
+  // Best-effort: nudge helpers stuck in_progress 7+ days (once per request).
+  void supabase.rpc("nudge_stale_referral_helpers");
+
   const mineIds = (data ?? [])
     .filter((row) => (row as { student_id: string }).student_id === user.id)
     .map((row) => (row as { id: string }).id);

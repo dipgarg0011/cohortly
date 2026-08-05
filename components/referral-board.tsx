@@ -15,19 +15,23 @@ import {
   REFERRAL_SELECT,
   deadlineLabel,
   isDeadlineUrgent,
+  isReferralActiveHelping,
   logReferralError,
   mapReferralError,
   needsReferralFollowup,
   normalizeReferralRequest,
   postingExpectation,
   reachLabel,
+  referralHelperId,
+  referralStatusLabel,
+  type ReferralOutcome,
   type ReferralReachStats,
   type ReferralRequest,
   type ReferralStatus,
 } from "@/lib/referrals";
 
 type ViewMode = "need" | "help";
-type NeedFilter = "open" | "matched" | "all";
+type NeedFilter = "open" | "helping" | "all";
 type HelpFilter = "open" | "helping";
 
 type Props = {
@@ -107,8 +111,8 @@ export function ReferralBoard({
     () => myRequests.filter((r) => r.status === "open"),
     [myRequests],
   );
-  const myMatched = useMemo(
-    () => myRequests.filter((r) => r.status === "accepted"),
+  const myHelping = useMemo(
+    () => myRequests.filter((r) => isReferralActiveHelping(r.status)),
     [myRequests],
   );
 
@@ -124,15 +128,16 @@ export function ReferralBoard({
   );
 
   const helping = useMemo(
-    () => requests.filter((r) => r.accepted_by === currentUserId),
+    () =>
+      requests.filter((r) => referralHelperId(r) === currentUserId),
     [requests, currentUserId],
   );
 
   const needList = useMemo(() => {
     if (needFilter === "open") return myOpen;
-    if (needFilter === "matched") return myMatched;
+    if (needFilter === "helping") return myHelping;
     return myRequests;
-  }, [myOpen, myMatched, myRequests, needFilter]);
+  }, [myOpen, myHelping, myRequests, needFilter]);
 
   const helpList = useMemo(() => {
     if (helpFilter === "helping") return helping;
@@ -141,7 +146,7 @@ export function ReferralBoard({
 
   const needCounts = {
     open: myOpen.length,
-    matched: myMatched.length,
+    helping: myHelping.length,
     all: myRequests.length,
   };
 
@@ -201,30 +206,57 @@ export function ReferralBoard({
     }));
   }
 
-  async function handleAccept(request: ReferralRequest) {
+  async function handleHelp(request: ReferralRequest) {
     setBusyId(request.id);
     setError(null);
 
-    // Optimistic: show referring state immediately
+    // Optimistic: show helping state immediately
     patchRequestFields(request.id, {
-      status: "accepted",
+      status: "in_progress",
       accepted_by: currentUserId,
+      helper_id: currentUserId,
+      stage_updated_at: new Date().toISOString(),
     });
 
     const { data, error: rpcError } = await supabase.rpc(
-      "accept_referral_request",
+      "help_with_referral_request",
       { p_request_id: request.id },
     );
 
     if (rpcError) {
-      logReferralError("accept_referral_request RPC", rpcError);
-      // Roll back optimistic patch
-      patchRequestFields(request.id, {
-        status: request.status,
-        accepted_by: request.accepted_by,
+      logReferralError("help_with_referral_request RPC", rpcError);
+      // Fall back to compat alias if migration not applied yet
+      const fallback = await supabase.rpc("accept_referral_request", {
+        p_request_id: request.id,
       });
-      setError(mapReferralError(rpcError.message, rpcError.code));
+      if (fallback.error || !fallback.data) {
+        patchRequestFields(request.id, {
+          status: request.status,
+          accepted_by: request.accepted_by,
+          helper_id: request.helper_id,
+          stage_updated_at: request.stage_updated_at,
+        });
+        setError(
+          mapReferralError(
+            fallback.error?.message ?? rpcError.message,
+            fallback.error?.code ?? rpcError.code,
+          ),
+        );
+        setBusyId(null);
+        return;
+      }
+      const row = (Array.isArray(fallback.data) ? fallback.data[0] : fallback.data) as
+        | Record<string, unknown>
+        | null;
+      if (row) {
+        const normalized = normalizeReferralRequest(row);
+        normalized.student = request.student ?? normalized.student;
+        patchRequest(request.id, row);
+        setHelpFilter("helping");
+        setAcceptTarget(normalized);
+      }
       setBusyId(null);
+      router.refresh();
       return;
     }
 
@@ -236,9 +268,11 @@ export function ReferralBoard({
       patchRequestFields(request.id, {
         status: request.status,
         accepted_by: request.accepted_by,
+        helper_id: request.helper_id,
+        stage_updated_at: request.stage_updated_at,
       });
       setError(
-        "Someone else has already taken this — or the accept didn't go through. Refresh and try another ask.",
+        "Someone else has already taken this — or help didn't go through. Refresh and try another ask.",
       );
       setBusyId(null);
       return;
@@ -305,54 +339,110 @@ export function ReferralBoard({
     setBusyId(null);
   }
 
-  async function handleClose(request: ReferralRequest) {
+  async function handleClose(
+    request: ReferralRequest,
+    outcome?: ReferralOutcome | null,
+  ) {
     setBusyId(request.id);
     setError(null);
-    const { data, error: updateError } = await supabase
-      .from("referral_requests")
-      .update({ status: "closed" })
-      .eq("id", request.id)
-      .eq("student_id", currentUserId)
-      .select(REFERRAL_SELECT)
-      .maybeSingle();
-    if (updateError) {
-      setError(mapReferralError(updateError.message));
+    const { data, error: rpcError } = await supabase.rpc("update_referral_stage", {
+      p_request_id: request.id,
+      p_new_status: "closed",
+      p_outcome: outcome ?? null,
+      p_outcome_note: null,
+    });
+    if (rpcError) {
+      // Fallback direct update if RPC not applied yet
+      const { data: row, error: updateError } = await supabase
+        .from("referral_requests")
+        .update({
+          status: "closed",
+          outcome: outcome ?? null,
+          stage_updated_at: new Date().toISOString(),
+        })
+        .eq("id", request.id)
+        .select(REFERRAL_SELECT)
+        .maybeSingle();
+      if (updateError || !row) {
+        setError(mapReferralError(updateError?.message ?? rpcError.message));
+        setBusyId(null);
+        return;
+      }
+      patchRequest(request.id, row as Record<string, unknown>);
       setBusyId(null);
       return;
     }
-    if (!data) {
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+    if (!row) {
       setError(
-        "Couldn't update that request. It may already be closed or taken — refresh and try again.",
+        "Couldn't update that request. It may already be closed — refresh and try again.",
       );
       setBusyId(null);
       return;
     }
-    patchRequest(request.id, data as Record<string, unknown>);
+    patchRequest(request.id, row);
     setBusyId(null);
   }
 
-  async function handleMarkReferred(request: ReferralRequest) {
+  async function handleSubmitted(request: ReferralRequest) {
     setBusyId(request.id);
     setError(null);
-    const { data, error: updateError } = await supabase
-      .from("referral_requests")
-      .update({ referred_at: new Date().toISOString() })
-      .eq("id", request.id)
-      .select(REFERRAL_SELECT)
-      .maybeSingle();
-    if (updateError) {
-      setError(mapReferralError(updateError.message));
+    const { data, error: rpcError } = await supabase.rpc("update_referral_stage", {
+      p_request_id: request.id,
+      p_new_status: "submitted",
+    });
+    if (rpcError) {
+      const { data: row, error: updateError } = await supabase
+        .from("referral_requests")
+        .update({
+          status: "submitted",
+          referred_at: new Date().toISOString(),
+          stage_updated_at: new Date().toISOString(),
+        })
+        .eq("id", request.id)
+        .select(REFERRAL_SELECT)
+        .maybeSingle();
+      if (updateError || !row) {
+        setError(mapReferralError(updateError?.message ?? rpcError.message));
+        setBusyId(null);
+        return;
+      }
+      patchRequest(request.id, row as Record<string, unknown>);
       setBusyId(null);
       return;
     }
-    if (!data) {
-      setError(
-        "Couldn't mark as referred. Refresh and try again.",
-      );
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+    if (!row) {
+      setError("Couldn't mark as submitted. Refresh and try again.");
       setBusyId(null);
       return;
     }
-    patchRequest(request.id, data as Record<string, unknown>);
+    patchRequest(request.id, row);
+    setBusyId(null);
+  }
+
+  async function handleCouldntRefer(request: ReferralRequest, note?: string) {
+    setBusyId(request.id);
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc("update_referral_stage", {
+      p_request_id: request.id,
+      p_new_status: "closed",
+      p_outcome: "not_referred",
+      p_outcome_note: note?.trim() || null,
+    });
+    if (rpcError) {
+      setError(mapReferralError(rpcError.message));
+      setBusyId(null);
+      return;
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+    if (row) patchRequest(request.id, row);
     setBusyId(null);
   }
 
@@ -392,26 +482,20 @@ export function ReferralBoard({
               className="flex min-w-0 flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 sm:flex-row sm:items-center"
             >
               <p className="min-w-0 flex-1 text-sm text-rose-950">
-                Did you manage to refer{" "}
-                <ProfilePreviewTrigger
-                  userId={r.student_id}
-                  className="font-bold"
-                >
-                  {r.student?.full_name?.trim() || "them"}
-                </ProfilePreviewTrigger>
-                ?
+                Any update on{" "}
+                <span className="font-bold">{r.company.trim() || "this company"}</span>?
               </p>
               <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
                   disabled={busyId === r.id}
                   onClick={() => {
-                    void handleMarkReferred(r);
+                    void handleSubmitted(r);
                     dismissFollowup(r.id);
                   }}
                   className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white"
                 >
-                  Yes, referred
+                  Submitted internally
                 </button>
                 <button
                   type="button"
@@ -434,7 +518,7 @@ export function ReferralBoard({
             setShowForm(false);
           }}
           title="I need a referral"
-          blurb="Post a request and track who accepts."
+          blurb="Post a request and track progress."
           countLabel={
             needCounts.open > 0
               ? `${needCounts.open} of yours waiting`
@@ -450,7 +534,7 @@ export function ReferralBoard({
             setShowForm(false);
           }}
           title="I can help"
-          blurb="Pick an open ask and refer someone."
+          blurb="Pick an open ask and help someone."
           countLabel={
             helpCounts.open > 0
               ? `${helpCounts.open} need help`
@@ -493,7 +577,7 @@ export function ReferralBoard({
               ariaLabel="My requests"
               options={[
                 { id: "open", label: "Waiting", count: needCounts.open },
-                { id: "matched", label: "Matched", count: needCounts.matched },
+                { id: "helping", label: "In progress", count: needCounts.helping },
                 { id: "all", label: "All mine", count: needCounts.all },
               ]}
               value={needFilter}
@@ -553,13 +637,13 @@ export function ReferralBoard({
           <EmptyState
             icon={<IconReferralEmpty />}
             title={
-              needFilter === "matched"
-                ? "No matches yet"
+              needFilter === "helping"
+                ? "No in-progress requests"
                 : "Ask for your first referral"
             }
             description={
-              needFilter === "matched"
-                ? "When someone accepts, they’ll show up here so you can message them."
+              needFilter === "helping"
+                ? "When someone offers to help, they’ll show up here so you can message them."
                 : "Share the company, role, and why you’re a fit. Graduates who can help will see it."
             }
             actionLabel={
@@ -588,7 +672,7 @@ export function ReferralBoard({
             }
             description={
               helpFilter === "helping"
-                ? "When you accept a request, it moves here so you can message the student."
+                ? "When you help with a request, it moves here so you can message the student."
                 : !isGraduate
                   ? "Switch to “I need a referral” to post, or mark yourself as a graduate on Profile to help others."
                   : viewerCompany?.trim()
@@ -609,10 +693,11 @@ export function ReferralBoard({
                 busy={busyId === request.id}
                 reach={reachById[request.id] ?? null}
                 onAsk={() => setAskTarget(request)}
-                onAccept={() => void handleAccept(request)}
+                onHelp={() => void handleHelp(request)}
                 onDismiss={() => void handleDismiss(request)}
-                onClose={() => void handleClose(request)}
-                onMarkReferred={() => void handleMarkReferred(request)}
+                onClose={(outcome) => void handleClose(request, outcome)}
+                onSubmitted={() => void handleSubmitted(request)}
+                onCouldntRefer={(note) => void handleCouldntRefer(request, note)}
               />
             </li>
           ))}
@@ -991,10 +1076,11 @@ function ReferralCard({
   busy,
   reach,
   onAsk,
-  onAccept,
+  onHelp,
   onDismiss,
   onClose,
-  onMarkReferred,
+  onSubmitted,
+  onCouldntRefer,
 }: {
   request: ReferralRequest;
   currentUserId: string;
@@ -1002,24 +1088,38 @@ function ReferralCard({
   busy: boolean;
   reach: ReferralReachStats | null;
   onAsk: () => void;
-  onAccept: () => void;
+  onHelp: () => void;
   onDismiss: () => void;
-  onClose: () => void;
-  onMarkReferred: () => void;
+  onClose: (outcome?: ReferralOutcome | null) => void;
+  onSubmitted: () => void;
+  onCouldntRefer: (note?: string) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const [showOutcome, setShowOutcome] = useState(false);
+  const [couldntNote, setCouldntNote] = useState("");
+  const [showCouldnt, setShowCouldnt] = useState(false);
   const isPoster = request.student_id === currentUserId;
-  const isAcceptor = request.accepted_by === currentUserId;
-  const canHelp =
-    mode === "help" && request.status === "open" && !isPoster;
+  const helperId = referralHelperId(request);
+  const isHelper = helperId === currentUserId;
+  const canHelp = mode === "help" && request.status === "open" && !isPoster;
   const deadlineText = deadlineLabel(request.deadline);
   const urgent = isDeadlineUrgent(request.deadline);
   const studentName = request.student?.full_name?.trim() || "Student";
-  const partnerId = isPoster ? request.accepted_by : request.student_id;
+  const helperName =
+    request.helper?.full_name?.trim() ||
+    request.acceptor?.full_name?.trim() ||
+    "Someone";
+  const partnerId = isPoster ? helperId : request.student_id;
   const unlocked =
-    request.status === "accepted" &&
-    (isPoster || isAcceptor) &&
+    isReferralActiveHelping(request.status) &&
+    (isPoster || isHelper) &&
     partnerId;
+  const canClose =
+    (isPoster || isHelper) &&
+    (request.status === "open" ||
+      request.status === "in_progress" ||
+      request.status === "submitted" ||
+      request.status === "accepted");
 
   async function openResume() {
     if (!request.resume_url) return;
@@ -1090,6 +1190,15 @@ function ReferralCard({
         </div>
       )}
 
+      {mode === "need" && helperId && isReferralActiveHelping(request.status) && (
+        <p className="mt-2 text-sm text-slate-700">
+          <ProfilePreviewTrigger userId={helperId} className="font-semibold">
+            {helperName}
+          </ProfilePreviewTrigger>{" "}
+          is helping
+        </p>
+      )}
+
       {request.context?.trim() && (
         <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
           {request.context.trim()}
@@ -1129,9 +1238,7 @@ function ReferralCard({
         )}
       </div>
 
-      {mode === "need" && (
-        <Timeline request={request} />
-      )}
+      {mode === "need" && <Timeline request={request} />}
 
       <div className="mt-4 flex min-w-0 flex-wrap gap-2">
         {canHelp && (
@@ -1146,15 +1253,11 @@ function ReferralCard({
             </button>
             <button
               type="button"
-              disabled={busy || isAcceptor}
-              onClick={onAccept}
+              disabled={busy || isHelper}
+              onClick={onHelp}
               className="btn-primary disabled:opacity-60"
             >
-              {busy
-                ? "…"
-                : isAcceptor
-                  ? "You're referring this"
-                  : "Accept & refer"}
+              {busy ? "…" : isHelper ? "You're helping" : "I'll help with this"}
             </button>
             <button
               type="button"
@@ -1168,73 +1271,185 @@ function ReferralCard({
         )}
 
         {unlocked && (
-          <Link
-            href={`/messages?with=${partnerId}`}
-            className="btn-primary"
-          >
-            Message {isPoster ? "referrer" : studentName.split(" ")[0]}
+          <Link href={`/messages?with=${partnerId}`} className="btn-primary">
+            Message {isPoster ? "helper" : studentName.split(" ")[0]}
           </Link>
         )}
 
-        {mode === "need" && isPoster && request.status === "accepted" && !request.referred_at && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onMarkReferred}
-            className="btn-secondary disabled:opacity-60"
-          >
-            Mark as referred
-          </button>
-        )}
-
-        {mode === "need" &&
-          isPoster &&
-          (request.status === "open" || request.status === "accepted") && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-            >
-              Close
-            </button>
+        {isHelper &&
+          (request.status === "in_progress" || request.status === "accepted") && (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onSubmitted}
+                className="btn-secondary disabled:opacity-60"
+              >
+                Submitted internally
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setShowCouldnt(true)}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Couldn&apos;t refer
+              </button>
+            </>
           )}
 
-        {mode === "help" && isAcceptor && !request.referred_at && (
+        {canClose && (
           <button
             type="button"
             disabled={busy}
-            onClick={onMarkReferred}
-            className="btn-secondary disabled:opacity-60"
+            onClick={() => {
+              if (isPoster && isReferralActiveHelping(request.status)) {
+                setShowOutcome(true);
+              } else {
+                onClose(isHelper ? "not_referred" : "withdrawn");
+              }
+            }}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
-            Mark as referred
+            Close
           </button>
         )}
       </div>
+
+      {showOutcome && (
+        <AppModal
+          open
+          onClose={() => setShowOutcome(false)}
+          title="How did it go?"
+          description="This helps track referral outcomes."
+        >
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-primary"
+              onClick={() => {
+                setShowOutcome(false);
+                onClose("referred");
+              }}
+            >
+              Got the referral
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-secondary"
+              onClick={() => {
+                setShowOutcome(false);
+                onClose("not_referred");
+              }}
+            >
+              Didn&apos;t work out
+            </button>
+            <button
+              type="button"
+              className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+              onClick={() => setShowOutcome(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </AppModal>
+      )}
+
+      {showCouldnt && (
+        <AppModal
+          open
+          onClose={() => setShowCouldnt(false)}
+          title="Couldn't refer"
+          description="Optional note for the poster — closes this request."
+        >
+          <textarea
+            value={couldntNote}
+            onChange={(e) => setCouldntNote(e.target.value)}
+            rows={3}
+            placeholder="e.g. No open req for this role right now"
+            className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+          />
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCouldnt(false)}
+              className="btn-secondary flex-1"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-primary flex-1 disabled:opacity-60"
+              onClick={() => {
+                setShowCouldnt(false);
+                onCouldntRefer(couldntNote);
+              }}
+            >
+              Close request
+            </button>
+          </div>
+        </AppModal>
+      )}
     </SurfaceCard>
   );
 }
 
 function Timeline({ request }: { request: ReferralRequest }) {
-  const views = request.view_count ?? 0;
-  const questions = request.question_count ?? 0;
+  const helperName =
+    request.helper?.full_name?.trim() ||
+    request.acceptor?.full_name?.trim() ||
+    null;
+  const helping = isReferralActiveHelping(request.status);
+  const submitted =
+    request.status === "submitted" || Boolean(request.referred_at);
+  const closed = request.status === "closed" || request.status === "expired";
+  const fmt = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
   const steps = [
-    { label: "Posted", done: true },
     {
-      label: views > 0 ? `Seen by ${views}` : "Seen by…",
-      done: views > 0,
+      label: `Posted${fmt(request.created_at) ? ` · ${fmt(request.created_at)}` : ""}`,
+      done: true,
     },
     {
-      label: questions > 0 ? `${questions} question${questions === 1 ? "" : "s"}` : "Questions",
-      done: questions > 0,
+      label: helping
+        ? `${helperName ?? "Someone"} is helping${
+            fmt(request.accepted_at ?? request.stage_updated_at)
+              ? ` · ${fmt(request.accepted_at ?? request.stage_updated_at)}`
+              : ""
+          }`
+        : "Waiting for help",
+      done: helping || submitted || closed,
     },
     {
-      label: "Accepted",
-      done: request.status === "accepted" || Boolean(request.referred_at),
+      label: submitted
+        ? `Submitted internally${
+            fmt(request.referred_at ?? request.stage_updated_at)
+              ? ` · ${fmt(request.referred_at ?? request.stage_updated_at)}`
+              : ""
+          }`
+        : "Submitted internally",
+      done: submitted || (closed && Boolean(request.referred_at)),
     },
     {
-      label: "Referral submitted",
-      done: Boolean(request.referred_at),
+      label: closed
+        ? `Closed${
+            request.outcome === "referred"
+              ? " · got referral"
+              : request.outcome === "not_referred"
+                ? " · didn't work out"
+                : fmt(request.stage_updated_at)
+                  ? ` · ${fmt(request.stage_updated_at)}`
+                  : ""
+          }`
+        : "Closed",
+      done: closed,
     },
   ];
 
@@ -1242,7 +1457,7 @@ function Timeline({ request }: { request: ReferralRequest }) {
     <ol className="mt-4 flex min-w-0 flex-wrap gap-1.5">
       {steps.map((step, i) => (
         <li
-          key={step.label}
+          key={`${step.label}-${i}`}
           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
             step.done
               ? "bg-teal-50 text-teal-800"
@@ -1332,13 +1547,13 @@ function AcceptChecklistModal({
     <AppModal
       open
       onClose={onClose}
-      title="You’re referring them"
+      title="You're helping"
       description="Chat is unlocked. Here’s what usually happens next."
     >
       <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
         <li>Get their latest resume (already attached if they uploaded one).</li>
         <li>Submit the referral in your company’s internal tool.</li>
-        <li>Share the application / referral ID back in chat.</li>
+        <li>Mark “Submitted internally” when done, or “Couldn’t refer” if not.</li>
       </ol>
       <p className="mt-3 text-sm text-slate-500">
         You can message {first} anytime from Referrals or Messages.
@@ -1363,26 +1578,19 @@ function StatusBadge({ status }: { status: ReferralStatus }) {
   const styles =
     status === "open"
       ? "bg-amber-50 text-amber-800"
-      : status === "accepted"
+      : status === "in_progress" || status === "accepted"
         ? "bg-teal-50 text-teal-800"
-        : status === "expired"
-          ? "bg-slate-100 text-slate-500"
-          : "bg-slate-100 text-slate-600";
-
-  const label =
-    status === "open"
-      ? "Waiting"
-      : status === "accepted"
-        ? "Matched"
-        : status === "expired"
-          ? "Expired"
-          : "Closed";
+        : status === "submitted"
+          ? "bg-sky-50 text-sky-800"
+          : status === "expired"
+            ? "bg-slate-100 text-slate-500"
+            : "bg-slate-100 text-slate-600";
 
   return (
     <span
       className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${styles}`}
     >
-      {label}
+      {referralStatusLabel(status)}
     </span>
   );
 }

@@ -10,9 +10,12 @@ import {
   IconUsers,
 } from "@/components/ui/icons";
 import type { CommunityStats } from "@/lib/dashboard-community";
+import { getCollegeCommunityLabel } from "@/lib/college-display";
 
 type Props = {
   stats: CommunityStats;
+  /** College name from DB when multi-college is live; omitted until then. */
+  collegeName?: string | null;
 };
 
 type CommunityCard = {
@@ -26,13 +29,13 @@ type CommunityCard = {
   solid: string;
 };
 
-export function DashboardCommunity({ stats }: Props) {
+export function DashboardCommunity({ stats, collegeName }: Props) {
   const cards: CommunityCard[] = [
     {
       key: "community",
       href: "/network",
       value: stats.total,
-      label: "IIT BHU community",
+      label: getCollegeCommunityLabel(collegeName),
       icon: <IconUsers size={16} />,
       soft: "var(--brand-soft)",
       solid: "var(--brand)",

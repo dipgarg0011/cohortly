@@ -4,20 +4,20 @@ import { PublicPage, PublicSection } from "@/components/public-page";
 export const metadata: Metadata = {
   title: "About · Cohortly",
   description:
-    "What Cohortly is, why it exists, and who built this private network for IIT BHU.",
+    "What Cohortly is, why it exists, and who built this private network for your college.",
 };
 
 export default function AboutPage() {
   return (
     <PublicPage
       title="About Cohortly"
-      description="A private college network so IIT BHU students and graduates can find mentors, referrals, and opportunities among people who already share a campus."
+      description="A private college network so students and graduates at your college can find mentors, referrals, and opportunities among people who already share a campus."
     >
       <PublicSection title="What it is">
         <p>
-          Cohortly is a private network for IIT BHU students and graduates.
-          Inside, you can browse people from your college, ask mentors for
-          advice, request referrals, and discover opportunities posted by
+          Cohortly is a private network for students and graduates at your
+          college. Inside, you can browse people from your college, ask mentors
+          for advice, request referrals, and discover opportunities posted by
           alumni and peers.
         </p>
       </PublicSection>

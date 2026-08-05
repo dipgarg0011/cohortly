@@ -223,7 +223,7 @@ export function ReferralBoard({
         status: request.status,
         accepted_by: request.accepted_by,
       });
-      setError(mapReferralError(rpcError.message));
+      setError(mapReferralError(rpcError.message, rpcError.code));
       setBusyId(null);
       return;
     }
@@ -268,7 +268,7 @@ export function ReferralBoard({
 
     if (insertError) {
       logReferralError("referral_questions insert (Ask a question)", insertError);
-      setError(mapReferralError(insertError.message));
+      setError(mapReferralError(insertError.message, insertError.code));
       setBusyId(null);
       return;
     }

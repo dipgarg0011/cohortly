@@ -224,7 +224,7 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
           );
           if (rpcError) {
             logReferralError("accept_referral_request RPC (dashboard needs)", rpcError);
-            throw new Error(mapReferralError(rpcError.message));
+            throw new Error(mapReferralError(rpcError.message, rpcError.code));
           }
           const row = Array.isArray(data) ? data[0] : data;
           if (!row) {

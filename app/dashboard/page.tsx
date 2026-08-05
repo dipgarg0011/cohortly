@@ -52,7 +52,6 @@ import {
   buildCommunityStats,
   type CommunityProfileRow,
 } from "@/lib/dashboard-community";
-import { pickCaughtUpNudge } from "@/lib/dashboard-nudge";
 import { loadDashboardSuggestions } from "@/lib/dashboard-suggestions";
 import {
   conversationContextLabel,
@@ -216,7 +215,6 @@ export default async function DashboardPage() {
     matchedAsks,
     openReferrals,
     pendingApplications,
-    acceptedReferrals,
   });
 
   const recentOpportunities = (opportunityRows ?? []).map((row) =>
@@ -322,46 +320,18 @@ export default async function DashboardPage() {
     },
   );
 
-  // Optional: profiles.created_at may be missing on older schemas — ignore errors.
-  let newBranchJoins = 0;
-  const dept = profile?.department?.trim();
-  if (dept) {
-    const weekAgoIso = new Date(
-      Date.now() - 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const { count, error: joinError } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("department", dept)
-      .gte("created_at", weekAgoIso)
-      .neq("id", user.id);
-    if (!joinError && typeof count === "number") {
-      newBranchJoins = count;
-    }
-  }
-
-  const emptySuggestion =
-    needItems.length === 0
-      ? pickCaughtUpNudge({
-          profile,
-          newBranchJoins,
-          department: profile?.department ?? null,
-        })
-      : null;
-
-  // Never show profile tip banner alongside the caught-up suggested action.
+  // Profile tip stays below the fold — never inside the Needs bubble.
   const showProfileTipBanner =
-    needItems.length > 0 &&
-    completion.percent < 100 &&
-    Boolean(completion.nextTip);
+    completion.percent < 100 && Boolean(completion.nextTip);
 
   return (
     <PageShell accent="home">
       <Navbar />
 
       <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
-        <div className="mb-5 min-w-0 stagger-1 sm:mb-6">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 stagger-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
+          <DashboardNeedsYou items={needItems} currentUserId={user.id} />
         </div>
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
@@ -369,11 +339,6 @@ export default async function DashboardPage() {
         {showMentorOnboarding ? (
           <MentorOnboardingCard mentorId={user.id} />
         ) : null}
-
-        <DashboardNeedsYou
-          items={needItems}
-          emptySuggestion={emptySuggestion}
-        />
 
         <DashboardCommunity stats={communityStats} />
 

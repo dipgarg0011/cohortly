@@ -503,9 +503,13 @@ export function mapMentorshipError(
   error: { message?: string; code?: string } | null | undefined,
 ): string {
   const msg = error?.message ?? "";
+  const lower = msg.toLowerCase();
 
   if (msg.includes("TURN_GATE_LIMIT")) {
     return "Follow-ups are limited to 500 characters until the chat opens fully.";
+  }
+  if (msg.includes("MESSAGE_NOT_ALLOWED")) {
+    return "Couldn't open the mentorship chat. Please try again.";
   }
   if (msg.includes("INVALID_ACTION")) {
     return "That resolution option isn't available.";
@@ -528,11 +532,15 @@ export function mapMentorshipError(
   if (msg.includes("INVALID_REFERRAL")) {
     return "Pick a different graduate to refer this ask to.";
   }
-  if (msg.toLowerCase().includes("check constraint")) {
+  if (lower.includes("check constraint")) {
     return "Please fill in a clear title, description, and at least one tag.";
   }
-  if (msg.toLowerCase().includes("row-level security")) {
-    return "You don't have permission to do that.";
+  if (
+    lower.includes("row-level security") ||
+    lower.includes("violates row-level") ||
+    error?.code === "42501"
+  ) {
+    return "Couldn't open the mentorship chat. Please try again.";
   }
 
   return "Something went wrong. Please try again.";

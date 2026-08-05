@@ -148,5 +148,10 @@ export function mapMessagingError(
     return "Only the recipient can respond to this request.";
   }
 
+  // Never surface raw Postgres / PostgREST text to users
+  if (msg.trim()) {
+    return "Something went wrong. Please try again.";
+  }
+
   return "Something went wrong. Please try again.";
 }

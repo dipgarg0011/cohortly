@@ -211,6 +211,7 @@ export function ReferralBoard({
     );
 
     if (rpcError) {
+      console.error("accept_referral_request failed", rpcError);
       // Roll back optimistic patch
       patchRequestFields(request.id, {
         status: request.status,
@@ -260,6 +261,7 @@ export function ReferralBoard({
       });
 
     if (insertError) {
+      console.error("referral_questions insert failed", insertError);
       setError(mapReferralError(insertError.message));
       setBusyId(null);
       return;

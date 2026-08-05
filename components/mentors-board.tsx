@@ -665,6 +665,7 @@ function MentorInbox({
       .eq("id", matchId);
 
     if (updateError) {
+      console.error("request_matches status update failed", updateError);
       setError(mapMentorshipError(updateError));
       setBusyId(null);
       return;
@@ -1053,6 +1054,7 @@ function AnswerModal({
         .eq("mentor_id", user.id);
 
       if (updateError) {
+        console.error("request_answers update failed", updateError);
         setError(mapMentorshipError(updateError));
         setLoading(false);
         return;
@@ -1069,6 +1071,7 @@ function AnswerModal({
         });
 
       if (insertError) {
+        console.error("request_answers insert failed", insertError);
         setError(mapMentorshipError(insertError));
         setLoading(false);
         return;

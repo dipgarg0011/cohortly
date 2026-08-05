@@ -237,6 +237,8 @@ export function isDeadlineUrgent(deadline: string | null): boolean {
 }
 
 export function mapReferralError(message: string): string {
+  const lower = message.toLowerCase();
+
   if (message.includes("REFERRAL_ALREADY_TAKEN")) {
     return "Someone else has already taken this.";
   }
@@ -246,13 +248,25 @@ export function mapReferralError(message: string): string {
   if (message.includes("REFERRAL_COMPANY_LIMIT")) {
     return "You already requested this company in the last 30 days.";
   }
-  if (message.includes("NOT_ALLOWED")) {
+  if (message.includes("MESSAGE_NOT_ALLOWED")) {
+    return "Couldn't open the chat for this ask. Please try again.";
+  }
+  if (
+    lower.includes("row-level security") ||
+    lower.includes("violates row-level")
+  ) {
+    return "Couldn't complete that action. Please refresh and try again.";
+  }
+  if (message.includes("NOT_ALLOWED: You cannot accept")) {
     return "You're not allowed to accept this request.";
+  }
+  if (message.includes("NOT_ALLOWED")) {
+    return "You're not allowed to do that.";
   }
   if (message.includes("REQUEST_NOT_FOUND")) {
     return "That referral request could not be found.";
   }
-  return message;
+  return "Something went wrong. Please try again.";
 }
 
 export function needsReferralFollowup(

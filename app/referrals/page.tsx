@@ -4,6 +4,7 @@ import { ReferralBoard } from "@/components/referral-board";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
 import {
   REFERRAL_SELECT,
+  logReferralError,
   normalizeReachStats,
   normalizeReferralRequest,
   type ReferralReachStats,
@@ -35,6 +36,10 @@ export default async function ReferralsPage() {
       .select("request_id")
       .eq("user_id", user.id),
   ]);
+
+  if (error) {
+    logReferralError("referral_requests select (Referrals page)", error);
+  }
 
   // Best-effort: nudge helpers stuck in_progress 7+ days (once per request).
   void supabase.rpc("nudge_stale_referral_helpers");
@@ -126,13 +131,18 @@ export default async function ReferralsPage() {
           accent="referrals"
           eyebrow="Career help"
           title="Referrals"
-          description="Need one? Ask clearly. Can help? Start with a question or accept and refer."
+          description="Need one? Ask clearly. Can help? Ask a question or start helping."
         />
 
         {error ? (
           <div className="surface-card border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            Couldn&apos;t load referral requests. If you just added columns, run
-            the tiered referral SQL migration in Supabase.
+            Couldn&apos;t load referral requests — the database is missing columns
+            this page needs. Run{" "}
+            <code className="rounded bg-red-100 px-1 py-0.5 text-xs">
+              20260805_recovery_referral_requests_columns.sql
+            </code>{" "}
+            in the Supabase SQL Editor, then refresh. Details are in the server
+            console.
           </div>
         ) : (
           <ReferralBoard

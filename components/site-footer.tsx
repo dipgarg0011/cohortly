@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV_LINKS = [
+const COMPANY_LINKS = [
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
@@ -12,7 +12,7 @@ const NAV_LINKS = [
 ] as const;
 
 const linkClass =
-  "text-[var(--muted)] transition hover:text-[var(--brand)]";
+  "text-sm text-[var(--muted)] transition hover:text-[var(--brand)]";
 
 export function SiteFooter() {
   const pathname = usePathname();
@@ -26,53 +26,58 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-auto border-t border-teal-900/8 bg-[#e4ebe9]">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-3 sm:h-[64px] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-0">
-        <div className="hidden min-w-0 items-baseline gap-2.5 sm:flex">
-          <Link
-            href="/"
-            className="shrink-0 font-[family-name:var(--font-display)] text-sm font-bold tracking-tight text-[var(--brand)] transition hover:text-[var(--brand-dark)]"
-          >
-            Cohortly
-          </Link>
-          <span className="text-xs text-[var(--muted)]">
-            © {year} Cohortly
-          </span>
-        </div>
-
-        <nav
-          aria-label="Footer"
-          className="flex flex-wrap items-center justify-center gap-x-0 gap-y-1 text-xs sm:justify-center"
-        >
-          {NAV_LINKS.map(({ href, label }, i) => (
-            <span key={href} className="inline-flex items-center">
-              {i > 0 ? (
-                <span
-                  className="mx-1.5 select-none text-[var(--muted)]/50"
-                  aria-hidden
-                >
-                  ·
-                </span>
-              ) : null}
-              <Link href={href} className={linkClass}>
-                {label}
-              </Link>
-            </span>
-          ))}
-        </nav>
-
-        <div className="flex items-center justify-between gap-3 text-xs text-[var(--muted)] sm:justify-end sm:gap-0">
-          <div className="flex min-w-0 items-baseline gap-2 sm:hidden">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-9">
+        <div className="grid gap-8 sm:grid-cols-3 sm:gap-10">
+          {/* Brand */}
+          <div className="min-w-0">
             <Link
               href="/"
-              className="shrink-0 font-[family-name:var(--font-display)] text-sm font-bold tracking-tight text-[var(--brand)] transition hover:text-[var(--brand-dark)]"
+              className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] transition hover:text-[var(--brand-dark)]"
             >
               Cohortly
             </Link>
-            <span>© {year} Cohortly</span>
+            <p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
+              A private network for students and graduates at your college.
+            </p>
           </div>
-          <a href="mailto:cohortly.in@gmail.com" className={linkClass}>
-            cohortly.in@gmail.com
-          </a>
+
+          {/* Company */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Company
+            </h2>
+            <nav
+              aria-label="Footer"
+              className="mt-3 flex flex-col gap-2 sm:gap-1.5"
+            >
+              {COMPANY_LINKS.map(({ href, label }) => (
+                <Link key={href} href={href} className={linkClass}>
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          {/* Get in touch */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Get in touch
+            </h2>
+            <div className="mt-3 flex flex-col gap-2">
+              <a href="mailto:cohortly.in@gmail.com" className={linkClass}>
+                cohortly.in@gmail.com
+              </a>
+              <p className="text-sm text-[var(--muted)]">
+                Made by students, for students
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 border-t border-teal-900/8 pt-5">
+          <p className="text-xs text-[var(--muted)] sm:text-sm">
+            © {year} Cohortly. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

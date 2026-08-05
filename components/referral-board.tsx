@@ -77,19 +77,24 @@ export function ReferralBoard({
     }
   }, [currentUserId]);
 
-  // Record views for help cards (Seen by X)
+  // Record views for help cards (Seen by X) — never block the page on failure
   useEffect(() => {
     const openOthers = requests.filter(
       (r) => r.status === "open" && r.student_id !== currentUserId,
     );
     if (openOthers.length === 0) return;
     void Promise.all(
-      openOthers.map((r) =>
-        supabase.from("referral_views").upsert(
-          { request_id: r.id, viewer_id: currentUserId },
-          { onConflict: "request_id,viewer_id" },
-        ),
-      ),
+      openOthers.map(async (r) => {
+        const { error: viewError } = await supabase
+          .from("referral_views")
+          .upsert(
+            { request_id: r.id, viewer_id: currentUserId },
+            { onConflict: "request_id,viewer_id" },
+          );
+        if (viewError) {
+          logReferralError("referral_views upsert", viewError);
+        }
+      }),
     );
   }, [requests, currentUserId, supabase]);
 

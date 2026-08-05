@@ -1,30 +1,19 @@
--- Cohortly: pin mentorship request context on conversations
--- Run in Supabase → SQL Editor (production). Safe to re-run.
+-- Hotfix: resume after 20260805_conversation_context_request.sql
+-- failed mid-script with:
+--   ERROR: 42P13: cannot remove parameter defaults from existing function
+--   Hint: Use DROP FUNCTION upsert_accepted_conversation(uuid,uuid,text,text,uuid) first.
 --
--- Adds conversations.context_request_id, wires mentorship unlock paths to set it,
--- and backfills from request_matches / request_answers where possible.
+-- Use this when section 1 already applied (context_request_id column + index OK)
+-- and CREATE OR REPLACE of upsert_accepted_conversation failed (or left a
+-- partial 6-arg overload). Safe to re-run: DROP IF EXISTS throughout.
+--
+-- One-liner if you only need to unblock before re-pasting the full migration:
+--   DROP FUNCTION IF EXISTS public.upsert_accepted_conversation(uuid, uuid, text, text, uuid);
+-- Prefer this hotfix (drops all overloads + finishes remaining statements).
 
 -- =============================================================================
--- 1) Column
+-- 2) upsert_accepted_conversation — DROP + recreate all overloads
 -- =============================================================================
-
-alter table public.conversations
-  add column if not exists context_request_id uuid
-    references public.mentorship_requests(id) on delete set null;
-
-create index if not exists conversations_context_request_idx
-  on public.conversations (context_request_id)
-  where context_request_id is not null;
-
--- =============================================================================
--- 2) upsert_accepted_conversation — optional p_context_request_id
--- =============================================================================
--- Existing 5-arg overload has parameter defaults; CREATE OR REPLACE cannot remove
--- them (42P13). Drop all known overloads, then recreate cleanly.
--- Signatures seen in prior migrations:
---   (uuid, uuid, text)                         — 3-arg wrapper
---   (uuid, uuid, text, text, uuid)             — gate + student (had defaults)
---   (uuid, uuid, text, text, uuid, uuid)       — + context_request_id (this mig)
 
 drop function if exists public.upsert_accepted_conversation(uuid, uuid, text, text, uuid, uuid);
 drop function if exists public.upsert_accepted_conversation(uuid, uuid, text, text, uuid);

@@ -41,9 +41,9 @@ type Tab = "ask" | "inbox" | "my_asks";
 
 type Props = {
   currentUserId: string;
+  isGraduate: boolean;
+  /** Confirmed + available — do not force true on page load. */
   initialAvailable: boolean;
-  profileSkills: string[];
-  profileBio: string | null;
   initialRequests: MentorshipRequest[];
   initialMatchedAsks: MatchedAsk[];
   initialAnswers: RequestAnswer[];
@@ -58,23 +58,17 @@ const ANSWER_COLS =
   "id, request_id, match_id, mentor_id, content, is_public, helpful, created_at";
 
 export function MentorsBoard({
-  currentUserId,
+  isGraduate,
   initialAvailable,
-  profileSkills,
-  profileBio,
   initialRequests,
   initialMatchedAsks,
   initialAnswers,
   connectedByRequestId = {},
   studentDepartment = null,
 }: Props) {
-  const supabase = useMemo(() => createClient(), []);
-  const [available, setAvailable] = useState(initialAvailable);
-  const [availabilityBusy, setAvailabilityBusy] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState<string | null>(
-    null,
-  );
-  const showInbox = available || initialMatchedAsks.length > 0;
+  // Graduates only: inbox when available or they already have matched asks.
+  const showInbox =
+    isGraduate && (initialAvailable || initialMatchedAsks.length > 0);
   const [tab, setTab] = useState<Tab>(showInbox ? "inbox" : "ask");
   const [requests, setRequests] = useState(initialRequests);
   const [asks, setAsks] = useState(initialMatchedAsks);
@@ -96,38 +90,9 @@ export function MentorsBoard({
     return ageDays < 9;
   });
 
-  async function toggleAvailability() {
-    setAvailabilityBusy(true);
-    setAvailabilityError(null);
-    const next = !available;
-    const { error } = await supabase.from("mentor_availability").upsert(
-      {
-        mentor_id: currentUserId,
-        is_available: next,
-        session_lengths: [30, 60],
-        topics: profileSkills,
-        max_open_requests: 5,
-        bio_note: profileBio,
-      },
-      { onConflict: "mentor_id" },
-    );
-    if (error) {
-      setAvailabilityError(
-        error.message.includes("row-level security")
-          ? "Couldn't update mentor availability. Make sure you're signed in."
-          : error.message || "Couldn't update availability.",
-      );
-      setAvailabilityBusy(false);
-      return;
-    }
-    setAvailable(next);
-    if (next) setTab("inbox");
-    setAvailabilityBusy(false);
-  }
-
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "ask", label: "Ask for help" },
-    ...(showInbox || available
+    ...(showInbox
       ? [
           {
             id: "inbox" as const,
@@ -141,43 +106,18 @@ export function MentorsBoard({
 
   return (
     <div className="space-y-6 min-w-0 overflow-x-clip">
-      <SectionCard>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">
-              Available as mentor
-            </p>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Anyone can mentor juniors. Matching still prioritizes seniors and
-              graduates.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={available}
-            disabled={availabilityBusy}
-            onClick={() => void toggleAvailability()}
-            className={`relative h-8 w-14 shrink-0 rounded-full transition ${
-              available ? "bg-teal-700" : "bg-slate-300"
-            } disabled:opacity-60`}
+      {isGraduate && !initialAvailable ? (
+        <p className="text-sm text-slate-600">
+          Mentoring settings live on your{" "}
+          <Link
+            href="/profile/mentoring"
+            className="font-semibold text-teal-800 hover:underline"
           >
-            <span
-              className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${
-                available ? "left-7" : "left-1"
-              }`}
-            />
-            <span className="sr-only">
-              {available ? "Turn off mentoring" : "Become available as mentor"}
-            </span>
-          </button>
-        </div>
-        {availabilityError && (
-          <p role="alert" className="mt-2 text-sm text-red-700">
-            {availabilityError}
-          </p>
-        )}
-      </SectionCard>
+            profile
+          </Link>
+          . You&apos;ll see matching asks here once you&apos;re available.
+        </p>
+      ) : null}
 
       <div
         className={`grid w-full min-w-0 gap-1 rounded-xl bg-teal-50 p-1 ${
@@ -227,7 +167,7 @@ export function MentorsBoard({
         />
       )}
 
-      {tab === "inbox" && (showInbox || available) && (
+      {tab === "inbox" && showInbox && (
         <MentorInbox
           pending={regularPending}
           unansweredPool={unansweredPool}
@@ -405,8 +345,8 @@ function AskForHelpForm({
           What do you need help with?
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Three things: a title, a short note, and a topic. We&apos;ll find
-          matching mentors for you — seniors first.
+          Three things: a title, a short note, and a topic. Your ask goes to
+          matching graduates — you choose who to follow up with.
         </p>
       </div>
 
@@ -508,7 +448,7 @@ function AskForHelpForm({
             ) : preview && preview.match_count >= 4 ? (
               <p>
                 <span className="font-bold text-teal-900">
-                  {preview.match_count} mentors match this
+                  {preview.match_count} graduates match this
                 </span>{" "}
                 — good chance of a reply.
               </p>
@@ -516,7 +456,7 @@ function AskForHelpForm({
               <div className="space-y-2">
                 <p>
                   <span className="font-bold text-amber-900">
-                    Only 1 mentor matches these tags.
+                    Only 1 graduate matches these tags.
                   </span>{" "}
                   Try broader tags, or post anyway and we&apos;ll widen it
                   automatically.
@@ -566,7 +506,7 @@ function AskForHelpForm({
               <div className="space-y-2">
                 <p>
                   <span className="font-bold text-teal-900">
-                    {preview.match_count} mentors match
+                    {preview.match_count} graduates match
                   </span>
                   {preview.match_count < 4
                     ? " — a bit thin. Broader tags help, or post and we'll widen automatically."
@@ -1328,7 +1268,7 @@ function MyAsks({
       <EmptyState
         icon={<IconMentorEmpty />}
         title="No asks yet"
-        description="Post what you need help with — we'll match you to mentors with the right skills."
+        description="Post what you need help with — we'll match you to graduates with the right skills."
         accentSoft="var(--accent-mentors-soft)"
       />
     );

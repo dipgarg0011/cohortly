@@ -1,27 +1,40 @@
 import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { ProfileForm } from "@/components/profile-form";
+import { MentorSettings } from "@/components/mentor-settings";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
+import { isGraduateStatus } from "@/lib/network";
 import {
   suggestedProfileStatus,
   type EditableProfile,
   type ProfileStatus,
 } from "@/lib/network";
+import type { MentorOnboardingState } from "@/lib/mentorship";
 
 export default async function ProfilePage() {
   const { supabase, user } = await requireProfile();
 
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select(
-      "full_name, batch_year, status, department, company, past_companies, role_title, is_founder, open_to, skills, linkedin_url, bio",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: profile, error }, { data: availability }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "full_name, batch_year, status, department, company, past_companies, role_title, is_founder, open_to, skills, linkedin_url, bio",
+      )
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("mentor_availability")
+      .select(
+        "is_available, is_paused, onboarding_state, max_open_requests, topics, bio_note",
+      )
+      .eq("mentor_id", user.id)
+      .maybeSingle(),
+  ]);
 
   const status =
     (profile?.status as ProfileStatus | null | undefined) ??
     suggestedProfileStatus(profile?.batch_year ?? null);
+  const isGraduate = isGraduateStatus(status);
 
   const initialProfile: EditableProfile = {
     full_name: profile?.full_name ?? "",
@@ -37,6 +50,18 @@ export default async function ProfilePage() {
     linkedin_url: profile?.linkedin_url ?? "",
     bio: profile?.bio ?? "",
   };
+
+  const mentorInitial = availability
+    ? {
+        is_available: Boolean(availability.is_available),
+        is_paused: Boolean(availability.is_paused),
+        onboarding_state: (availability.onboarding_state ??
+          "not_asked") as MentorOnboardingState,
+        max_open_requests: Number(availability.max_open_requests ?? 5),
+        topics: (availability.topics as string[] | null) ?? [],
+        bio_note: (availability.bio_note as string | null) ?? null,
+      }
+    : null;
 
   return (
     <PageShell accent="profile">
@@ -55,8 +80,17 @@ export default async function ProfilePage() {
             sure the SQL migration has been run in Supabase.
           </div>
         ) : (
-          <div className="animate-fade-up">
+          <div className="animate-fade-up space-y-6">
             <ProfileForm initialProfile={initialProfile} />
+            {isGraduate ? (
+              <div id="mentoring">
+                <MentorSettings
+                  isGraduate
+                  initialAvailability={mentorInitial}
+                  profileSkills={initialProfile.skills}
+                />
+              </div>
+            ) : null}
           </div>
         )}
       </main>

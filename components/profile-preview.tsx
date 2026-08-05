@@ -212,7 +212,11 @@ export function ProfilePreviewProvider({ children }: Props) {
     turnGate.waitingOnMentor;
   const viewerIsStudent = getProfileRole(viewerStatus) === "Student";
   const showAskHelp =
-    !isSelf && mentorAvailable && viewerIsStudent && Boolean(profile);
+    !isSelf &&
+    mentorAvailable &&
+    role === "Graduate" &&
+    viewerIsStudent &&
+    Boolean(profile);
 
   return (
     <ProfilePreviewContext.Provider value={value}>
@@ -322,7 +326,7 @@ export function ProfilePreviewProvider({ children }: Props) {
               </div>
             ) : null}
 
-            {mentorAvailable ? (
+            {mentorAvailable && role === "Graduate" ? (
               <p className="text-center text-xs font-semibold text-teal-800">
                 Available as mentor
               </p>

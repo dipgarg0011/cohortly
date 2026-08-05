@@ -1,10 +1,14 @@
 import { formatAbsoluteTime } from "@/lib/format-time";
 import { SKILL_OPTIONS, type ProfileStatus } from "@/lib/network";
 
+export type MentorOnboardingState = "not_asked" | "confirmed" | "declined";
+
 export type MentorAvailability = {
   id: string;
   mentor_id: string;
   is_available: boolean;
+  is_paused: boolean;
+  onboarding_state: MentorOnboardingState;
   session_lengths: number[];
   bio_note: string | null;
   max_open_requests: number;
@@ -341,10 +345,10 @@ export function liveStateCopy(
     return "We'll notify you when someone relevant joins.";
   }
   if (state.resolution === "posted_public") {
-    return "Posted publicly — any mentor can pick this up.";
+    return "Posted publicly — any available graduate can pick this up.";
   }
   if (state.match_count === 0) {
-    return "No mentors matched yet — we'll widen this automatically.";
+    return "No graduates matched yet — we'll widen this automatically.";
   }
 
   const stage = state.computed_stage;
@@ -352,21 +356,21 @@ export function liveStateCopy(
   const openedish = Math.max(0, state.match_count - state.unanswered_pending);
 
   if (stage >= 4) {
-    return "Still unanswered — visible to all available mentors";
+    return "Still unanswered — visible to all available graduates";
   }
   if (stage === 3) {
     const dept = department?.trim();
     return dept
-      ? `Now visible to senior mentors in ${dept}`
-      : "Now visible to more senior mentors in your department";
+      ? `Now visible to senior graduates in ${dept}`
+      : "Now visible to more senior graduates in your department";
   }
   if (pending > 0 && openedish === 0) {
-    return `Sent to ${state.match_count} mentor${state.match_count === 1 ? "" : "s"} · ${pending} haven't opened it yet`;
+    return `Sent to ${state.match_count} graduate${state.match_count === 1 ? "" : "s"} · ${pending} haven't opened it yet`;
   }
   if (pending > 0) {
     return `No response yet — opening this to more people ${stage < 2 ? "in a few days" : "soon"}`;
   }
-  return `Sent to ${state.match_count} mentor${state.match_count === 1 ? "" : "s"} — waiting on a reply`;
+  return `Sent to ${state.match_count} graduate${state.match_count === 1 ? "" : "s"} — waiting on a reply`;
 }
 
 export function stageLabel(stage: number): string {

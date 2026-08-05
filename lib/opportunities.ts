@@ -190,6 +190,9 @@ export function mapApplicationError(message: string): string {
   if (message.includes("APPLICATION_RATE_LIMIT")) {
     return "You can submit at most 5 applications every 7 days.";
   }
+  if (message.includes("APPLICATION_ALREADY_DECIDED")) {
+    return "This application was already decided.";
+  }
   if (message.includes("MESSAGE_NOT_ALLOWED")) {
     return "Couldn't start the application chat. Please try again, or ask an admin if this keeps happening.";
   }

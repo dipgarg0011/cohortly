@@ -129,7 +129,11 @@ export function OpportunitiesBoard({
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setView(option.id)}
+              onClick={() => {
+                setView(option.id);
+                // Don't leave the applicant-form helper modal open over Applicants
+                if (option.id !== "board") setApplyTarget(null);
+              }}
               className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
                 active
                   ? "bg-white text-teal-900 shadow-sm"
@@ -271,7 +275,7 @@ export function OpportunitiesBoard({
         </AppModal>
       )}
 
-      {applyTarget && (
+      {applyTarget && view === "board" && (
         <AppModal
           open={!!applyTarget}
           onClose={() => setApplyTarget(null)}
@@ -1079,14 +1083,9 @@ function ApplicantsList({
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
-  async function decide(app: OpportunityApplication, status: "accepted" | "declined") {
-    setBusyId(app.id);
-    setError(null);
-    const { data, error: updateError } = await supabase
+  async function fetchApplication(id: string): Promise<OpportunityApplication | null> {
+    const { data, error: fetchError } = await supabase
       .from("opportunity_applications")
-      .update({ status })
-      .eq("id", app.id)
-      .eq("status", "pending")
       .select(
         `
         ${APPLICATION_SELECT},
@@ -1099,24 +1098,84 @@ function ApplicantsList({
         )
       `,
       )
+      .eq("id", id)
       .maybeSingle();
 
-    if (updateError) {
-      setError(mapApplicationError(updateError.message));
-      setBusyId(null);
-      return;
-    }
-    if (!data) {
+    if (fetchError || !data) return null;
+    return normalizeApplication(data as Record<string, unknown>);
+  }
+
+  async function decide(app: OpportunityApplication, status: "accepted" | "declined") {
+    setBusyId(app.id);
+    setError(null);
+
+    // Only treat as "already decided" when server status is accepted/declined — never pending
+    if (app.status === "accepted" || app.status === "declined") {
       setError("This application was already decided.");
       setBusyId(null);
       return;
     }
 
-    const updated = normalizeApplication(data as Record<string, unknown>);
-    onUpdated(updated);
+    const { data, error: rpcError } = await supabase.rpc(
+      "decide_opportunity_application",
+      {
+        p_application_id: app.id,
+        p_new_status: status,
+      },
+    );
+
+    // Always refresh from server so badge and actions agree
+    const refreshed = await fetchApplication(app.id);
+    if (refreshed) {
+      onUpdated(refreshed);
+    }
+
+    if (rpcError) {
+      const msg = rpcError.message || "";
+      if (msg.includes("APPLICATION_ALREADY_DECIDED")) {
+        setError("This application was already decided.");
+      } else if (
+        refreshed &&
+        (refreshed.status === "accepted" || refreshed.status === "declined")
+      ) {
+        setError("This application was already decided.");
+      } else if (refreshed?.status === "pending") {
+        setError(
+          mapApplicationError(msg) === msg
+            ? "Couldn't update this application. Please try again."
+            : mapApplicationError(msg),
+        );
+      } else {
+        setError(mapApplicationError(msg));
+      }
+      setBusyId(null);
+      return;
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+
+    if (!refreshed && !row) {
+      setError("Couldn't confirm the decision. Please refresh and try again.");
+      setBusyId(null);
+      return;
+    }
+
+    if (!refreshed && row) {
+      onUpdated(
+        normalizeApplication({
+          ...row,
+          opportunity: app.opportunity,
+          applicant: app.applicant,
+        }),
+      );
+    }
+
     setBusyId(null);
 
-    if (status === "accepted") {
+    const finalStatus = refreshed?.status ?? status;
+    if (finalStatus === "accepted") {
       router.push(`/messages?with=${app.applicant_id}`);
     }
   }
@@ -1204,12 +1263,17 @@ function ApplicantsList({
                       </div>
                     )}
 
-                    <p className="mt-3 whitespace-pre-wrap break-safe text-sm text-slate-700">
-                      {app.pitch}
-                    </p>
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Pitch
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap break-safe text-sm text-slate-800">
+                        {app.pitch?.trim() || "No pitch provided."}
+                      </p>
+                    </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {app.resume_url && (
+                      {app.resume_url ? (
                         <button
                           type="button"
                           onClick={() => void openResume(app.resume_url!)}
@@ -1217,7 +1281,7 @@ function ApplicantsList({
                         >
                           View resume
                         </button>
-                      )}
+                      ) : null}
                       {app.status === "pending" && (
                         <>
                           <button

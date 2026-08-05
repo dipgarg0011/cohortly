@@ -11,6 +11,29 @@ export type UnlockReason =
   | "referral_question"
   | "opportunity_application";
 
+export type ContextType =
+  | "connection"
+  | "referral"
+  | "referral_question"
+  | "mentorship"
+  | "opportunity";
+
+export type ContextSnapshot = {
+  title?: string | null;
+  company?: string | null;
+  role?: string | null;
+  category?: string | null;
+  type?: string | null;
+  description?: string | null;
+  pitch?: string | null;
+  request_id?: string | null;
+  question_id?: string | null;
+  opportunity_id?: string | null;
+  application_id?: string | null;
+  student_id?: string | null;
+  is_anonymous?: boolean | null;
+};
+
 export type GateMode = "locked" | "turn_based" | "open";
 
 export type ConversationRow = {
@@ -19,7 +42,13 @@ export type ConversationRow = {
   recipient_id: string;
   status: ConversationStatus;
   unlock_reason: UnlockReason | null;
-  /** Mentorship request this chat was unlocked from (pinned context). */
+  /** Stable unlock source type (preferred over unlock_reason for UI). */
+  context_type?: ContextType | null;
+  /** Polymorphic source id (referral / mentorship / opportunity application). */
+  context_id?: string | null;
+  /** Frozen header fields captured at unlock. */
+  context_snapshot?: ContextSnapshot | Record<string, unknown> | null;
+  /** Mentorship-only legacy FK — kept in sync with context_id for mentorship. */
   context_request_id?: string | null;
   intro_message_sent: boolean;
   created_at: string;
@@ -31,6 +60,29 @@ export type ConversationRow = {
   gate_student_id?: string | null;
   turn_nudge_sent_at?: string | null;
 };
+
+export const CONVERSATION_SELECT =
+  "id, initiator_id, recipient_id, status, unlock_reason, context_type, context_id, context_snapshot, context_request_id, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id, turn_nudge_sent_at";
+
+export function resolveContextType(
+  conv: Pick<ConversationRow, "context_type" | "unlock_reason">,
+): ContextType | null {
+  if (conv.context_type) return conv.context_type;
+  switch (conv.unlock_reason) {
+    case "referral":
+      return "referral";
+    case "referral_question":
+      return "referral_question";
+    case "mentorship":
+      return "mentorship";
+    case "opportunity_application":
+      return "opportunity";
+    case "manual_accept":
+      return "connection";
+    default:
+      return null;
+  }
+}
 
 export const INTRO_MESSAGE_MAX = 300;
 export const INTRO_MESSAGE_MIN = 20;
@@ -121,9 +173,9 @@ export function connectionActionFor(
   return { kind: "hidden" };
 }
 
-/** Short inbox / dashboard label from unlock reason + optional title. */
+/** Short inbox / dashboard label from unlock reason / context type + detail. */
 export function conversationContextLabel(
-  unlockReason: UnlockReason | null | undefined,
+  unlockReason: UnlockReason | ContextType | null | undefined,
   title?: string | null,
 ): string | null {
   const t = title?.trim();
@@ -133,11 +185,30 @@ export function conversationContextLabel(
     case "referral":
     case "referral_question":
       return t ? `Referral · ${t}` : "Referral";
+    case "opportunity":
     case "opportunity_application":
       return t ? `Opportunity · ${t}` : "Opportunity";
+    case "connection":
+    case "manual_accept":
     default:
       return null;
   }
+}
+
+/** Label from conversation row using context_type / context_snapshot when present. */
+export function conversationLabelFromRow(
+  conv: ConversationRow,
+): string | null {
+  const type = resolveContextType(conv);
+  if (!type || type === "connection") return null;
+  const snap = (conv.context_snapshot ?? {}) as ContextSnapshot;
+  const detail =
+    type === "referral" || type === "referral_question"
+      ? snap.company || snap.role || snap.title
+      : type === "opportunity"
+        ? snap.company || snap.role || snap.title
+        : snap.title || snap.company;
+  return conversationContextLabel(type, detail ?? null);
 }
 
 /** Map Postgres / Supabase errors to readable copy. Never surface raw SQL. */

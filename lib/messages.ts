@@ -1,3 +1,5 @@
+export type MessageKind = "user" | "system";
+
 export type Message = {
   id: string;
   sender_id: string;
@@ -7,7 +9,12 @@ export type Message = {
   read: boolean;
   conversation_id?: string | null;
   is_system?: boolean;
+  message_kind?: MessageKind | null;
 };
+
+export function isSystemMessage(message: Pick<Message, "is_system" | "message_kind">): boolean {
+  return Boolean(message.is_system) || message.message_kind === "system";
+}
 
 export type ChatPartner = {
   id: string;
@@ -49,7 +56,11 @@ export function buildConversations(
       latestByPartner.set(partnerId, message);
     }
 
-    if (message.receiver_id === currentUserId && !message.read) {
+    if (
+      message.receiver_id === currentUserId &&
+      !message.read &&
+      !isSystemMessage(message)
+    ) {
       unreadByPartner.set(
         partnerId,
         (unreadByPartner.get(partnerId) ?? 0) + 1,

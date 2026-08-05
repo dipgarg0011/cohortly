@@ -54,16 +54,15 @@ import {
 } from "@/lib/dashboard-community";
 import { loadDashboardSuggestions } from "@/lib/dashboard-suggestions";
 import {
-  conversationContextLabel,
+  CONVERSATION_SELECT,
+  conversationLabelFromRow,
   partnerIdFromConversation,
   type ConversationRow,
 } from "@/lib/conversations";
+import { listLabelForConversation } from "@/lib/conversation-context";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
-
-const CONVERSATION_SELECT =
-  "id, initiator_id, recipient_id, status, unlock_reason, context_request_id, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id, turn_nudge_sent_at";
 
 export default async function DashboardPage() {
   const { user, supabase } = await requireProfile();
@@ -83,7 +82,9 @@ export default async function DashboardPage() {
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
     supabase
       .from("messages")
-      .select("id, sender_id, receiver_id, content, created_at, read")
+      .select(
+        "id, sender_id, receiver_id, content, created_at, read, is_system, message_kind",
+      )
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true }),
     supabase
@@ -242,63 +243,58 @@ export default async function DashboardPage() {
 
   // Labels for mentorship / referral / opportunity threads in the feed.
   const conversationLabels: Record<string, string> = {};
-  const mentorshipRequestIds = conversations
-    .filter((c) => c.unlock_reason === "mentorship" && c.context_request_id)
-    .map((c) => c.context_request_id as string);
-  if (mentorshipRequestIds.length > 0) {
-    const { data: reqRows } = await supabase
-      .from("mentorship_requests")
-      .select("id, title")
-      .in("id", mentorshipRequestIds);
-    const titleById = new Map(
-      ((reqRows ?? []) as { id: string; title: string }[]).map((r) => [
-        r.id,
-        r.title,
-      ]),
-    );
-    for (const conv of conversations) {
-      if (conv.unlock_reason !== "mentorship" || !conv.context_request_id) {
-        continue;
-      }
-      const partner = partnerIdFromConversation(conv, user.id);
-      const label = conversationContextLabel(
-        conv.unlock_reason,
-        titleById.get(conv.context_request_id) ?? null,
-      );
-      if (label) conversationLabels[partner] = label;
-    }
-  }
   for (const conv of conversations) {
     const partner = partnerIdFromConversation(conv, user.id);
-    if (conversationLabels[partner]) continue;
-    const label = conversationContextLabel(conv.unlock_reason, null);
+    const label =
+      listLabelForConversation(conv) ?? conversationLabelFromRow(conv);
     if (label) conversationLabels[partner] = label;
   }
 
-  // Enrich referral / opportunity labels when we can match open context.
+  // Enrich referral / opportunity labels when snapshot detail is thin.
   for (const ref of [...acceptedReferrals, ...openReferrals]) {
     const otherId =
       ref.student_id === user.id
-        ? ref.accepted_by
+        ? ref.accepted_by ?? ref.helper_id
         : ref.student_id;
-    if (!otherId) continue;
+    if (!otherId || conversationLabels[otherId]?.includes(" · ")) continue;
     const conv = conversations.find(
       (c) =>
         (c.unlock_reason === "referral" ||
-          c.unlock_reason === "referral_question") &&
+          c.unlock_reason === "referral_question" ||
+          c.context_type === "referral" ||
+          c.context_type === "referral_question") &&
         partnerIdFromConversation(c, user.id) === otherId,
     );
     if (!conv) continue;
-    const label = conversationContextLabel(
-      conv.unlock_reason,
-      ref.company || ref.role,
-    );
+    const label = listLabelForConversation({
+      ...conv,
+      context_snapshot: {
+        ...(typeof conv.context_snapshot === "object" && conv.context_snapshot
+          ? conv.context_snapshot
+          : {}),
+        company: ref.company,
+        role: ref.role,
+      },
+    });
     if (label) conversationLabels[otherId] = label;
   }
   for (const app of pendingApplications) {
     const applicantId = app.applicant_id;
+    if (conversationLabels[applicantId]?.includes(" · ")) continue;
     const title = app.opportunity?.title;
-    const label = conversationContextLabel("opportunity_application", title);
+    const company = app.opportunity?.company;
+    const label = listLabelForConversation({
+      id: "",
+      initiator_id: applicantId,
+      recipient_id: user.id,
+      status: "accepted",
+      unlock_reason: "opportunity_application",
+      context_type: "opportunity",
+      intro_message_sent: true,
+      created_at: "",
+      updated_at: "",
+      context_snapshot: { title, company, role: title },
+    });
     if (label) conversationLabels[applicantId] = label;
   }
 

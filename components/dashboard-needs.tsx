@@ -219,18 +219,37 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
       } else if (item.type === "referral") {
         if (action === "accept") {
           const { data, error: rpcError } = await supabase.rpc(
-            "accept_referral_request",
+            "help_with_referral_request",
             { p_request_id: item.entityId },
           );
           if (rpcError) {
-            logReferralError("accept_referral_request RPC (dashboard needs)", rpcError);
-            throw new Error(mapReferralError(rpcError.message, rpcError.code));
-          }
-          const row = Array.isArray(data) ? data[0] : data;
-          if (!row) {
-            throw new Error(
-              "Someone else has already taken this — or the accept didn't go through. Refresh and try another ask.",
-            );
+            logReferralError("help_with_referral_request RPC (dashboard needs)", rpcError);
+            const fallback = await supabase.rpc("accept_referral_request", {
+              p_request_id: item.entityId,
+            });
+            if (fallback.error) {
+              throw new Error(
+                mapReferralError(
+                  fallback.error.message,
+                  fallback.error.code,
+                ),
+              );
+            }
+            const row = Array.isArray(fallback.data)
+              ? fallback.data[0]
+              : fallback.data;
+            if (!row) {
+              throw new Error(
+                "Someone else has already taken this — or help didn't go through. Refresh and try another ask.",
+              );
+            }
+          } else {
+            const row = Array.isArray(data) ? data[0] : data;
+            if (!row) {
+              throw new Error(
+                "Someone else has already taken this — or help didn't go through. Refresh and try another ask.",
+              );
+            }
           }
           if (item.partnerId) {
             router.push(`/messages?with=${item.partnerId}`);
@@ -266,12 +285,13 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
           }
         }
       } else if (item.type === "application") {
-        const status = action === "accept" ? "accepted" : "declined";
+        const status = action === "accept" ? "reviewing" : "closed";
         const { error: rpcError } = await supabase.rpc(
           "decide_opportunity_application",
           {
             p_application_id: item.entityId,
             p_new_status: status,
+            p_outcome: status === "closed" ? "not_selected" : null,
           },
         );
         if (rpcError) throw new Error(mapApplicationError(rpcError.message));
@@ -423,7 +443,9 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
                             onClick={() => void runAction(item, "decline")}
                             className="rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
                           >
-                            Decline
+                            {item.type === "referral" || item.type === "application"
+                              ? "Not a fit"
+                              : "Decline"}
                           </button>
                         ) : null}
                         {item.inlineActions.includes("accept") ? (
@@ -433,7 +455,7 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
                             onClick={() => void runAction(item, "accept")}
                             className="rounded-lg bg-[var(--brand)] px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-50"
                           >
-                            Accept
+                            {item.actionLabel}
                           </button>
                         ) : null}
                         {item.inlineActions.includes("reply") ? (

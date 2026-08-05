@@ -109,7 +109,7 @@ export default async function DashboardPage() {
       .from("referral_requests")
       .select(REFERRAL_SELECT)
       .eq("accepted_by", user.id)
-      .eq("status", "accepted")
+      .in("status", ["in_progress", "accepted"])
       .is("referred_at", null)
       .order("accepted_at", { ascending: true })
       .limit(10),
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
       .from("opportunity_applications")
       .select(
         `
-        id, opportunity_id, applicant_id, pitch, resume_url, status, created_at,
+        id, opportunity_id, applicant_id, pitch, resume_url, status, outcome, stage_updated_at, created_at,
         opportunity:opportunities!inner (
           id, posted_by, type, title, company, description, apply_link, location, deadline, created_at
         ),

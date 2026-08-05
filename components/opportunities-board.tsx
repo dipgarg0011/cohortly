@@ -23,6 +23,7 @@ import {
   PITCH_MAX,
   PITCH_MIN,
   TYPE_FILTERS,
+  isApplicationChatUnlocked,
   isOpportunityActive,
   mapApplicationError,
   mapOpportunityPostError,
@@ -1032,7 +1033,7 @@ function MyApplicationsList({
                   {app.pitch}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {app.status === "accepted" && posterId && (
+                  {isApplicationChatUnlocked(app.status) && posterId && (
                     <Link
                       href={`/messages?with=${posterId}`}
                       className="btn-primary"
@@ -1105,13 +1106,32 @@ function ApplicantsList({
     return normalizeApplication(data as Record<string, unknown>);
   }
 
-  async function decide(app: OpportunityApplication, status: "accepted" | "declined") {
+  async function decide(
+    app: OpportunityApplication,
+    status: "reviewing" | "shortlisted" | "closed",
+  ) {
     setBusyId(app.id);
     setError(null);
 
-    // Only treat as "already decided" when server status is accepted/declined — never pending
-    if (app.status === "accepted" || app.status === "declined") {
+    if (status === "reviewing" && app.status !== "pending") {
       setError("This application was already decided.");
+      setBusyId(null);
+      return;
+    }
+    if (
+      status === "shortlisted" &&
+      app.status !== "reviewing" &&
+      app.status !== "accepted"
+    ) {
+      setError("Only reviewing applications can be shortlisted.");
+      setBusyId(null);
+      return;
+    }
+    if (
+      status === "closed" &&
+      (app.status === "closed" || app.status === "declined" || app.status === "withdrawn")
+    ) {
+      setError("This application was already closed.");
       setBusyId(null);
       return;
     }
@@ -1121,6 +1141,7 @@ function ApplicantsList({
       {
         p_application_id: app.id,
         p_new_status: status,
+        p_outcome: status === "closed" ? "not_selected" : null,
       },
     );
 
@@ -1136,8 +1157,16 @@ function ApplicantsList({
         setError("This application was already decided.");
       } else if (
         refreshed &&
-        (refreshed.status === "accepted" || refreshed.status === "declined")
+        (refreshed.status === "reviewing" ||
+          refreshed.status === "shortlisted" ||
+          refreshed.status === "closed")
       ) {
+        // Already moved — treat as ok for Move forward races
+        if (status === "reviewing") {
+          setBusyId(null);
+          router.push(`/messages?with=${app.applicant_id}`);
+          return;
+        }
         setError("This application was already decided.");
       } else if (refreshed?.status === "pending") {
         setError(
@@ -1175,7 +1204,7 @@ function ApplicantsList({
     setBusyId(null);
 
     const finalStatus = refreshed?.status ?? status;
-    if (finalStatus === "accepted") {
+    if (finalStatus === "reviewing" || finalStatus === "shortlisted") {
       router.push(`/messages?with=${app.applicant_id}`);
     }
   }
@@ -1287,28 +1316,65 @@ function ApplicantsList({
                           <button
                             type="button"
                             disabled={busyId === app.id}
-                            onClick={() => void decide(app, "accepted")}
+                            onClick={() => void decide(app, "reviewing")}
                             className="btn-primary disabled:opacity-60"
                           >
-                            {busyId === app.id ? "Working…" : "Accept & chat"}
+                            {busyId === app.id ? "Working…" : "Move forward"}
                           </button>
                           <button
                             type="button"
                             disabled={busyId === app.id}
-                            onClick={() => void decide(app, "declined")}
+                            onClick={() => void decide(app, "closed")}
                             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                           >
-                            Decline
+                            Not a fit
                           </button>
                         </>
                       )}
-                      {app.status === "accepted" && (
-                        <Link
-                          href={`/messages?with=${app.applicant_id}`}
-                          className="btn-primary"
-                        >
-                          Message
-                        </Link>
+                      {(app.status === "reviewing" ||
+                        app.status === "accepted") && (
+                        <>
+                          <Link
+                            href={`/messages?with=${app.applicant_id}`}
+                            className="btn-primary"
+                          >
+                            Message
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={busyId === app.id}
+                            onClick={() => void decide(app, "shortlisted")}
+                            className="btn-secondary disabled:opacity-60"
+                          >
+                            Shortlist
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busyId === app.id}
+                            onClick={() => void decide(app, "closed")}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Close
+                          </button>
+                        </>
+                      )}
+                      {app.status === "shortlisted" && (
+                        <>
+                          <Link
+                            href={`/messages?with=${app.applicant_id}`}
+                            className="btn-primary"
+                          >
+                            Message
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={busyId === app.id}
+                            onClick={() => void decide(app, "closed")}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Close
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1326,8 +1392,12 @@ function statusTone(status: ApplicationStatus): string {
   switch (status) {
     case "pending":
       return "bg-amber-50 text-amber-900";
+    case "reviewing":
     case "accepted":
+      return "bg-sky-50 text-sky-800";
+    case "shortlisted":
       return "bg-emerald-50 text-emerald-800";
+    case "closed":
     case "declined":
       return "bg-slate-100 text-slate-600";
     case "withdrawn":

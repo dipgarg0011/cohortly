@@ -1,4 +1,17 @@
-export type ReferralStatus = "open" | "accepted" | "closed" | "expired";
+export type ReferralStatus =
+  | "open"
+  | "in_progress"
+  | "submitted"
+  | "closed"
+  | "expired"
+  /** @deprecated Migrated to in_progress */
+  | "accepted";
+
+export type ReferralOutcome =
+  | "referred"
+  | "not_referred"
+  | "no_response"
+  | "withdrawn";
 
 export type ReferralProfileSnippet = {
   id: string;
@@ -17,7 +30,9 @@ export type ReferralRequest = {
   job_link: string | null;
   deadline: string | null;
   status: ReferralStatus;
+  /** Legacy synonym of helper_id */
   accepted_by: string | null;
+  helper_id: string | null;
   created_at: string;
   target_company_normalized: string | null;
   visibility_tier: number;
@@ -25,8 +40,13 @@ export type ReferralRequest = {
   context: string | null;
   accepted_at: string | null;
   referred_at: string | null;
+  stage_updated_at: string | null;
+  outcome: ReferralOutcome | null;
+  outcome_note: string | null;
+  helper_nudged_at: string | null;
   student?: ReferralProfileSnippet | null;
   acceptor?: ReferralProfileSnippet | null;
+  helper?: ReferralProfileSnippet | null;
   question_count?: number;
   view_count?: number;
 };
@@ -41,8 +61,9 @@ export type ReferralReachStats = {
 };
 
 export const REFERRAL_SELECT = `
-  id, student_id, company, role, resume_url, job_link, deadline, status, accepted_by, created_at,
+  id, student_id, company, role, resume_url, job_link, deadline, status, accepted_by, helper_id, created_at,
   target_company_normalized, visibility_tier, opened_to_all_at, context, accepted_at, referred_at,
+  stage_updated_at, outcome, outcome_note, helper_nudged_at,
   student:profiles!student_id ( id, full_name, batch_year, department, avatar_url ),
   acceptor:profiles!accepted_by ( id, full_name, batch_year, department, avatar_url )
 `;
@@ -52,9 +73,30 @@ function asOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+export function referralHelperId(request: {
+  helper_id?: string | null;
+  accepted_by?: string | null;
+}): string | null {
+  return request.helper_id ?? request.accepted_by ?? null;
+}
+
+export function isReferralActiveHelping(status: ReferralStatus): boolean {
+  return status === "in_progress" || status === "submitted" || status === "accepted";
+}
+
+export function normalizeReferralStatus(status: string): ReferralStatus {
+  if (status === "accepted") return "in_progress";
+  return status as ReferralStatus;
+}
+
 export function normalizeReferralRequest(
   row: Record<string, unknown>,
 ): ReferralRequest {
+  const acceptedBy = (row.accepted_by as string | null) ?? null;
+  const helperId = (row.helper_id as string | null) ?? acceptedBy;
+  const acceptor = asOne(
+    row.acceptor as ReferralProfileSnippet | ReferralProfileSnippet[] | null,
+  );
   return {
     id: row.id as string,
     student_id: row.student_id as string,
@@ -63,8 +105,9 @@ export function normalizeReferralRequest(
     resume_url: (row.resume_url as string | null) ?? null,
     job_link: (row.job_link as string | null) ?? null,
     deadline: (row.deadline as string | null) ?? null,
-    status: row.status as ReferralStatus,
-    accepted_by: (row.accepted_by as string | null) ?? null,
+    status: normalizeReferralStatus(String(row.status ?? "open")),
+    accepted_by: acceptedBy ?? helperId,
+    helper_id: helperId,
     created_at: row.created_at as string,
     target_company_normalized:
       (row.target_company_normalized as string | null) ?? null,
@@ -73,12 +116,15 @@ export function normalizeReferralRequest(
     context: (row.context as string | null) ?? null,
     accepted_at: (row.accepted_at as string | null) ?? null,
     referred_at: (row.referred_at as string | null) ?? null,
+    stage_updated_at: (row.stage_updated_at as string | null) ?? null,
+    outcome: (row.outcome as ReferralOutcome | null) ?? null,
+    outcome_note: (row.outcome_note as string | null) ?? null,
+    helper_nudged_at: (row.helper_nudged_at as string | null) ?? null,
     student: asOne(
       row.student as ReferralProfileSnippet | ReferralProfileSnippet[] | null,
     ),
-    acceptor: asOne(
-      row.acceptor as ReferralProfileSnippet | ReferralProfileSnippet[] | null,
-    ),
+    acceptor,
+    helper: acceptor,
     question_count:
       row.question_count != null ? Number(row.question_count) : undefined,
     view_count: row.view_count != null ? Number(row.view_count) : undefined,
@@ -144,7 +190,12 @@ export function reachLabel(
   const ageTier = stats?.age_tier ?? referralAgeTier(request.created_at);
 
   if (request.status !== "open") {
-    if (request.status === "accepted") return "Accepted — chat is unlocked";
+    if (request.status === "in_progress" || request.status === "accepted") {
+      return "Someone is helping — chat is unlocked";
+    }
+    if (request.status === "submitted") {
+      return "Submitted internally";
+    }
     if (request.status === "expired") return "Expired";
     return "Closed";
   }
@@ -291,7 +342,13 @@ export function mapReferralError(
     return "You can have at most 3 open referral requests at a time.";
   }
   if (message.includes("REFERRAL_COMPANY_LIMIT")) {
-    return "You already requested this company in the last 30 days.";
+    const named = message.match(
+      /You already have an open request for (.+?)\.?$/i,
+    );
+    if (named?.[1]) {
+      return `You already have an open request for ${named[1].replace(/\.$/, "")}.`;
+    }
+    return "You already have an open request for this company.";
   }
   if (message.includes("MESSAGE_NOT_ALLOWED")) {
     return "Couldn't open the chat for this ask. Please try again.";
@@ -312,16 +369,21 @@ export function mapReferralError(
     return "Your company doesn't match this ask's visibility yet.";
   }
   if (message.includes("NOT_ALLOWED: Only graduates")) {
-    return "Only graduates can accept referral requests.";
+    return "Only graduates can help with referral requests.";
   }
-  if (message.includes("NOT_ALLOWED: You cannot accept your own")) {
-    return "You can't accept your own referral request.";
+  if (
+    message.includes("NOT_ALLOWED: You cannot accept your own") ||
+    message.includes("NOT_ALLOWED: You cannot help with your own")
+  ) {
+    return "You can't help with your own referral request.";
   }
-  if (message.includes("NOT_ALLOWED: You cannot accept")) {
-    return "You're not allowed to accept this request.";
+  if (
+    message.includes("NOT_ALLOWED: You cannot accept") ||
+    message.includes("NOT_ALLOWED: You cannot help")
+  ) {
+    return "You're not allowed to help with this request.";
   }
   if (message.includes("NOT_ALLOWED")) {
-    // Prefer the RPC's human-readable suffix when present (after the code prefix).
     const afterCode = message.replace(/^NOT_ALLOWED:\s*/i, "").trim();
     if (afterCode && afterCode.length < 160) return afterCode;
     return "You're not allowed to do that.";
@@ -332,18 +394,39 @@ export function mapReferralError(
   return "Something went wrong. Please try again.";
 }
 
+/** Nudge helper once if in_progress 7+ days with no stage change. */
 export function needsReferralFollowup(
   request: ReferralRequest,
   currentUserId: string,
   now = new Date(),
 ): boolean {
-  if (request.accepted_by !== currentUserId) return false;
-  if (request.status !== "accepted") return false;
-  if (request.referred_at) return false;
-  const accepted = request.accepted_at
-    ? new Date(request.accepted_at)
-    : new Date(request.created_at);
-  if (Number.isNaN(accepted.getTime())) return false;
+  if (referralHelperId(request) !== currentUserId) return false;
+  if (request.status !== "in_progress" && request.status !== "accepted") {
+    return false;
+  }
+  if (request.helper_nudged_at) return false;
+  const stageAt = request.stage_updated_at
+    ? new Date(request.stage_updated_at)
+    : request.accepted_at
+      ? new Date(request.accepted_at)
+      : new Date(request.created_at);
+  if (Number.isNaN(stageAt.getTime())) return false;
   const weekMs = 7 * 24 * 60 * 60 * 1000;
-  return now.getTime() - accepted.getTime() >= weekMs;
+  return now.getTime() - stageAt.getTime() >= weekMs;
+}
+
+export function referralStatusLabel(status: ReferralStatus): string {
+  switch (status) {
+    case "open":
+      return "Waiting";
+    case "in_progress":
+    case "accepted":
+      return "Helping";
+    case "submitted":
+      return "Submitted";
+    case "expired":
+      return "Expired";
+    default:
+      return "Closed";
+  }
 }

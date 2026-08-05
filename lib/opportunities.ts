@@ -32,8 +32,18 @@ export type Opportunity = {
 
 export type ApplicationStatus =
   | "pending"
+  | "reviewing"
+  | "shortlisted"
+  | "closed"
+  | "withdrawn"
+  /** @deprecated Migrated to reviewing */
   | "accepted"
-  | "declined"
+  /** @deprecated Migrated to closed + not_selected */
+  | "declined";
+
+export type ApplicationOutcome =
+  | "moved_forward"
+  | "not_selected"
   | "withdrawn";
 
 export type OpportunityApplication = {
@@ -43,6 +53,8 @@ export type OpportunityApplication = {
   pitch: string;
   resume_url: string | null;
   status: ApplicationStatus;
+  outcome: ApplicationOutcome | null;
+  stage_updated_at: string | null;
   created_at: string;
   opportunity?: Opportunity | null;
   applicant?: {
@@ -68,9 +80,12 @@ export type OpportunityFilter = (typeof TYPE_FILTERS)[number]["id"];
 
 export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
   pending: "Pending",
-  accepted: "Accepted",
-  declined: "Declined",
+  reviewing: "Being reviewed",
+  shortlisted: "Shortlisted",
+  closed: "Closed",
   withdrawn: "Withdrawn",
+  accepted: "Being reviewed",
+  declined: "Closed",
 };
 
 export const PITCH_MIN = 100;
@@ -84,12 +99,26 @@ export const OPPORTUNITY_SELECT = `
 `;
 
 export const APPLICATION_SELECT = `
-  id, opportunity_id, applicant_id, pitch, resume_url, status, created_at
+  id, opportunity_id, applicant_id, pitch, resume_url, status, outcome, stage_updated_at, created_at
 `;
 
 function asOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+export function normalizeApplicationStatus(status: string): ApplicationStatus {
+  if (status === "accepted") return "reviewing";
+  if (status === "declined") return "closed";
+  return status as ApplicationStatus;
+}
+
+export function isApplicationChatUnlocked(status: ApplicationStatus): boolean {
+  return (
+    status === "reviewing" ||
+    status === "shortlisted" ||
+    status === "accepted"
+  );
 }
 
 export function isOpportunityActive(deadline: string | null | undefined): boolean {
@@ -149,7 +178,9 @@ export function normalizeApplication(
     applicant_id: row.applicant_id as string,
     pitch: row.pitch as string,
     resume_url: (row.resume_url as string | null) ?? null,
-    status: row.status as ApplicationStatus,
+    status: normalizeApplicationStatus(String(row.status ?? "pending")),
+    outcome: (row.outcome as ApplicationOutcome | null) ?? null,
+    stage_updated_at: (row.stage_updated_at as string | null) ?? null,
     created_at: row.created_at as string,
     opportunity: opportunityRow ? normalizeOpportunity(opportunityRow) : null,
     applicant: asOne(

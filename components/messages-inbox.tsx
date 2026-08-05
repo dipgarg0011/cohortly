@@ -16,24 +16,36 @@ import { IconChatEmpty } from "@/components/ui/icons";
 import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   conversationContextLabel,
+  conversationLabelFromRow,
   mapMessagingError,
   partnerIdFromConversation,
+  resolveContextType,
   studentTurnGate,
   TURN_FOLLOWUP_MAX,
   type ConversationRow,
+  type ContextType,
 } from "@/lib/conversations";
 import {
   formatAbsoluteTime,
   formatRelativeTime,
 } from "@/lib/format-time";
-import { otherPartyId, type ChatPartner, type Message } from "@/lib/messages";
+import {
+  isSystemMessage,
+  otherPartyId,
+  type ChatPartner,
+  type Message,
+} from "@/lib/messages";
 import { compactDisplayName } from "@/lib/display-name";
 import {
-  MentorshipContextHeader,
-  type MentorshipChatContext,
-} from "@/components/mentorship-context-header";
+  ConversationContextHeader,
+  ConversationTypeLabel,
+  type ContextNextAction,
+  type ThreadContext,
+} from "@/components/conversation-context-header";
+import { suggestedOpeners } from "@/lib/conversation-context";
 
 type InboxTab = "chats" | "requests";
+type TypeFilter = "all" | "referral" | "mentorship" | "opportunity" | "connection";
 
 type Props = {
   currentUserId: string;
@@ -41,8 +53,11 @@ type Props = {
   initialPartners: ChatPartner[];
   initialConversations: ConversationRow[];
   initialWithId: string | null;
-  mentorshipContextByPartner?: Record<string, MentorshipChatContext>;
+  threadContextByPartner?: Record<string, ThreadContext>;
   labelTitlesByPartner?: Record<string, string>;
+  anonymousPartnerIds?: string[];
+  /** @deprecated Prefer threadContextByPartner */
+  mentorshipContextByPartner?: Record<string, never>;
 };
 
 type ListItem = {
@@ -58,8 +73,9 @@ export function MessagesInbox({
   initialPartners,
   initialConversations,
   initialWithId,
-  mentorshipContextByPartner = {},
+  threadContextByPartner: initialThreadContext = {},
   labelTitlesByPartner = {},
+  anonymousPartnerIds = [],
 }: Props) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -71,17 +87,63 @@ export function MessagesInbox({
     for (const p of initialPartners) map[p.id] = p;
     return map;
   });
+  const [threadContextByPartner, setThreadContextByPartner] = useState(
+    initialThreadContext,
+  );
+  const anonymousSet = useMemo(
+    () => new Set(anonymousPartnerIds),
+    [anonymousPartnerIds],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(initialWithId);
   const [tab, setTab] = useState<InboxTab>("chats");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [responding, setResponding] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(Boolean(initialWithId));
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  function contextLabelFor(item: ListItem): string | null {
+    const fromRow = conversationLabelFromRow(item.conversation);
+    if (fromRow) return fromRow;
+    const title =
+      labelTitlesByPartner[item.partner.id] ??
+      threadContextByPartner[item.partner.id]?.company ??
+      threadContextByPartner[item.partner.id]?.title ??
+      null;
+    return conversationContextLabel(
+      resolveContextType(item.conversation) ??
+        item.conversation.unlock_reason,
+      title,
+    );
+  }
+
+  function matchesTypeFilter(conv: ConversationRow): boolean {
+    if (typeFilter === "all") return true;
+    const type = resolveContextType(conv) ?? "connection";
+    if (typeFilter === "referral") {
+      return type === "referral" || type === "referral_question";
+    }
+    if (typeFilter === "connection") {
+      return type === "connection" || type == null;
+    }
+    return type === typeFilter;
+  }
+
   const ensurePartner = useCallback(
     async (partnerId: string) => {
+      if (anonymousSet.has(partnerId)) {
+        const masked: ChatPartner = {
+          id: partnerId,
+          full_name: "Anonymous student",
+          avatar_url: null,
+        };
+        setPartners((prev) => ({ ...prev, [partnerId]: masked }));
+        return masked;
+      }
+
       const { data } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
@@ -101,7 +163,7 @@ export function MessagesInbox({
 
       return partner;
     },
-    [supabase],
+    [supabase, anonymousSet],
   );
 
   const upsertMessage = useCallback((incoming: Message) => {
@@ -191,7 +253,10 @@ export function MessagesInbox({
               new Date(a.created_at).getTime(),
           )[0] ?? null;
         const unreadCount = threadMsgs.filter(
-          (m) => m.receiver_id === currentUserId && !m.read,
+          (m) =>
+            m.receiver_id === currentUserId &&
+            !m.read &&
+            !isSystemMessage(m),
         ).length;
         return {
           partner: partners[partnerId] ?? {
@@ -238,7 +303,10 @@ export function MessagesInbox({
               new Date(a.created_at).getTime(),
           )[0] ?? null;
         const unreadCount = threadMsgs.filter(
-          (m) => m.receiver_id === currentUserId && !m.read,
+          (m) =>
+            m.receiver_id === currentUserId &&
+            !m.read &&
+            !isSystemMessage(m),
         ).length;
         return {
           partner: partners[partnerId] ?? {
@@ -258,7 +326,12 @@ export function MessagesInbox({
       });
   }, [conversations, messages, partners, currentUserId]);
 
-  const listItems = tab === "chats" ? chatItems : requestItems;
+  const listItems = useMemo(() => {
+    const base = tab === "chats" ? chatItems : requestItems;
+    if (tab !== "chats" || typeFilter === "all") return base;
+    return base.filter((item) => matchesTypeFilter(item.conversation));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, chatItems, requestItems, typeFilter]);
 
   const thread = useMemo(() => {
     if (!selectedId) return [];
@@ -484,7 +557,7 @@ export function MessagesInbox({
         read: false,
       })
       .select(
-        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system",
+        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system, message_kind",
       )
       .single();
 
@@ -499,6 +572,80 @@ export function MessagesInbox({
     if (data) upsertMessage(data as Message);
     else setMessages((prev) => prev.filter((m) => m.id !== tempId));
     setSending(false);
+  }
+
+  async function handleNextAction(action: ContextNextAction) {
+    if (actionBusy) return;
+    setActionBusy(true);
+    setError(null);
+
+    if (action.kind === "mark_submitted") {
+      const { error: rpcError } = await supabase.rpc("update_referral_stage", {
+        p_request_id: action.sourceId,
+        p_new_status: "submitted",
+      });
+      if (rpcError) {
+        setError(mapMessagingError(rpcError));
+        setActionBusy(false);
+        return;
+      }
+      if (selectedId && threadContextByPartner[selectedId]) {
+        setThreadContextByPartner((prev) => {
+          const cur = prev[selectedId];
+          if (!cur) return prev;
+          return {
+            ...prev,
+            [selectedId]: {
+              ...cur,
+              stage: "submitted",
+              stageLabel: "Submitted",
+              nextAction: null,
+            },
+          };
+        });
+      }
+    } else if (action.kind === "shortlist" || action.kind === "start_reviewing") {
+      const status =
+        action.kind === "shortlist" ? "shortlisted" : "reviewing";
+      const { error: rpcError } = await supabase.rpc(
+        "decide_opportunity_application",
+        {
+          p_application_id: action.sourceId,
+          p_new_status: status,
+          p_outcome: action.kind === "shortlist" ? "moved_forward" : null,
+        },
+      );
+      if (rpcError) {
+        setError(mapMessagingError(rpcError));
+        setActionBusy(false);
+        return;
+      }
+      if (selectedId && threadContextByPartner[selectedId]) {
+        setThreadContextByPartner((prev) => {
+          const cur = prev[selectedId];
+          if (!cur) return prev;
+          return {
+            ...prev,
+            [selectedId]: {
+              ...cur,
+              stage: status,
+              stageLabel:
+                status === "shortlisted" ? "Shortlisted" : "Being reviewed",
+              nextAction:
+                status === "reviewing"
+                  ? {
+                      label: "Shortlist",
+                      kind: "shortlist",
+                      sourceId: action.sourceId,
+                    }
+                  : null,
+            },
+          };
+        });
+      }
+    }
+
+    setActionBusy(false);
   }
 
   async function handleRespond(status: "accepted" | "declined" | "blocked") {
@@ -551,9 +698,24 @@ export function MessagesInbox({
   }
 
   const requestCount = requestItems.length;
-  const partnerName =
-    selectedPartner?.full_name?.trim() || "Unnamed member";
-  const partnerFirst = firstName(selectedPartner?.full_name);
+  const selectedThreadContext = selectedId
+    ? threadContextByPartner[selectedId] ?? null
+    : null;
+  const partnerIsAnonymous = Boolean(
+    selectedId &&
+      (anonymousSet.has(selectedId) ||
+        selectedThreadContext?.partnerNameHidden),
+  );
+  const partnerName = partnerIsAnonymous
+    ? "Anonymous student"
+    : selectedPartner?.full_name?.trim() || "Unnamed member";
+  const partnerFirst = partnerIsAnonymous
+    ? "them"
+    : firstName(selectedPartner?.full_name);
+  const emptyThreadOpeners =
+    selectedThreadContext && thread.length === 0
+      ? suggestedOpeners(selectedThreadContext).slice(0, 3)
+      : [];
 
   return (
     <div className="section-card flex min-h-[min(32rem,calc(100dvh-9rem))] w-full max-w-full flex-1 overflow-hidden !p-0 md:min-h-[calc(100dvh-9rem)]">
@@ -601,6 +763,36 @@ export function MessagesInbox({
               )}
             </button>
           </div>
+          {tab === "chats" ? (
+            <div
+              className="mt-2 flex flex-wrap gap-1 pb-2"
+              role="group"
+              aria-label="Filter by type"
+            >
+              {(
+                [
+                  ["all", "All"],
+                  ["referral", "Referral"],
+                  ["mentorship", "Mentorship"],
+                  ["opportunity", "Opportunity"],
+                  ["connection", "Connection"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTypeFilter(id)}
+                  className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition ${
+                    typeFilter === id
+                      ? "bg-teal-800 text-white"
+                      : "bg-teal-50 text-teal-800 hover:bg-teal-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {listItems.length === 0 ? (
@@ -645,11 +837,21 @@ export function MessagesInbox({
                   >
                     <ProfilePreviewTrigger
                       userId={item.partner.id}
+                      enabled={!anonymousSet.has(item.partner.id)}
                       className="shrink-0"
                     >
                       <Avatar
-                        name={item.partner.full_name}
-                        url={item.partner.avatar_url}
+                        name={
+                          anonymousSet.has(item.partner.id)
+                            ? null
+                            : item.partner.full_name
+                        }
+                        url={
+                          anonymousSet.has(item.partner.id)
+                            ? null
+                            : item.partner.avatar_url
+                        }
+                        anonymous={anonymousSet.has(item.partner.id)}
                       />
                     </ProfilePreviewTrigger>
                     <div className="min-w-0 flex-1">
@@ -681,17 +883,15 @@ export function MessagesInbox({
                       <div className="mt-0.5 flex items-center gap-2">
                         <div className="min-w-0 flex-1 overflow-hidden">
                           {(() => {
-                            const ctxLabel = conversationContextLabel(
-                              item.conversation.unlock_reason,
-                              labelTitlesByPartner[item.partner.id] ??
-                                mentorshipContextByPartner[item.partner.id]
-                                  ?.title ??
-                                null,
-                            );
+                            const ctxLabel = contextLabelFor(item);
+                            const ctxType = resolveContextType(
+                              item.conversation,
+                            ) as ContextType | null;
                             return ctxLabel ? (
-                              <p className="truncate text-[11px] font-semibold text-teal-800">
-                                {ctxLabel}
-                              </p>
+                              <ConversationTypeLabel
+                                label={ctxLabel}
+                                contextType={ctxType}
+                              />
                             ) : null;
                           })()}
                           <p className="truncate text-xs text-slate-500">
@@ -699,7 +899,9 @@ export function MessagesInbox({
                               ? "Waiting for acceptance…"
                               : item.lastMessage
                                 ? `${
-                                    item.lastMessage.sender_id === currentUserId
+                                    item.lastMessage.sender_id ===
+                                      currentUserId &&
+                                    !isSystemMessage(item.lastMessage)
                                       ? "You: "
                                       : ""
                                   }${item.lastMessage.content}`
@@ -751,15 +953,23 @@ export function MessagesInbox({
               >
                 ← Back
               </button>
-              <ProfilePreviewTrigger userId={selectedId} className="shrink-0">
+              <ProfilePreviewTrigger
+                userId={selectedId}
+                enabled={!partnerIsAnonymous}
+                className="shrink-0"
+              >
                 <Avatar
-                  name={selectedPartner.full_name}
-                  url={selectedPartner.avatar_url}
+                  name={partnerIsAnonymous ? null : selectedPartner.full_name}
+                  url={partnerIsAnonymous ? null : selectedPartner.avatar_url}
                   size="sm"
+                  anonymous={partnerIsAnonymous}
                 />
               </ProfilePreviewTrigger>
               <div className="min-w-0 flex-1">
-                <ProfilePreviewTrigger userId={selectedId}>
+                <ProfilePreviewTrigger
+                  userId={selectedId}
+                  enabled={!partnerIsAnonymous}
+                >
                   <p
                     title={partnerName}
                     className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
@@ -771,25 +981,32 @@ export function MessagesInbox({
                   <p className="text-xs text-slate-500">Connection request</p>
                 ) : (
                   (() => {
-                    const ctxLabel = conversationContextLabel(
-                      selectedConversation.unlock_reason,
+                    const ctxLabel = conversationLabelFromRow(
+                      selectedConversation,
+                    ) ?? conversationContextLabel(
+                      resolveContextType(selectedConversation) ??
+                        selectedConversation.unlock_reason,
                       labelTitlesByPartner[selectedId] ??
-                        mentorshipContextByPartner[selectedId]?.title ??
+                        selectedThreadContext?.company ??
+                        selectedThreadContext?.title ??
                         null,
                     );
                     return ctxLabel ? (
-                      <p className="truncate text-xs font-semibold text-teal-800">
-                        {ctxLabel}
-                      </p>
+                      <ConversationTypeLabel
+                        label={ctxLabel}
+                        contextType={resolveContextType(selectedConversation)}
+                      />
                     ) : null;
                   })()
                 )}
               </div>
             </div>
 
-            {selectedId && mentorshipContextByPartner[selectedId] ? (
-              <MentorshipContextHeader
-                context={mentorshipContextByPartner[selectedId]}
+            {selectedThreadContext ? (
+              <ConversationContextHeader
+                context={selectedThreadContext}
+                busyAction={actionBusy}
+                onNextAction={(action) => void handleNextAction(action)}
               />
             ) : null}
 
@@ -855,14 +1072,30 @@ export function MessagesInbox({
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {thread.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-500">
-                  {selectedId && mentorshipContextByPartner[selectedId]
-                    ? "Context is pinned above — send your first message below."
-                    : "No messages yet."}
-                </p>
+                <div className="space-y-3 py-6">
+                  <p className="text-center text-sm text-slate-500">
+                    {selectedThreadContext
+                      ? "Context is pinned above — pick a suggested opener or write your own."
+                      : "No messages yet."}
+                  </p>
+                  {emptyThreadOpeners.length > 0 ? (
+                    <div className="mx-auto flex max-w-md flex-col gap-2">
+                      {emptyThreadOpeners.map((opener) => (
+                        <button
+                          key={opener}
+                          type="button"
+                          onClick={() => setDraft(opener)}
+                          className="rounded-xl border border-teal-200/80 bg-teal-50/50 px-3 py-2 text-left text-xs font-medium text-teal-950 transition hover:bg-teal-50"
+                        >
+                          {opener}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 thread.map((message) => {
-                  if (message.is_system) {
+                  if (isSystemMessage(message)) {
                     return (
                       <div
                         key={message.id}
@@ -955,11 +1188,9 @@ export function MessagesInbox({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedId &&
-                    mentorshipContextByPartner[selectedId] &&
-                    thread.length === 0 ? (
-                      <MentorshipContextHeader
-                        context={mentorshipContextByPartner[selectedId]}
+                    {selectedThreadContext && thread.length === 0 ? (
+                      <ConversationContextHeader
+                        context={selectedThreadContext}
                         compact
                       />
                     ) : null}
@@ -1009,12 +1240,24 @@ function Avatar({
   name,
   url,
   size = "md",
+  anonymous = false,
 }: {
   name: string | null;
   url: string | null;
   size?: "sm" | "md";
+  anonymous?: boolean;
 }) {
   const dim = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+  if (anonymous) {
+    return (
+      <div
+        aria-hidden
+        className={`flex ${dim} shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600`}
+      >
+        ?
+      </div>
+    );
+  }
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

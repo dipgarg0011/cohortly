@@ -2,12 +2,22 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MessagesInbox } from "@/components/messages-inbox";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
-import type { ConversationRow } from "@/lib/conversations";
-import { partnerIdFromConversation } from "@/lib/conversations";
+import {
+  CONVERSATION_SELECT,
+  partnerIdFromConversation,
+  resolveContextType,
+  type ConversationRow,
+} from "@/lib/conversations";
 import type { ChatPartner, Message } from "@/lib/messages";
 import { otherPartyId } from "@/lib/messages";
-import type { MentorshipChatContext } from "@/components/mentorship-context-header";
-
+import {
+  isSourceInactiveStatus,
+  listLabelForConversation,
+  opportunityStageLabel,
+  referralStageLabel,
+  snapshotFromUnknown,
+  type ThreadContext,
+} from "@/lib/conversation-context";
 type SearchParams = Promise<{ with?: string; request?: string }>;
 
 export default async function MessagesPage({
@@ -18,21 +28,18 @@ export default async function MessagesPage({
   const { supabase, user } = await requireProfile();
   const params = await searchParams;
   const withId = params.with?.trim() || null;
-  const requestParam = params.request?.trim() || null;
 
   const [{ data: messageRows }, { data: conversationRows }] = await Promise.all([
     supabase
       .from("messages")
       .select(
-        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system",
+        "id, sender_id, receiver_id, content, created_at, read, conversation_id, is_system, message_kind",
       )
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true }),
     supabase
       .from("conversations")
-      .select(
-        "id, initiator_id, recipient_id, status, unlock_reason, context_request_id, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id",
-      )
+      .select(CONVERSATION_SELECT)
       .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .order("updated_at", { ascending: false }),
   ]);
@@ -57,148 +64,328 @@ export default async function MessagesPage({
       .in("id", Array.from(partnerIds));
     partners = (profileRows ?? []) as ChatPartner[];
   }
+  const partnerById = new Map(partners.map((p) => [p.id, p]));
 
-  // Mentorship pinned context keyed by partner id.
-  const contextByPartner: Record<string, MentorshipChatContext> = {};
-  const requestIds = new Set<string>();
+  // Collect polymorphic source ids
+  const mentorshipIds = new Set<string>();
+  const referralIds = new Set<string>();
+  const applicationIds = new Set<string>();
+
   for (const conv of conversations) {
-    if (conv.context_request_id) requestIds.add(conv.context_request_id);
+    const type = resolveContextType(conv);
+    const id = conv.context_id ?? conv.context_request_id ?? null;
+    if (!type || type === "connection") continue;
+    if (type === "mentorship" && id) mentorshipIds.add(id);
+    if ((type === "referral" || type === "referral_question") && id) {
+      referralIds.add(id);
+    }
+    if (type === "opportunity" && id) applicationIds.add(id);
   }
-  if (requestParam) requestIds.add(requestParam);
 
-  if (requestIds.size > 0) {
-    const ids = Array.from(requestIds);
-    const [{ data: reqRows }, { data: answerRows }] = await Promise.all([
-      supabase
-        .from("mentorship_requests")
-        .select("id, title, description")
-        .in("id", ids),
-      supabase
-        .from("request_answers")
-        .select("request_id, mentor_id, content, created_at")
-        .in("request_id", ids)
-        .order("created_at", { ascending: false }),
+  type MentorshipLive = {
+    id: string;
+    student_id: string;
+    title: string;
+    description: string;
+    status: string;
+    is_anonymous: boolean;
+    revealed_at: string | null;
+    target_company: string | null;
+  };
+  type ReferralLive = {
+    id: string;
+    student_id: string;
+    helper_id: string | null;
+    accepted_by: string | null;
+    company: string;
+    role: string;
+    status: string;
+  };
+  type ApplicationLive = {
+    id: string;
+    applicant_id: string;
+    pitch: string;
+    status: string;
+    opportunity:
+      | {
+          id: string;
+          title: string;
+          company: string | null;
+          posted_by: string;
+        }
+      | {
+          id: string;
+          title: string;
+          company: string | null;
+          posted_by: string;
+        }[]
+      | null;
+  };
+
+  const [mentorshipRows, referralRows, applicationRows, answerRows] =
+    await Promise.all([
+      mentorshipIds.size > 0
+        ? supabase
+            .from("mentorship_requests")
+            .select(
+              "id, student_id, title, description, status, is_anonymous, revealed_at, target_company",
+            )
+            .in("id", Array.from(mentorshipIds))
+        : Promise.resolve({ data: [] as MentorshipLive[] }),
+      referralIds.size > 0
+        ? supabase
+            .from("referral_requests")
+            .select(
+              "id, student_id, helper_id, accepted_by, company, role, status",
+            )
+            .in("id", Array.from(referralIds))
+        : Promise.resolve({ data: [] as ReferralLive[] }),
+      applicationIds.size > 0
+        ? supabase
+            .from("opportunity_applications")
+            .select(
+              `
+              id, applicant_id, pitch, status,
+              opportunity:opportunities!inner ( id, title, company, posted_by )
+            `,
+            )
+            .in("id", Array.from(applicationIds))
+        : Promise.resolve({ data: [] as ApplicationLive[] }),
+      mentorshipIds.size > 0
+        ? supabase
+            .from("request_answers")
+            .select("request_id, mentor_id, content, created_at")
+            .in("request_id", Array.from(mentorshipIds))
+            .order("created_at", { ascending: false })
+        : Promise.resolve({
+            data: [] as {
+              request_id: string;
+              mentor_id: string;
+              content: string;
+              created_at: string;
+            }[],
+          }),
     ]);
 
-    const reqById = new Map(
-      ((reqRows ?? []) as { id: string; title: string; description: string }[]).map(
-        (r) => [r.id, r],
-      ),
-    );
-    const answers = (answerRows ?? []) as {
-      request_id: string;
-      mentor_id: string;
-      content: string;
-      created_at: string;
-    }[];
+  const mentorshipById = new Map(
+    ((mentorshipRows.data ?? []) as MentorshipLive[]).map((r) => [r.id, r]),
+  );
+  const referralById = new Map(
+    ((referralRows.data ?? []) as ReferralLive[]).map((r) => [r.id, r]),
+  );
+  const applicationById = new Map(
+    ((applicationRows.data ?? []) as ApplicationLive[]).map((r) => [r.id, r]),
+  );
+  const answers = (answerRows.data ?? []) as {
+    request_id: string;
+    mentor_id: string;
+    content: string;
+    created_at: string;
+  }[];
 
-    for (const conv of conversations) {
-      const requestId = conv.context_request_id ?? null;
-      if (!requestId) continue;
-      const req = reqById.get(requestId);
-      if (!req) continue;
-      const partnerId = partnerIdFromConversation(conv, user.id);
+  const threadContextByPartner: Record<string, ThreadContext> = {};
+  const labelTitlesByPartner: Record<string, string> = {};
+  const anonymousPartnerIds: string[] = [];
+
+  for (const conv of conversations) {
+    const type = resolveContextType(conv);
+    if (!type || type === "connection") continue;
+
+    const partnerId = partnerIdFromConversation(conv, user.id);
+    const partner = partnerById.get(partnerId);
+    const snap = snapshotFromUnknown(conv.context_snapshot);
+    const contextId =
+      conv.context_id ??
+      conv.context_request_id ??
+      snap.request_id ??
+      snap.application_id ??
+      null;
+
+    let ctx: ThreadContext | null = null;
+
+    if (type === "mentorship") {
+      const live = contextId ? mentorshipById.get(contextId) : undefined;
+      const sourceActive = live
+        ? !isSourceInactiveStatus("mentorship", live.status)
+        : false;
+      const studentId = live?.student_id ?? snap.student_id ?? conv.gate_student_id;
+      const viewerIsStudent = studentId === user.id;
+      const isAnonymous = Boolean(
+        live?.is_anonymous ?? snap.is_anonymous ?? false,
+      );
+      const revealed = Boolean(live?.revealed_at);
+      // Mentors must not see student identity until revealed (RLS may also null student_id)
+      const hideName =
+        !viewerIsStudent &&
+        isAnonymous &&
+        (!revealed || !live?.student_id);
+      if (hideName) anonymousPartnerIds.push(partnerId);
+
       const answer =
         answers.find(
           (a) =>
-            a.request_id === requestId &&
+            a.request_id === contextId &&
             (a.mentor_id === partnerId || a.mentor_id === user.id),
-        ) ?? answers.find((a) => a.request_id === requestId);
-      contextByPartner[partnerId] = {
-        requestId,
-        title: req.title,
-        description: req.description,
+        ) ?? answers.find((a) => a.request_id === contextId);
+
+      ctx = {
+        conversationId: conv.id,
+        contextType: "mentorship",
+        contextId,
+        snapshot: snap,
+        sourceActive,
+        viewerRole: viewerIsStudent ? "student" : "mentor",
+        partnerName: hideName ? null : partner?.full_name ?? null,
+        partnerNameHidden: hideName,
+        company: live?.target_company ?? snap.company ?? null,
+        role: null,
+        title: live?.title ?? snap.title ?? null,
+        stage: live?.status ?? null,
+        stageLabel: live?.status ?? null,
+        description: live?.description ?? snap.description ?? null,
         answerContent: answer?.content ?? null,
+        pitch: null,
+        linkHref: contextId ? `/mentors#request-${contextId}` : null,
+        linkLabel: "View full request →",
+        nextAction: null,
+      };
+    } else if (type === "referral" || type === "referral_question") {
+      const live = contextId ? referralById.get(contextId) : undefined;
+      const helperId = live
+        ? live.helper_id ?? live.accepted_by
+        : null;
+      const viewerIsHelper = helperId === user.id;
+      const sourceActive = live
+        ? !isSourceInactiveStatus("referral", live.status)
+        : false;
+      const company = live?.company ?? snap.company ?? null;
+      const role = live?.role ?? snap.role ?? null;
+
+      let nextAction: ThreadContext["nextAction"] = null;
+      if (
+        sourceActive &&
+        viewerIsHelper &&
+        live &&
+        (live.status === "in_progress" || live.status === "accepted") &&
+        contextId
+      ) {
+        nextAction = {
+          label: "Mark submitted",
+          kind: "mark_submitted",
+          sourceId: contextId,
+        };
+      }
+
+      ctx = {
+        conversationId: conv.id,
+        contextType: type,
+        contextId,
+        snapshot: snap,
+        sourceActive,
+        viewerRole: viewerIsHelper ? "helper" : "requester",
+        partnerName: partner?.full_name ?? null,
+        partnerNameHidden: false,
+        company,
+        role,
+        title: snap.title ?? (role && company ? `${role} at ${company}` : role),
+        stage: live?.status ?? null,
+        stageLabel: live ? referralStageLabel(live.status) : null,
+        description: null,
+        answerContent: null,
+        pitch: null,
+        linkHref: "/referrals",
+        linkLabel: "View referral →",
+        nextAction,
+      };
+    } else if (type === "opportunity") {
+      const live = contextId ? applicationById.get(contextId) : undefined;
+      const oppRaw = live?.opportunity;
+      const opp = Array.isArray(oppRaw) ? oppRaw[0] : oppRaw;
+      const viewerIsPoster = opp?.posted_by === user.id;
+      const sourceActive = live
+        ? !isSourceInactiveStatus("opportunity", live.status)
+        : false;
+      const title = opp?.title ?? snap.role ?? snap.title ?? null;
+      const company = opp?.company ?? snap.company ?? null;
+
+      let nextAction: ThreadContext["nextAction"] = null;
+      if (sourceActive && viewerIsPoster && live && contextId) {
+        if (live.status === "reviewing") {
+          nextAction = {
+            label: "Shortlist",
+            kind: "shortlist",
+            sourceId: contextId,
+          };
+        } else if (live.status === "pending") {
+          nextAction = {
+            label: "Start reviewing",
+            kind: "start_reviewing",
+            sourceId: contextId,
+          };
+        }
+      }
+
+      ctx = {
+        conversationId: conv.id,
+        contextType: "opportunity",
+        contextId,
+        snapshot: snap,
+        sourceActive,
+        viewerRole: viewerIsPoster ? "poster" : "applicant",
+        partnerName: partner?.full_name ?? null,
+        partnerNameHidden: false,
+        company,
+        role: title,
+        title,
+        stage: live?.status ?? null,
+        stageLabel: live ? opportunityStageLabel(live.status) : null,
+        description: null,
+        answerContent: null,
+        pitch: live?.pitch ?? snap.pitch ?? null,
+        linkHref: "/opportunities",
+        linkLabel: "View opportunity →",
+        nextAction,
       };
     }
 
-    // Deep-link ?request= when conversation row lacks context yet
-    if (withId && requestParam && !contextByPartner[withId]) {
-      const req = reqById.get(requestParam);
-      if (req) {
-        const answer =
-          answers.find(
-            (a) =>
-              a.request_id === requestParam &&
-              (a.mentor_id === withId || a.mentor_id === user.id),
-          ) ?? answers.find((a) => a.request_id === requestParam);
-        contextByPartner[withId] = {
-          requestId: requestParam,
-          title: req.title,
-          description: req.description,
-          answerContent: answer?.content ?? null,
-        };
-      }
+    if (!ctx) continue;
+
+    // Source missing → snapshot fallback + inactive banner
+    if (!ctx.sourceActive && (snap.title || snap.company || snap.role)) {
+      ctx = {
+        ...ctx,
+        sourceActive: false,
+        company: ctx.company ?? snap.company ?? null,
+        role: ctx.role ?? snap.role ?? null,
+        title: ctx.title ?? snap.title ?? null,
+        description: ctx.description ?? snap.description ?? null,
+        pitch: ctx.pitch ?? snap.pitch ?? null,
+      };
+    }
+
+    threadContextByPartner[partnerId] = ctx;
+
+    const label = listLabelForConversation(conv);
+    if (label) {
+      labelTitlesByPartner[partnerId] = label
+        .replace(/^Referral · /, "")
+        .replace(/^Mentorship · /, "")
+        .replace(/^Opportunity · /, "");
+    } else if (ctx.company || ctx.title || ctx.role) {
+      labelTitlesByPartner[partnerId] =
+        ctx.company || ctx.title || ctx.role || "";
     }
   }
 
-  // Referral / opportunity titles for list labels
-  const labelTitlesByPartner: Record<string, string> = {};
-  for (const [partnerId, ctx] of Object.entries(contextByPartner)) {
-    labelTitlesByPartner[partnerId] = ctx.title;
-  }
-
-  const referralConvPartners = conversations
-    .filter(
-      (c) =>
-        c.unlock_reason === "referral" ||
-        c.unlock_reason === "referral_question",
-    )
-    .map((c) => partnerIdFromConversation(c, user.id));
-  if (referralConvPartners.length > 0) {
-    const { data: refRows } = await supabase
-      .from("referral_requests")
-      .select("id, student_id, accepted_by, company, role")
-      .or(
-        `student_id.eq.${user.id},accepted_by.eq.${user.id}`,
-      )
-      .limit(40);
-    for (const row of (refRows ?? []) as {
-      student_id: string;
-      accepted_by: string | null;
-      company: string;
-      role: string;
-    }[]) {
-      const other =
-        row.student_id === user.id ? row.accepted_by : row.student_id;
-      if (!other || !referralConvPartners.includes(other)) continue;
-      labelTitlesByPartner[other] = row.company || row.role;
-    }
-  }
-
-  const oppConvPartners = conversations
-    .filter((c) => c.unlock_reason === "opportunity_application")
-    .map((c) => partnerIdFromConversation(c, user.id));
-  if (oppConvPartners.length > 0) {
-    const { data: appRows } = await supabase
-      .from("opportunity_applications")
-      .select(
-        `
-        applicant_id,
-        opportunity:opportunities!inner ( title, posted_by )
-      `,
-      )
-      .or(
-        `applicant_id.eq.${user.id},opportunity.posted_by.eq.${user.id}`,
-      )
-      .limit(40);
-    for (const row of (appRows ?? []) as {
-      applicant_id: string;
-      opportunity:
-        | { title: string; posted_by: string }
-        | { title: string; posted_by: string }[]
-        | null;
-    }[]) {
-      const opp = Array.isArray(row.opportunity)
-        ? row.opportunity[0]
-        : row.opportunity;
-      if (!opp) continue;
-      const other =
-        row.applicant_id === user.id ? opp.posted_by : row.applicant_id;
-      if (!oppConvPartners.includes(other)) continue;
-      labelTitlesByPartner[other] = opp.title;
-    }
-  }
+  // Mask anonymous partners in the partners list passed to client
+  const partnersForClient = partners.map((p) => {
+    if (!anonymousPartnerIds.includes(p.id)) return p;
+    return {
+      id: p.id,
+      full_name: "Anonymous student",
+      avatar_url: null,
+    };
+  });
 
   return (
     <PageShell accent="messages">
@@ -214,11 +401,12 @@ export default async function MessagesPage({
         <MessagesInbox
           currentUserId={user.id}
           initialMessages={messages}
-          initialPartners={partners}
+          initialPartners={partnersForClient}
           initialConversations={conversations}
           initialWithId={withId}
-          mentorshipContextByPartner={contextByPartner}
+          threadContextByPartner={threadContextByPartner}
           labelTitlesByPartner={labelTitlesByPartner}
+          anonymousPartnerIds={anonymousPartnerIds}
         />
       </main>
     </PageShell>

@@ -21,6 +21,7 @@ import { deadlineLabel } from "@/lib/referrals";
 import type { Opportunity } from "@/lib/opportunities";
 import { SectionHeader } from "@/components/ui/section-header";
 import { compactDisplayName } from "@/lib/display-name";
+import { ConversationTypeLabel } from "@/components/conversation-context-header";
 
 type Props = {
   conversations: Conversation[];
@@ -165,9 +166,9 @@ export function DashboardFeed({
                         </Link>
                       </div>
                       {label ? (
-                        <p className="mt-0.5 truncate text-[11px] font-semibold text-[var(--brand-dark)]">
-                          {label}
-                        </p>
+                        <div className="mt-0.5 min-w-0">
+                          <ConversationTypeLabel label={label} />
+                        </div>
                       ) : null}
                       <Link
                         href={`/messages?with=${convo.partner.id}`}

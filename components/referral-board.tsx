@@ -15,6 +15,7 @@ import {
   REFERRAL_SELECT,
   deadlineLabel,
   isDeadlineUrgent,
+  logReferralError,
   mapReferralError,
   needsReferralFollowup,
   normalizeReferralRequest,
@@ -211,7 +212,7 @@ export function ReferralBoard({
     );
 
     if (rpcError) {
-      console.error("accept_referral_request failed", rpcError);
+      logReferralError("accept_referral_request RPC", rpcError);
       // Roll back optimistic patch
       patchRequestFields(request.id, {
         status: request.status,
@@ -261,7 +262,7 @@ export function ReferralBoard({
       });
 
     if (insertError) {
-      console.error("referral_questions insert failed", insertError);
+      logReferralError("referral_questions insert (Ask a question)", insertError);
       setError(mapReferralError(insertError.message));
       setBusyId(null);
       return;

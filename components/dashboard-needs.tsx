@@ -29,7 +29,7 @@ import {
 import { mapMessagingError } from "@/lib/conversations";
 import { mapMentorshipError } from "@/lib/mentorship";
 import { mapApplicationError } from "@/lib/opportunities";
-import { mapReferralError } from "@/lib/referrals";
+import { logReferralError, mapReferralError } from "@/lib/referrals";
 import { createClient } from "@/lib/supabase/client";
 import { formatAbsoluteTime } from "@/lib/format-time";
 
@@ -222,7 +222,10 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
             "accept_referral_request",
             { p_request_id: item.entityId },
           );
-          if (rpcError) throw new Error(mapReferralError(rpcError.message));
+          if (rpcError) {
+            logReferralError("accept_referral_request RPC (dashboard needs)", rpcError);
+            throw new Error(mapReferralError(rpcError.message));
+          }
           const row = Array.isArray(data) ? data[0] : data;
           if (!row) {
             throw new Error(

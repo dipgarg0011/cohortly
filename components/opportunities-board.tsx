@@ -847,6 +847,7 @@ function ApplyForm({
       .single();
 
     if (insertError) {
+      console.error("opportunity_applications insert failed", insertError);
       setError(mapApplicationError(insertError.message));
       setLoading(false);
       return;

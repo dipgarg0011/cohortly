@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconChatEmpty } from "@/components/ui/icons";
 import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
+  conversationContextLabel,
   mapMessagingError,
   partnerIdFromConversation,
   studentTurnGate,
@@ -27,6 +28,10 @@ import {
 } from "@/lib/format-time";
 import { otherPartyId, type ChatPartner, type Message } from "@/lib/messages";
 import { compactDisplayName } from "@/lib/display-name";
+import {
+  MentorshipContextHeader,
+  type MentorshipChatContext,
+} from "@/components/mentorship-context-header";
 
 type InboxTab = "chats" | "requests";
 
@@ -36,6 +41,8 @@ type Props = {
   initialPartners: ChatPartner[];
   initialConversations: ConversationRow[];
   initialWithId: string | null;
+  mentorshipContextByPartner?: Record<string, MentorshipChatContext>;
+  labelTitlesByPartner?: Record<string, string>;
 };
 
 type ListItem = {
@@ -51,6 +58,8 @@ export function MessagesInbox({
   initialPartners,
   initialConversations,
   initialWithId,
+  mentorshipContextByPartner = {},
+  labelTitlesByPartner = {},
 }: Props) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -670,17 +679,33 @@ export function MessagesInbox({
                         </span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-2">
-                        <p className="truncate text-xs text-slate-500">
-                          {pendingOut
-                            ? "Waiting for acceptance…"
-                            : item.lastMessage
-                              ? `${
-                                  item.lastMessage.sender_id === currentUserId
-                                    ? "You: "
-                                    : ""
-                                }${item.lastMessage.content}`
-                              : "Connection request"}
-                        </p>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          {(() => {
+                            const ctxLabel = conversationContextLabel(
+                              item.conversation.unlock_reason,
+                              labelTitlesByPartner[item.partner.id] ??
+                                mentorshipContextByPartner[item.partner.id]
+                                  ?.title ??
+                                null,
+                            );
+                            return ctxLabel ? (
+                              <p className="truncate text-[11px] font-semibold text-teal-800">
+                                {ctxLabel}
+                              </p>
+                            ) : null;
+                          })()}
+                          <p className="truncate text-xs text-slate-500">
+                            {pendingOut
+                              ? "Waiting for acceptance…"
+                              : item.lastMessage
+                                ? `${
+                                    item.lastMessage.sender_id === currentUserId
+                                      ? "You: "
+                                      : ""
+                                  }${item.lastMessage.content}`
+                                : "Connection request"}
+                          </p>
+                        </div>
                         {item.unreadCount > 0 && (
                           <span className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] px-1.5 text-[10px] font-bold text-white">
                             {item.unreadCount > 9 ? "9+" : item.unreadCount}
@@ -742,11 +767,31 @@ export function MessagesInbox({
                     {partnerName}
                   </p>
                 </ProfilePreviewTrigger>
-                {selectedConversation.status === "pending" && (
+                {selectedConversation.status === "pending" ? (
                   <p className="text-xs text-slate-500">Connection request</p>
+                ) : (
+                  (() => {
+                    const ctxLabel = conversationContextLabel(
+                      selectedConversation.unlock_reason,
+                      labelTitlesByPartner[selectedId] ??
+                        mentorshipContextByPartner[selectedId]?.title ??
+                        null,
+                    );
+                    return ctxLabel ? (
+                      <p className="truncate text-xs font-semibold text-teal-800">
+                        {ctxLabel}
+                      </p>
+                    ) : null;
+                  })()
                 )}
               </div>
             </div>
+
+            {selectedId && mentorshipContextByPartner[selectedId] ? (
+              <MentorshipContextHeader
+                context={mentorshipContextByPartner[selectedId]}
+              />
+            ) : null}
 
             {isIncomingRequest && (
               <div className="border-b border-teal-900/8 bg-teal-50/70 px-4 py-4">
@@ -811,7 +856,9 @@ export function MessagesInbox({
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {thread.length === 0 ? (
                 <p className="py-8 text-center text-sm text-slate-500">
-                  No messages yet.
+                  {selectedId && mentorshipContextByPartner[selectedId]
+                    ? "Context is pinned above — send your first message below."
+                    : "No messages yet."}
                 </p>
               ) : (
                 thread.map((message) => {
@@ -908,6 +955,14 @@ export function MessagesInbox({
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {selectedId &&
+                    mentorshipContextByPartner[selectedId] &&
+                    thread.length === 0 ? (
+                      <MentorshipContextHeader
+                        context={mentorshipContextByPartner[selectedId]}
+                        compact
+                      />
+                    ) : null}
                     {turnGate.isStudent && turnGate.canSend && (
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-medium text-amber-900">

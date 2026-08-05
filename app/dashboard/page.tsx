@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { SuggestedPeople } from "@/components/suggested-people";
 import {
   DashboardFeed,
-  DASHBOARD_PAIR_CARD,
+  DASHBOARD_PAIR_CARD_STRETCH,
   DASHBOARD_PAIR_FOOTER,
   DASHBOARD_PAIR_HEADER,
   PeoplePreviewHeader,
@@ -22,7 +22,6 @@ import {
   type ProfileStatus,
 } from "@/lib/network";
 import { GraduationNudgeBanner } from "@/components/graduation-nudge-banner";
-import type { ConversationRow } from "@/lib/conversations";
 import {
   buildConversations,
   otherPartyId,
@@ -53,12 +52,18 @@ import {
   type CommunityProfileRow,
 } from "@/lib/dashboard-community";
 import { pickCaughtUpNudge } from "@/lib/dashboard-nudge";
+import { loadDashboardSuggestions } from "@/lib/dashboard-suggestions";
+import {
+  conversationContextLabel,
+  partnerIdFromConversation,
+  type ConversationRow,
+} from "@/lib/conversations";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
 
 const CONVERSATION_SELECT =
-  "id, initiator_id, recipient_id, status, unlock_reason, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id, turn_nudge_sent_at";
+  "id, initiator_id, recipient_id, status, unlock_reason, context_request_id, intro_message_sent, created_at, updated_at, gate_mode, turn_holder, reply_count_by_recipient, gate_lifted_at, gate_student_id, turn_nudge_sent_at";
 
 export default async function DashboardPage() {
   const { user, supabase } = await requireProfile();
@@ -145,57 +150,20 @@ export default async function DashboardPage() {
         nextTip: null as string | null,
       };
 
-  // Suggestions: exclude self inside each OR branch (PostgREST-safe).
-  let suggestions: NetworkProfile[] = [];
-  const uid = user.id;
-  const branches: string[] = [];
-  const quote = (value: string) => {
-    if (/^[A-Za-z0-9._-]+$/.test(value)) return value;
-    return `"${value.replace(/"/g, '\\"')}"`;
-  };
-  if (profile?.department?.trim()) {
-    branches.push(
-      `and(department.eq.${quote(profile.department.trim())},id.neq.${uid})`,
-    );
-  }
-  if (profile?.batch_year != null) {
-    branches.push(`and(batch_year.eq.${profile.batch_year},id.neq.${uid})`);
-  }
-  if (branches.length > 0) {
-    const { data } = await supabase
-      .from("profiles")
-      .select(PROFILE_SELECT)
-      .or(branches.join(","))
-      .limit(12);
-
-    const rows = (data ?? []) as NetworkProfile[];
-    // Belt-and-suspenders: never surface the logged-in user even if OR
-    // filter parsing drops an id.neq branch.
-    suggestions = rows
-      .filter((row) => row.id !== uid)
-      .map((row) => {
-        let score = 0;
-        if (
-          profile?.department?.trim() &&
-          row.department?.trim() === profile.department.trim()
-        ) {
-          score += 2;
-        }
-        if (
-          profile?.batch_year != null &&
-          row.batch_year === profile.batch_year
-        ) {
-          score += 2;
-        }
-        return { row, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map((item) => item.row);
-  }
-
   const conversations = (conversationRows ?? []) as ConversationRow[];
   const messages = (messageRows ?? []) as Message[];
+
+  const { profiles: suggestions, note: suggestionsNote } =
+    await loadDashboardSuggestions({
+      supabase,
+      profileSelect: PROFILE_SELECT,
+      uid: user.id,
+      profile,
+      conversations,
+      limit: 4,
+    });
+
+  const showPeopleColumn = suggestions.length > 0;
 
   const partnerIds = new Set<string>();
   for (const message of messages) {
@@ -267,6 +235,68 @@ export default async function DashboardPage() {
     user.id,
   ).slice(0, 4);
 
+  // Labels for mentorship / referral / opportunity threads in the feed.
+  const conversationLabels: Record<string, string> = {};
+  const mentorshipRequestIds = conversations
+    .filter((c) => c.unlock_reason === "mentorship" && c.context_request_id)
+    .map((c) => c.context_request_id as string);
+  if (mentorshipRequestIds.length > 0) {
+    const { data: reqRows } = await supabase
+      .from("mentorship_requests")
+      .select("id, title")
+      .in("id", mentorshipRequestIds);
+    const titleById = new Map(
+      ((reqRows ?? []) as { id: string; title: string }[]).map((r) => [
+        r.id,
+        r.title,
+      ]),
+    );
+    for (const conv of conversations) {
+      if (conv.unlock_reason !== "mentorship" || !conv.context_request_id) {
+        continue;
+      }
+      const partner = partnerIdFromConversation(conv, user.id);
+      const label = conversationContextLabel(
+        conv.unlock_reason,
+        titleById.get(conv.context_request_id) ?? null,
+      );
+      if (label) conversationLabels[partner] = label;
+    }
+  }
+  for (const conv of conversations) {
+    const partner = partnerIdFromConversation(conv, user.id);
+    if (conversationLabels[partner]) continue;
+    const label = conversationContextLabel(conv.unlock_reason, null);
+    if (label) conversationLabels[partner] = label;
+  }
+
+  // Enrich referral / opportunity labels when we can match open context.
+  for (const ref of [...acceptedReferrals, ...openReferrals]) {
+    const otherId =
+      ref.student_id === user.id
+        ? ref.accepted_by
+        : ref.student_id;
+    if (!otherId) continue;
+    const conv = conversations.find(
+      (c) =>
+        (c.unlock_reason === "referral" ||
+          c.unlock_reason === "referral_question") &&
+        partnerIdFromConversation(c, user.id) === otherId,
+    );
+    if (!conv) continue;
+    const label = conversationContextLabel(
+      conv.unlock_reason,
+      ref.company || ref.role,
+    );
+    if (label) conversationLabels[otherId] = label;
+  }
+  for (const app of pendingApplications) {
+    const applicantId = app.applicant_id;
+    const title = app.opportunity?.title;
+    const label = conversationContextLabel("opportunity_application", title);
+    if (label) conversationLabels[applicantId] = label;
+  }
+
   const latestOpportunities = recentOpportunities.slice(0, 4);
 
   const showGradNudge =
@@ -318,7 +348,7 @@ export default async function DashboardPage() {
     <PageShell accent="home">
       <Navbar />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-5 pt-5 sm:px-6 sm:pb-10 sm:pt-8">
         <div className="mb-5 min-w-0 stagger-1 sm:mb-6">
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
         </div>
@@ -353,14 +383,25 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 overflow-x-clip lg:grid-cols-2 lg:items-stretch">
-          {suggestions.length > 0 && (
+        <div
+          className={`grid w-full min-w-0 max-w-full grid-cols-1 gap-5 ${
+            showPeopleColumn
+              ? "lg:grid-cols-2 lg:items-stretch"
+              : "lg:grid-cols-1"
+          }`}
+        >
+          {showPeopleColumn && (
             <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col">
-              <SectionCard stagger={3} className={DASHBOARD_PAIR_CARD}>
+              <SectionCard stagger={3} className={DASHBOARD_PAIR_CARD_STRETCH}>
                 <div className={DASHBOARD_PAIR_HEADER}>
                   <PeoplePreviewHeader />
                 </div>
                 <div className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto px-3 py-3 sm:px-4 sm:py-3.5">
+                  {suggestionsNote ? (
+                    <p className="mb-2.5 text-xs leading-snug text-slate-500">
+                      {suggestionsNote}
+                    </p>
+                  ) : null}
                   <SuggestedPeople
                     profiles={suggestions}
                     currentUserId={user.id}
@@ -382,15 +423,13 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          <div
-            className={`flex h-full min-h-0 w-full min-w-0 max-w-full flex-col ${
-              suggestions.length > 0 ? "" : "lg:col-span-2"
-            }`}
-          >
+          <div className="flex min-h-0 w-full min-w-0 max-w-full flex-col">
             <DashboardFeed
               conversations={recentConversations}
               opportunities={latestOpportunities}
               currentUserId={user.id}
+              stretchToPair={showPeopleColumn}
+              conversationLabels={conversationLabels}
             />
           </div>
         </div>

@@ -8,7 +8,8 @@ export type UnlockReason =
   | "manual_accept"
   | "referral"
   | "mentorship"
-  | "referral_question";
+  | "referral_question"
+  | "opportunity_application";
 
 export type GateMode = "locked" | "turn_based" | "open";
 
@@ -18,6 +19,8 @@ export type ConversationRow = {
   recipient_id: string;
   status: ConversationStatus;
   unlock_reason: UnlockReason | null;
+  /** Mentorship request this chat was unlocked from (pinned context). */
+  context_request_id?: string | null;
   intro_message_sent: boolean;
   created_at: string;
   updated_at: string;
@@ -30,6 +33,7 @@ export type ConversationRow = {
 };
 
 export const INTRO_MESSAGE_MAX = 300;
+export const INTRO_MESSAGE_MIN = 20;
 export const TURN_FOLLOWUP_MAX = 500;
 
 /** Student view only — mentors should never see restriction UI. */
@@ -115,6 +119,25 @@ export function connectionActionFor(
   if (conv.status === "accepted") return { kind: "message" };
   if (conv.status === "pending") return { kind: "request_sent" };
   return { kind: "hidden" };
+}
+
+/** Short inbox / dashboard label from unlock reason + optional title. */
+export function conversationContextLabel(
+  unlockReason: UnlockReason | null | undefined,
+  title?: string | null,
+): string | null {
+  const t = title?.trim();
+  switch (unlockReason) {
+    case "mentorship":
+      return t ? `Mentorship · ${t}` : "Mentorship";
+    case "referral":
+    case "referral_question":
+      return t ? `Referral · ${t}` : "Referral";
+    case "opportunity_application":
+      return t ? `Opportunity · ${t}` : "Opportunity";
+    default:
+      return null;
+  }
 }
 
 /** Map Postgres / Supabase errors to readable copy. Never surface raw SQL. */

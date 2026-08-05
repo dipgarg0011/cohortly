@@ -22,6 +22,7 @@ import {
   type ProfileStatus,
 } from "@/lib/network";
 import { GraduationNudgeBanner } from "@/components/graduation-nudge-banner";
+import { MentorOnboardingCard } from "@/components/mentor-onboarding-card";
 import {
   buildConversations,
   otherPartyId,
@@ -78,6 +79,7 @@ export default async function DashboardPage() {
     { data: acceptedReferralRows },
     { data: applicationRows },
     { data: communityRows },
+    { data: mentorAvailability },
   ] = await Promise.all([
     supabase.from("profiles").select(PROFILE_SELECT).eq("id", user.id).single(),
     supabase
@@ -132,6 +134,11 @@ export default async function DashboardPage() {
     // Mentors must not SELECT mentorship_requests directly (unmatched leak /
     // student_id exposure). Matched asks come from list_my_matched_asks above.
     supabase.from("profiles").select(COMMUNITY_SELECT),
+    supabase
+      .from("mentor_availability")
+      .select("onboarding_state, is_available")
+      .eq("mentor_id", user.id)
+      .maybeSingle(),
   ]);
 
   const profile = myProfile as NetworkProfile | null;
@@ -303,6 +310,10 @@ export default async function DashboardPage() {
     (profile?.status as ProfileStatus | null | undefined) === "student" &&
     hasBatchYearPassed(profile?.batch_year ?? null);
 
+  const showMentorOnboarding =
+    (profile?.status as ProfileStatus | null | undefined) === "graduate" &&
+    (mentorAvailability?.onboarding_state ?? "not_asked") === "not_asked";
+
   const communityStats = buildCommunityStats(
     (communityRows ?? []) as CommunityProfileRow[],
     {
@@ -354,6 +365,10 @@ export default async function DashboardPage() {
         </div>
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
+
+        {showMentorOnboarding ? (
+          <MentorOnboardingCard mentorId={user.id} />
+        ) : null}
 
         <DashboardNeedsYou
           items={needItems}

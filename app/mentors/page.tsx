@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MentorsBoard } from "@/components/mentors-board";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
+import { isGraduateStatus } from "@/lib/network";
 import {
   normalizeMatchedAsk,
   normalizeMentorshipRequest,
@@ -48,10 +49,19 @@ export default async function MentorsPage() {
     supabase.rpc("list_my_matched_asks"),
     supabase
       .from("mentor_availability")
-      .select("mentor_id, is_available, topics, max_open_requests, bio_note")
+      .select(
+        "mentor_id, is_available, is_paused, onboarding_state, topics, max_open_requests, bio_note",
+      )
       .eq("mentor_id", user.id)
       .maybeSingle(),
   ]);
+
+  const isGraduate = isGraduateStatus(
+    (profile?.status as "student" | "graduate" | null | undefined) ?? null,
+  );
+
+  // Do NOT force is_available=true on load — graduates confirm via dashboard /
+  // profile. Matching eligibility also requires confirmed + not paused (SQL).
 
   const loadError = requestError || matchError;
 
@@ -71,7 +81,7 @@ export default async function MentorsPage() {
             accent="mentors"
             eyebrow="Guidance"
             title="Mentors"
-            description="Post what you need — we route each ask to mentors whose skills strongly match."
+            description="Post what you need — we route each ask only to graduates whose skills strongly match."
           />
           <div className="surface-card border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
             <p>Couldn&apos;t load mentorship data.</p>
@@ -152,9 +162,11 @@ export default async function MentorsPage() {
     }
   }
 
-  const initialAvailable = Boolean(availabilityRow?.is_available);
-  const profileSkills = (profile?.skills as string[] | null) ?? [];
-  const profileBio = (profile?.bio as string | null)?.trim() || null;
+  const initialAvailable =
+    isGraduate &&
+    Boolean(availabilityRow?.is_available) &&
+    availabilityRow?.onboarding_state === "confirmed" &&
+    !availabilityRow?.is_paused;
 
   return (
     <PageShell accent="mentors">
@@ -164,16 +176,15 @@ export default async function MentorsPage() {
           accent="mentors"
           eyebrow="Guidance"
           title="Mentors"
-          description="Anyone can ask for help or offer to mentor. Asks are routed by relevance — senior mentors first."
+          description="Students ask for help. Graduates see matching asks here and respond."
         />
 
         <MentorsBoard
           currentUserId={user.id}
+          isGraduate={isGraduate}
           initialAvailable={initialAvailable}
-          profileSkills={profileSkills}
-          profileBio={profileBio}
           initialRequests={initialRequests}
-          initialMatchedAsks={initialMatchedAsks}
+          initialMatchedAsks={isGraduate ? initialMatchedAsks : []}
           initialAnswers={initialAnswers}
           connectedByRequestId={connectedByRequest}
           studentDepartment={

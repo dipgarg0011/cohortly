@@ -10,6 +10,11 @@
 -- All callers use the canonical 6-arg form with explicit ::text / ::uuid casts.
 -- If you must recreate upsert, DROP all overloads first (see
 -- 20260805_hotfix_upsert_accepted_conversation_unique.sql).
+--
+-- Guard note: status backfills disable BEFORE UPDATE guards (auth.uid() is null
+-- in SQL Editor). If this file already failed mid-run on opportunity backfill,
+-- run 20260805_hotfix_opportunity_progress_stages_guard.sql instead — do not
+-- re-paste this whole file.
 
 -- =============================================================================
 -- FIX 1 — enforce_referral_request_caps (normalized company, open only)
@@ -97,6 +102,11 @@ alter table public.referral_requests
 alter table public.referral_requests
   add column if not exists helper_nudged_at timestamptz;
 
+-- Backfill helper_id / stages with accept-column guard disabled (SQL Editor
+-- has auth.uid() = null; same pattern as referral_normalize_backfill_guard).
+alter table public.referral_requests
+  disable trigger referral_requests_guard_accept_columns;
+
 -- Backfill helper_id from accepted_by (accepted_by remains the synonym column)
 update public.referral_requests
 set helper_id = accepted_by
@@ -132,6 +142,9 @@ set
   stage_updated_at = coalesce(referred_at, stage_updated_at, now())
 where referred_at is not null
   and status = 'in_progress';
+
+alter table public.referral_requests
+  enable trigger referral_requests_guard_accept_columns;
 
 alter table public.referral_requests
   drop constraint if exists referral_requests_status_check;
@@ -773,6 +786,11 @@ alter table public.opportunity_applications
     'reviewing', 'shortlisted', 'closed'
   ));
 
+-- Disable guard during remap: SQL Editor auth.uid() is null → old guard raises
+-- NOT_ALLOWED: Not permitted. (see hotfix_opportunity_progress_stages_guard)
+alter table public.opportunity_applications
+  disable trigger opportunity_applications_guard_update;
+
 update public.opportunity_applications
 set
   status = 'reviewing',
@@ -789,6 +807,9 @@ where status = 'declined';
 update public.opportunity_applications
 set stage_updated_at = coalesce(stage_updated_at, created_at, now())
 where stage_updated_at is null;
+
+alter table public.opportunity_applications
+  enable trigger opportunity_applications_guard_update;
 
 alter table public.opportunity_applications
   drop constraint if exists opportunity_applications_status_check;

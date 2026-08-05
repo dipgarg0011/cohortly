@@ -101,9 +101,9 @@ export function normalizeReachStats(
   };
 }
 
-/** Normalize company the same way SQL does (trim, collapse spaces, lower). */
+/** Normalize company the same way SQL does (letters+digits only, lower). */
 export function normalizeCompanyName(company: string | null | undefined): string {
-  return (company ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+  return (company ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 /** Compute age-only tier from created_at (mirrors SQL referral_age_tier). */
@@ -281,10 +281,28 @@ export function mapReferralError(message: string): string {
   ) {
     return "Couldn't complete that action. Please refresh and try again.";
   }
+  if (message.includes("Company mismatch")) {
+    if (message.includes("first 48h") || message.includes("target company")) {
+      return "This ask is still limited to graduates at that company (first 48 hours). Your profile company doesn't match yet.";
+    }
+    if (message.includes("past company") || message.includes("5 days")) {
+      return "This ask is still limited to current/past company matches. It opens to all graduates after 5 days.";
+    }
+    return "Your company doesn't match this ask's visibility yet.";
+  }
+  if (message.includes("NOT_ALLOWED: Only graduates")) {
+    return "Only graduates can accept referral requests.";
+  }
+  if (message.includes("NOT_ALLOWED: You cannot accept your own")) {
+    return "You can't accept your own referral request.";
+  }
   if (message.includes("NOT_ALLOWED: You cannot accept")) {
     return "You're not allowed to accept this request.";
   }
   if (message.includes("NOT_ALLOWED")) {
+    // Prefer the RPC's human-readable suffix when present (after the code prefix).
+    const afterCode = message.replace(/^NOT_ALLOWED:\s*/i, "").trim();
+    if (afterCode && afterCode.length < 160) return afterCode;
     return "You're not allowed to do that.";
   }
   if (message.includes("REQUEST_NOT_FOUND")) {

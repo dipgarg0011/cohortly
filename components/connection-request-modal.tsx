@@ -3,7 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AppModal } from "@/components/ui/app-modal";
 import { firstName } from "@/lib/network";
-import { INTRO_MESSAGE_MAX, mapMessagingError } from "@/lib/conversations";
+import {
+  INTRO_MESSAGE_MAX,
+  INTRO_MESSAGE_MIN,
+  mapMessagingError,
+} from "@/lib/conversations";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -37,11 +41,13 @@ export function ConnectionRequestModal({
 
   const remaining = INTRO_MESSAGE_MAX - draft.length;
   const trimmed = draft.trim();
+  const tooShort = trimmed.length < INTRO_MESSAGE_MIN;
   const tooLong = draft.length > INTRO_MESSAGE_MAX;
+  const canSend = !sending && !tooShort && !tooLong;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!trimmed || tooLong || sending) return;
+    if (!canSend) return;
 
     setSending(true);
     setError(null);
@@ -91,7 +97,7 @@ export function ConnectionRequestModal({
             rows={4}
             maxLength={INTRO_MESSAGE_MAX + 20}
             className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            placeholder={`Hi ${firstName(recipientName)}, write a short intro…`}
+            placeholder={`Hi ${firstName(recipientName)}, I'd love to connect!`}
             autoFocus
             required
           />
@@ -102,15 +108,17 @@ export function ConnectionRequestModal({
             className={
               remaining < 0
                 ? "font-semibold text-red-600"
-                : remaining <= 40
-                  ? "text-amber-700"
-                  : "text-slate-400"
+                : tooShort
+                  ? "text-slate-500"
+                  : remaining <= 40
+                    ? "text-amber-700"
+                    : "text-slate-400"
             }
           >
             {remaining < 0
               ? `${Math.abs(remaining)} over limit`
-              : !trimmed
-                ? "Write a personal intro to send"
+              : tooShort
+                ? `Write at least ${INTRO_MESSAGE_MIN} characters (${trimmed.length}/${INTRO_MESSAGE_MIN})`
                 : `${remaining} characters left`}
           </span>
         </div>
@@ -134,7 +142,7 @@ export function ConnectionRequestModal({
           </button>
           <button
             type="submit"
-            disabled={sending || !trimmed || tooLong}
+            disabled={!canSend}
             className="btn-primary flex-1 disabled:opacity-60"
           >
             {sending ? "Sending…" : "Send request"}

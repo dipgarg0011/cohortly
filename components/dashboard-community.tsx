@@ -74,7 +74,7 @@ export function DashboardCommunity({ stats }: Props) {
   ];
 
   return (
-    <SectionCard stagger={2} className="mb-5 sm:mb-6">
+    <SectionCard stagger={2} className="mb-5 overflow-visible sm:mb-6">
       <SectionHeader
         title="Community"
         accent="home"
@@ -83,7 +83,8 @@ export function DashboardCommunity({ stats }: Props) {
         actionLabel="Browse all →"
       />
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
+      {/* pt/pb so hover translateY is not clipped by ancestor overflow-x-clip */}
+      <div className="mt-3 grid grid-cols-2 gap-2 pt-1 pb-0.5 sm:mt-4 sm:gap-2.5 lg:grid-cols-4">
         {cards.map((card) => (
           <Link key={card.key} href={card.href} className="block min-w-0">
             <SurfaceCard interactive className="h-full p-2.5 sm:p-3.5 md:p-4">

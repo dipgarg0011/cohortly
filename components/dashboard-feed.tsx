@@ -26,27 +26,41 @@ type Props = {
   conversations: Conversation[];
   opportunities: Opportunity[];
   currentUserId: string;
+  /** When false, card height follows content (no equal-height stretch blank). */
+  stretchToPair?: boolean;
+  /** Optional unlock-aware labels keyed by partner id (e.g. Mentorship · Title). */
+  conversationLabels?: Record<string, string>;
 };
 
 /** Shared header band so People title and Messages tabs sit in the same strip. */
 export const DASHBOARD_PAIR_HEADER =
-  "flex h-[5.5rem] shrink-0 items-center overflow-hidden border-b border-slate-100 px-4 py-3 sm:px-5";
+  "flex min-h-[4.5rem] shrink-0 items-center border-b border-slate-100 px-4 py-3 sm:min-h-[5.25rem] sm:px-5";
 
 export const DASHBOARD_PAIR_FOOTER =
   "flex h-[3.25rem] shrink-0 items-center border-t border-slate-100 px-4 sm:px-5";
 
 export const DASHBOARD_PAIR_CARD =
-  "flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0 lg:min-h-[26rem]";
+  "flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden !p-0";
+
+export const DASHBOARD_PAIR_CARD_STRETCH =
+  `${DASHBOARD_PAIR_CARD} h-full lg:min-h-[26rem}`;
 
 export function DashboardFeed({
   conversations,
   opportunities,
   currentUserId,
+  stretchToPair = false,
+  conversationLabels,
 }: Props) {
   const [tab, setTab] = useState<"messages" | "opportunities">("messages");
 
   return (
-    <SectionCard stagger={4} className={DASHBOARD_PAIR_CARD}>
+    <SectionCard
+      stagger={4}
+      className={
+        stretchToPair ? DASHBOARD_PAIR_CARD_STRETCH : DASHBOARD_PAIR_CARD
+      }
+    >
       <div className={DASHBOARD_PAIR_HEADER}>
         <div
           className="flex w-full min-w-0 gap-1 rounded-xl bg-slate-100/90 p-1"
@@ -70,7 +84,11 @@ export function DashboardFeed({
         </div>
       </div>
 
-      <div className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-clip overflow-y-auto px-2.5 py-2 sm:px-3 sm:py-2.5">
+      <div
+        className={`min-h-0 min-w-0 max-w-full overflow-x-clip px-2.5 py-2 sm:px-3 sm:py-2.5 ${
+          stretchToPair ? "flex-1 overflow-y-auto" : ""
+        }`}
+      >
         {tab === "messages" ? (
           conversations.length === 0 ? (
             <CompactEmpty
@@ -87,6 +105,7 @@ export function DashboardFeed({
                   convo.partner.full_name?.trim() || "Unnamed member";
                 const name = compactDisplayName(convo.partner.full_name);
                 const unread = convo.unreadCount > 0;
+                const label = conversationLabels?.[convo.partner.id];
                 const preview = `${
                   convo.lastMessage.sender_id === currentUserId ? "You: " : ""
                 }${convo.lastMessage.content}`;
@@ -145,6 +164,11 @@ export function DashboardFeed({
                           {formatRelativeTime(convo.lastMessage.created_at)}
                         </Link>
                       </div>
+                      {label ? (
+                        <p className="mt-0.5 truncate text-[11px] font-semibold text-[var(--brand-dark)]">
+                          {label}
+                        </p>
+                      ) : null}
                       <Link
                         href={`/messages?with=${convo.partner.id}`}
                         title={preview}

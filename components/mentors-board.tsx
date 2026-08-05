@@ -697,7 +697,12 @@ function MentorInbox({
     if (status === "accepted") {
       const studentId = refreshed?.student_id ?? prior?.student_id;
       if (studentId) {
-        router.push(`/messages?with=${studentId}`);
+        const rid = refreshed?.request_id ?? prior?.request_id;
+        router.push(
+          rid
+            ? `/messages?with=${studentId}&request=${rid}`
+            : `/messages?with=${studentId}`,
+        );
         return;
       }
       setError(
@@ -840,7 +845,10 @@ function MatchAskCard({
   const studentRole = getProfileRole(ask.student_status);
 
   return (
-    <li className="surface-card min-w-0 max-w-full p-4 sm:p-5">
+    <li
+      id={`request-${ask.request_id}`}
+      className="surface-card min-w-0 max-w-full p-4 sm:p-5"
+    >
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
@@ -979,12 +987,19 @@ function MatchAskCard({
             (ask.match_status === "accepted" ||
               ask.match_status === "answered") && (
               <Link
-                href={`/messages?with=${ask.student_id}`}
+                href={`/messages?with=${ask.student_id}&request=${ask.request_id}`}
                 className="rounded-xl border border-teal-200 bg-white px-4 py-2 text-center text-sm font-semibold text-teal-800 hover:bg-teal-50"
               >
                 Message
               </Link>
             )}
+          {(ask.match_status === "accepted" ||
+            ask.match_status === "answered") && (
+            <p className="w-full text-[11px] leading-snug text-slate-500 sm:max-w-[14rem]">
+              Edit reply updates the public answer. Message opens a private
+              chat.
+            </p>
+          )}
         </div>
       </div>
     </li>
@@ -1340,7 +1355,7 @@ function MyAsks({
               state.computed_stage >= 4);
 
           return (
-            <li key={req.id} className="surface-card p-5">
+            <li id={`request-${req.id}`} key={req.id} className="surface-card p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1436,7 +1451,7 @@ function MyAsks({
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {connected && (
                     <Link
-                      href={`/messages?with=${connected.mentor_id}`}
+                      href={`/messages?with=${connected.mentor_id}&request=${req.id}`}
                       className="rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50"
                     >
                       Message
@@ -1557,7 +1572,7 @@ function MyAsks({
                           Not helpful
                         </button>
                         <Link
-                          href={`/messages?with=${answer.mentor_id}`}
+                          href={`/messages?with=${answer.mentor_id}&request=${req.id}`}
                           className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200"
                         >
                           Ask a follow-up

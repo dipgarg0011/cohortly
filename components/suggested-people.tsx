@@ -105,6 +105,7 @@ export function SuggestedPeople({
   const hasMore = limit != null && visible.length > limit;
 
   if (visible.length === 0) {
+    if (dense) return null;
     return (
       <EmptyState
         icon={<IconNetworkEmpty />}

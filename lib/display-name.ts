@@ -1,7 +1,7 @@
 /**
  * Compact display name for dense lists (messages, person rows).
  * Strips degree / college suffixes commonly pasted from LinkedIn, e.g.
- * "Rushikesh Khedkar 4-Yr B.Tech.: Metallurgical Engg., IIT(BHU)"
+ * "Rushikesh Khedkar 4-Yr B.Tech.: Metallurgical Engg., IIT …"
  * → "Rushikesh Khedkar"
  *
  * Keep the raw full_name on profile pages and previews.

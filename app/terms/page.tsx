@@ -19,7 +19,7 @@ export default function TermsPage() {
 
       <PublicSection title="Who may join">
         <p>
-          Cohortly is for current students and graduates of IIT BHU with a
+          Cohortly is for current students and graduates of your college with a
           verified college email. Access is limited so the network stays a
           trusted campus community.
         </p>

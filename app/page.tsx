@@ -5,6 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 
 const PILLARS = [
   {
+    href: "/network",
+    title: "Network",
+    blurb: "Stay connected with batchmates and alumni.",
+  },
+  {
     href: "/mentors",
     title: "Mentors",
     blurb: "Guidance from seniors who've been there.",
@@ -23,16 +28,16 @@ const PILLARS = [
 
 const STEPS = [
   {
+    title: "Connect",
+    blurb: "Find people from your college — classmates, seniors, alumni.",
+  },
+  {
     title: "Ask",
-    blurb: "Post a question or what you need help with.",
+    blurb: "Reach out for advice, intros, or just to stay in touch.",
   },
   {
-    title: "Match",
-    blurb: "Get matched with people from your college network.",
-  },
-  {
-    title: "Answer",
-    blurb: "Get advice, intros, or a clear next step.",
+    title: "Help",
+    blurb: "Share what you know and keep the community strong.",
   },
 ] as const;
 
@@ -64,7 +69,11 @@ export default async function Home() {
             <BrandLogo href={null} variant="wordmark" size="hero" priority />
           </div>
           <p className="mt-4 max-w-md text-base text-[var(--muted)] sm:text-lg">
-            Your college network for mentorship, referrals, and advice.
+            Your private college community — stay connected with batchmates and
+            alumni after graduation.
+          </p>
+          <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
+            For students and graduates at your college.
           </p>
           <div className="mt-7 flex w-full min-w-0 max-w-xs justify-center sm:max-w-none">
             <Link href="/auth" className={`btn-primary w-full sm:w-auto ${focusRing}`}>
@@ -78,12 +87,16 @@ export default async function Home() {
           aria-label="What you can do"
           className="mt-12 border-t border-teal-900/10 pt-8 sm:mt-14 sm:pt-10 animate-fade-up"
         >
-          <ul className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
+          <ul className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 sm:gap-0">
             {PILLARS.map((pillar, i) => (
               <li
                 key={pillar.href}
-                className={`min-w-0 text-center sm:px-4 ${
-                  i > 0 ? "border-t border-teal-900/10 pt-6 sm:border-t-0 sm:border-l sm:pt-0" : ""
+                className={`min-w-0 text-center sm:px-3 ${
+                  i > 0
+                    ? "sm:border-l sm:border-teal-900/10"
+                    : ""
+                } ${
+                  i >= 2 ? "border-t border-teal-900/10 pt-6 sm:border-t-0 sm:pt-0" : ""
                 }`}
               >
                 <Link
@@ -93,7 +106,7 @@ export default async function Home() {
                   <span className="font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition-colors group-hover:text-[var(--brand)] sm:text-lg">
                     {pillar.title}
                   </span>
-                  <span className="mt-1 max-w-[14rem] text-sm leading-snug text-[var(--muted)] transition-colors group-hover:text-slate-600">
+                  <span className="mt-1 max-w-[11rem] text-sm leading-snug text-[var(--muted)] transition-colors group-hover:text-slate-600">
                     {pillar.blurb}
                   </span>
                 </Link>
@@ -102,7 +115,7 @@ export default async function Home() {
           </ul>
         </section>
 
-        {/* How it works — Ask → Match → Answer */}
+        {/* How it works — Connect → Ask → Help */}
         <section
           aria-labelledby="how-it-works-heading"
           className="mt-10 border-t border-teal-900/10 pt-8 sm:mt-12 sm:pt-9 animate-fade-up"

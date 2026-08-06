@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
+import { isCanonicalShortCode } from "@/lib/departments";
 import {
   suggestedProfileStatus,
   type ProfileStatus,
@@ -51,8 +53,15 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       return;
     }
 
-    if (!fullName.trim() || !department.trim()) {
+    if (!fullName.trim()) {
       setError("Name and department are required.");
+      setLoading(false);
+      return;
+    }
+
+    const deptCode = department.trim();
+    if (!isCanonicalShortCode(deptCode)) {
+      setError("Select your department from the list.");
       setLoading(false);
       return;
     }
@@ -78,7 +87,7 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       full_name: fullName.trim(),
       batch_year: year,
       status,
-      department: department.trim(),
+      department: deptCode,
       company: company.trim() || null,
       role_title: roleTitle.trim() || null,
       current_job: roleTitle.trim() || null,
@@ -134,12 +143,13 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
             Department
           </span>
-          <input
+          <DepartmentSelect
+            id="department"
+            name="department"
             value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            placeholder="CSE"
+            onChange={setDepartment}
+            fetchFromDb
             required
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
         </label>
       </div>

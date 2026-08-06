@@ -11,11 +11,12 @@ type BrandLogoProps = {
   priority?: boolean;
 };
 
+/** Wordmark asset is ~819×304 (~2.7:1) */
 const WORDMARK = {
-  sm: { height: 28, width: 118 },
-  md: { height: 32, width: 136 },
-  lg: { height: 40, width: 170 },
-  hero: { height: 56, width: 236 },
+  sm: { height: 28, width: 76 },
+  md: { height: 32, width: 86 },
+  lg: { height: 40, width: 108 },
+  hero: { height: 56, width: 151 },
 } as const;
 
 const ICON = {
@@ -27,11 +28,8 @@ const ICON = {
 
 /**
  * Cohortly brand mark.
- * - wordmark: full logo (C + Cohortly) — navbar, footer, auth, landing
- * - icon: mark only — favicon companion, compact UI
- *
- * Assets ship with a dark plate; we keep a matching rounded plate so they
- * read cleanly on the light page background.
+ * - wordmark: full logo — navbar, footer, auth, landing
+ * - icon: mark only — favicon companion, compact mobile nav
  */
 export function BrandLogo({
   href = "/",
@@ -46,31 +44,31 @@ export function BrandLogo({
   const alt = "Cohortly";
 
   const image = (
-    <span
-      className={`inline-flex items-center justify-center overflow-hidden rounded-lg bg-black shadow-sm ring-1 ring-black/10 ${className}`}
-      style={{
-        height: dims.height,
-        width: dims.width,
-      }}
-    >
-      <Image
-        src={src}
-        alt={alt}
-        width={dims.width}
-        height={dims.height}
-        priority={priority}
-        className="h-full w-full object-contain"
-      />
-    </span>
+    <Image
+      src={src}
+      alt={alt}
+      width={dims.width}
+      height={dims.height}
+      priority={priority}
+      className={`h-auto w-auto object-contain ${className}`}
+      style={{ height: dims.height, width: "auto", maxWidth: dims.width }}
+    />
   );
 
-  if (href == null) return image;
+  if (href == null) {
+    return (
+      <span className="inline-flex shrink-0 items-center" style={{ height: dims.height }}>
+        {image}
+      </span>
+    );
+  }
 
   return (
     <Link
       href={href}
-      className="inline-flex shrink-0 rounded-lg transition hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
+      className="inline-flex shrink-0 items-center rounded-md transition hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
       aria-label="Cohortly home"
+      style={{ height: dims.height }}
     >
       {image}
     </Link>

@@ -7,24 +7,18 @@ const PILLARS = [
   {
     href: "/mentors",
     title: "Mentors",
-    blurb: "Get guidance from seniors who have been there.",
+    blurb: "Guidance from seniors who've been there.",
   },
   {
     href: "/referrals",
     title: "Referrals",
-    blurb: "Ask for intros when you are ready to apply.",
+    blurb: "Intros when you're ready to apply.",
   },
   {
     href: "/opportunities",
     title: "Opportunities",
-    blurb: "See roles and openings shared by your network.",
+    blurb: "Roles shared by your network.",
   },
-] as const;
-
-const STEPS = [
-  { title: "Ask", blurb: "Share what you need â€” advice, a referral, or a role." },
-  { title: "Match", blurb: "Find people from your college who can help." },
-  { title: "Answer", blurb: "Connect, follow up, and move forward." },
 ] as const;
 
 const focusRing =
@@ -47,7 +41,7 @@ export default async function Home() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#d8f3ee_0%,_transparent_55%),radial-gradient(ellipse_at_bottom_right,_#e8eefc_0%,_transparent_45%)]"
       />
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-3xl px-4 py-12 sm:px-5 sm:py-16">
+      <main className="relative z-10 mx-auto flex w-full min-w-0 max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:px-5 sm:py-14">
         {/* Hero */}
         <section className="flex flex-col items-center text-center">
           <h1 className="sr-only">Cohortly</h1>
@@ -57,88 +51,40 @@ export default async function Home() {
           <p className="mt-4 max-w-md text-base text-[var(--muted)] sm:text-lg">
             Your college network for mentorship, referrals, and advice.
           </p>
-          <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-            A private space to ask for help and give it back within your college.
-          </p>
-          <div className="mt-8 flex w-full min-w-0 max-w-xs flex-col items-center gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+          <div className="mt-7 flex w-full min-w-0 max-w-xs justify-center sm:max-w-none">
             <Link href="/auth" className={`btn-primary w-full sm:w-auto ${focusRing}`}>
               Get started
             </Link>
-            <a
-              href="#how-it-works"
-              className={`rounded-sm text-sm font-semibold text-[var(--brand)] underline-offset-4 transition hover:underline ${focusRing}`}
-            >
-              Learn more
-            </a>
           </div>
         </section>
 
-        {/* Pillars */}
+        {/* Compact pillars */}
         <section
           aria-label="What you can do"
-          className="mt-16 border-t border-teal-900/10 pt-12 sm:mt-20 sm:pt-14"
+          className="mt-12 border-t border-teal-900/10 pt-8 sm:mt-14 sm:pt-10"
         >
-          <ul className="grid min-w-0 grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-0">
+          <ul className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
             {PILLARS.map((pillar, i) => (
               <li
                 key={pillar.href}
-                className={`min-w-0 text-center sm:px-5 ${
-                  i > 0 ? "border-t border-teal-900/10 pt-8 sm:border-t-0 sm:border-l sm:pt-0" : ""
+                className={`min-w-0 text-center sm:px-4 ${
+                  i > 0 ? "border-t border-teal-900/10 pt-6 sm:border-t-0 sm:border-l sm:pt-0" : ""
                 }`}
               >
                 <Link
                   href={pillar.href}
                   className={`group inline-flex flex-col items-center rounded-sm ${focusRing}`}
                 >
-                  <span className="font-[family-name:var(--font-display)] text-lg font-bold text-slate-800 transition group-hover:text-[var(--brand)]">
+                  <span className="font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition group-hover:text-[var(--brand)] sm:text-lg">
                     {pillar.title}
                   </span>
-                  <span className="mt-1.5 max-w-[16rem] text-sm leading-relaxed text-[var(--muted)]">
+                  <span className="mt-1 max-w-[14rem] text-sm leading-snug text-[var(--muted)]">
                     {pillar.blurb}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
-        </section>
-
-        {/* How it works */}
-        <section
-          id="how-it-works"
-          aria-labelledby="how-heading"
-          className="mt-16 scroll-mt-8 border-t border-teal-900/10 pt-12 sm:mt-20 sm:pt-14"
-        >
-          <h2
-            id="how-heading"
-            className="text-center font-[family-name:var(--font-display)] text-xl font-bold text-slate-800 sm:text-2xl"
-          >
-            How it works
-          </h2>
-          <ol className="mt-8 grid min-w-0 grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6">
-            {STEPS.map((step, i) => (
-              <li key={step.title} className="min-w-0 text-center">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  Step {i + 1}
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-display)] text-lg font-bold text-slate-800">{step.title}</p>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{step.blurb}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* Final CTA */}
-        <section className="mt-16 border-t border-teal-900/10 pt-12 text-center sm:mt-20 sm:pt-14">
-          <p className="text-base text-[var(--muted)] sm:text-lg">
-            Ready to join your college network?
-          </p>
-          <p className="mt-1 text-sm text-[var(--muted)]">Built by students, for students.</p>
-          <Link
-            href="/auth"
-            className={`btn-primary mt-6 inline-flex w-full max-w-xs sm:w-auto ${focusRing}`}
-          >
-            Get started
-          </Link>
         </section>
       </main>
     </div>

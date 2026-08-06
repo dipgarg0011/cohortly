@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ContentPage, ContentSection } from "@/components/content-page";
 
 export const metadata: Metadata = {
   title: "Terms of Use · Cohortly",
   description:
-    "Who may join Cohortly, expected conduct, and the limits of the platform.",
+    "Who may use Cohortly, how we expect people to behave, and what the platform does and does not promise.",
 };
 
 const TOC = [
@@ -12,14 +13,15 @@ const TOC = [
   { id: "eligibility", label: "Eligibility" },
   { id: "acceptable-use", label: "Acceptable use" },
   { id: "prohibited", label: "Prohibited conduct" },
-  { id: "voluntary-help", label: "Voluntary referrals and mentorship" },
+  { id: "voluntary", label: "Voluntary referrals and mentorship" },
   { id: "opportunities", label: "Unverified opportunities" },
   { id: "content-licence", label: "Your content and licence" },
   { id: "suspension", label: "Suspension and removal" },
   { id: "disclaimers", label: "Disclaimers" },
   { id: "liability", label: "Limitation of liability" },
   { id: "governing-law", label: "Governing law" },
-  { id: "changes-contact", label: "Changes and contact" },
+  { id: "changes", label: "Changes to these terms" },
+  { id: "contact", label: "Contact" },
 ] as const;
 
 export default function TermsPage() {
@@ -27,7 +29,7 @@ export default function TermsPage() {
     <ContentPage
       title="Terms of Use"
       description="These terms explain who may use Cohortly, how we expect people to behave, and what the platform does and does not promise. By creating an account or using the service, you agree to them."
-      lastUpdated="August 5, 2026"
+      lastUpdated="August 6, 2026"
       toc={[...TOC]}
     >
       <ContentSection
@@ -36,78 +38,56 @@ export default function TermsPage() {
         title="Acceptance of these terms"
       >
         <p>
-          By signing up for or using Cohortly, you agree to these Terms of Use
-          and to our{" "}
-          <a href="/privacy">Privacy Policy</a> and{" "}
-          <a href="/guidelines">Community Guidelines</a>. If you do not agree,
-          do not use the service.
+          By creating a Cohortly account or using any part of the service, you
+          agree to these Terms of Use and our{" "}
+          <Link href="/privacy">Privacy Policy</Link>. If you do not agree, do
+          not use Cohortly.
         </p>
       </ContentSection>
 
       <ContentSection id="eligibility" number={2} title="Eligibility">
         <p>
-          Cohortly is for current students and graduates of your college who can
-          verify with a college email address. Access is limited so the network
-          stays a trusted campus community rather than an open public forum.
-        </p>
-        <p>
-          You must provide accurate information when you create your profile and
-          keep it reasonably up to date. You are responsible for activity under
-          your account.
+          Cohortly is available to current students and graduates of
+          participating colleges, verified through a college email or another
+          verification method we may offer. You must provide accurate
+          affiliation, batch, and status information. Accounts with false
+          affiliation information may be suspended.
         </p>
       </ContentSection>
 
       <ContentSection id="acceptable-use" number={3} title="Acceptable use">
         <p>
-          Use Cohortly to connect with people from your college, ask for advice,
-          offer help when you can, share opportunities you can stand behind, and
-          treat other members with respect. Follow the Community Guidelines —
-          they are part of how we expect the product to be used.
+          You agree to use Cohortly to build genuine professional and mentorship
+          connections within your college community, using messaging, mentorship
+          requests, referral requests, and opportunity postings for their
+          intended purpose.
         </p>
       </ContentSection>
 
       <ContentSection id="prohibited" number={4} title="Prohibited conduct">
-        <p>You agree not to:</p>
-        <ul>
-          <li>
-            Harass, threaten, discriminate against, or spam other members
-          </li>
-          <li>
-            Misrepresent who you are, your college affiliation, or your role
-          </li>
-          <li>
-            Share someone else&apos;s resume, contact details, or private
-            messages without their clear permission
-          </li>
-          <li>
-            Scrape, bulk-export, or misuse the directory for cold outreach
-            outside the product&apos;s purpose
-          </li>
-          <li>
-            Post malware, phishing links, or knowingly false opportunity
-            listings
-          </li>
-          <li>
-            Attempt to bypass access controls or interfere with the service
-          </li>
-        </ul>
+        <p>
+          Don&apos;t: impersonate another person or misrepresent
+          affiliation/batch/employment; harass, spam, or repeatedly message
+          members unsolicited; solicit payment for referrals, mentorship, or job
+          placement; post fraudulent or misleading opportunities; scrape or
+          redistribute other members&apos; data; bypass verification,
+          rate-limiting, or safety features. We may suspend or remove violating
+          accounts.
+        </p>
       </ContentSection>
 
       <ContentSection
-        id="voluntary-help"
+        id="voluntary"
         number={5}
         title="Voluntary referrals and mentorship"
       >
         <p>
-          Mentorship, referrals, introductions, and advice on Cohortly are
-          voluntary. Nobody is required to accept a request, write a referral,
-          sit on a call, or guarantee an interview or job. A polite &quot;no&quot;
-          or silence after a fair window is a valid outcome.
-        </p>
-        <p>
-          Do not pressure, guilt, or repeatedly chase someone who has declined
-          or not responded. Helpers may pause mentorship or limit how they show
-          up in the product; respect those boundaries.
+          Referrals, advice, and introductions are given voluntarily by
+          individual members at their own discretion. Cohortly does not
+          guarantee any request will be answered or matched, and is not a party
+          to resulting hiring decisions, referral outcomes, or mentorship
+          relationships. Members are responsible for their own conduct and
+          commitments.
         </p>
       </ContentSection>
 
@@ -117,14 +97,10 @@ export default function TermsPage() {
         title="Unverified opportunities"
       >
         <p>
-          Cohortly does not vet job postings, internship listings, or other
-          opportunities shared by members. Treat them as leads from peers.
-          Verify employers, roles, and links yourself before you apply, share
-          personal information, or make decisions based on them.
-        </p>
-        <p>
-          Cohortly is not an employer, recruiter, or placement agency, and does
-          not guarantee that any listing is accurate, open, or lawful.
+          Opportunities are shared by individual members and are not verified or
+          endorsed by Cohortly. We encourage members to confirm details directly
+          with the posting company before applying. Cohortly is not responsible
+          for the accuracy of member-posted listings.
         </p>
       </ContentSection>
 
@@ -134,83 +110,70 @@ export default function TermsPage() {
         title="Your content and licence"
       >
         <p>
-          You keep ownership of the content you post — profile text, asks,
-          messages, opportunity listings, and files you upload. You are
-          responsible for having the rights to share that content.
-        </p>
-        <p>
-          By posting on Cohortly, you grant us a limited licence to host, store,
-          display, and transmit that content as needed to operate the service
-          for members of your college (for example showing your profile in the
-          directory or delivering a message you send). We do not claim ownership
-          of your content, and we will not sell it as a standalone product.
+          You retain ownership of content you post. By posting, you grant
+          Cohortly a limited licence to display, store, and transmit that
+          content as needed to operate the service. This licence ends when you
+          delete the content or your account, subject to the retention terms in
+          the Privacy Policy.
         </p>
       </ContentSection>
 
-      <ContentSection id="suspension" number={8} title="Suspension and removal">
+      <ContentSection
+        id="suspension"
+        number={8}
+        title="Suspension and removal"
+      >
         <p>
-          We may suspend, limit, or remove accounts that misuse the platform,
-          violate these terms or the Community Guidelines, or put other members
-          at risk. We may also remove content that appears harmful, unlawful, or
-          misleading.
-        </p>
-        <p>
-          Serious abuse may be reported to relevant authorities when
-          appropriate. If you believe an action on your account was a mistake,
-          email{" "}
+          We may suspend or terminate accounts that violate these terms, pose a
+          safety risk, or were created with false information, and will notify
+          the affected member where practical. Members can request deletion of
+          their own account anytime via{" "}
           <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>.
         </p>
       </ContentSection>
 
       <ContentSection id="disclaimers" number={9} title="Disclaimers">
         <p>
-          Cohortly is provided on an &quot;as is&quot; and &quot;as
-          available&quot; basis. We do not warrant that the service will be
-          uninterrupted, error-free, or that mentorship, referrals, or
-          opportunities will lead to any particular outcome.
-        </p>
-        <p>
-          Member profiles, advice, and listings come from other people. Use your
-          judgment. We are not responsible for offline interactions you arrange
-          through the platform.
+          Cohortly is provided &quot;as is.&quot; We do not guarantee
+          uninterrupted or error-free service, or any particular mentorship,
+          referral, or opportunity outcome. Cohortly facilitates connections
+          between members — it does not employ, endorse, or vouch for any
+          member, mentor, referrer, or opportunity poster.
         </p>
       </ContentSection>
 
-      <ContentSection id="liability" number={10} title="Limitation of liability">
+      <ContentSection
+        id="liability"
+        number={10}
+        title="Limitation of liability"
+      >
         <p>
-          To the fullest extent permitted by law, Cohortly and its builders are
-          not liable for direct, indirect, incidental, special, consequential,
-          or punitive damages arising from your use of the service, including
-          outcomes of mentorship, referrals, hiring decisions, or interactions
-          between members.
-        </p>
-        <p>
-          Some jurisdictions do not allow certain limitations; in those cases,
-          our liability is limited to the maximum extent the law allows.
+          To the fullest extent permitted by law, Cohortly and its founder are
+          not liable for indirect, incidental, or consequential damages arising
+          from use of the service, including outcomes of mentorship advice,
+          referrals, or opportunities shared through the platform.
         </p>
       </ContentSection>
 
       <ContentSection id="governing-law" number={11} title="Governing law">
         <p>
-          These terms are governed by the laws of India, without regard to
-          conflict-of-law rules. Courts in India shall have jurisdiction over
-          disputes arising from these terms or your use of Cohortly, subject to
-          any mandatory consumer protections that apply to you.
+          These terms are governed by the laws of India. Disputes are subject to
+          the jurisdiction of the courts of India.
         </p>
       </ContentSection>
 
       <ContentSection
-        id="changes-contact"
+        id="changes"
         number={12}
-        title="Changes and contact"
+        title="Changes to these terms"
       >
         <p>
-          We may update these terms as the product evolves. When we make
-          material changes, we will update the &quot;Last updated&quot; date on
-          this page and, when practical, notify members through the product or
-          email. Continued use after an update means you accept the revised
-          terms.
+          We may update these terms as Cohortly grows. Continued use after
+          changes take effect constitutes acceptance.
         </p>
+      </ContentSection>
+
+      <ContentSection id="contact" number={13} title="Contact">
         <p>
           Questions about these terms:{" "}
           <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>.

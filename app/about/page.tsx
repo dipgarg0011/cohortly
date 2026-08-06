@@ -5,7 +5,7 @@ import { ContentPage, ContentSection } from "@/components/content-page";
 export const metadata: Metadata = {
   title: "About · Cohortly",
   description:
-    "What Cohortly is, why it exists, and who built this private network for your college.",
+    "A private college network so students and graduates at your college can find mentors, referrals, and opportunities.",
 };
 
 export default function AboutPage() {
@@ -13,6 +13,7 @@ export default function AboutPage() {
     <ContentPage
       title="About Cohortly"
       description="A private college network so students and graduates at your college can find mentors, referrals, and opportunities among people who already share a campus."
+      showBackToTop={false}
     >
       <ContentSection id="the-problem" title="The problem">
         <p>
@@ -33,54 +34,34 @@ export default function AboutPage() {
         <p>
           Cohortly puts your college network in one place. Inside, verified
           students and graduates can browse people from the same college, ask
-          mentors for advice, request referrals, and discover opportunities
-          posted by alumni and peers.
+          mentors for advice, request referrals from alumni at companies
+          they&apos;re targeting, and post or apply to opportunities shared by
+          people they actually have something in common with.
         </p>
         <p>
-          The point is not another public social network. It is a smaller,
-          trusted room where asking for help feels normal — and where saying no
-          is also normal.
+          Everything is scoped to your college. Nobody outside your verified
+          network can see your profile, your requests, or your messages.
         </p>
       </ContentSection>
 
-      <ContentSection id="for-students" title="For students">
-        <p>
-          Find seniors and graduates who have been where you are. Ask a clear
-          question, request a resume read or referral when someone is open to
-          it, and browse opportunities shared by people from your college.
-        </p>
-        <p>
-          You do not need a huge following or a perfect profile — just a college
-          email and a specific ask.
-        </p>
-      </ContentSection>
-
-      <ContentSection id="for-graduates" title="For graduates">
-        <p>
-          Help when you have capacity. Cohortly is built so you control your
-          time: set what you are open to, pause mentorship when life gets busy,
-          and respond only to asks that fit.
-        </p>
-        <p>
-          You are never required to take a call, write a referral, or guarantee
-          an outcome. A short, honest reply — or a pass — keeps the network
-          healthy for the next student.
-        </p>
-      </ContentSection>
-
-      <ContentSection
-        id="college-email-only"
-        title="Why college-email-only"
-      >
-        <p>
-          Access is limited to verified college email addresses so the directory
-          stays a real campus community — not recruiters, bots, or strangers
-          scraping resumes.
-        </p>
-        <p>
-          That constraint is intentional. Trust drops the moment anyone can join.
-          College email is a simple gate that keeps Cohortly useful.
-        </p>
+      <ContentSection id="how-it-works" title="How it works">
+        <ul>
+          <li>
+            <span className="font-semibold text-slate-800">Mentors</span> —
+            post what you need help with, and Cohortly routes it to graduates
+            who are the best fit, instead of you cold-messaging a directory.
+          </li>
+          <li>
+            <span className="font-semibold text-slate-800">Referrals</span> —
+            ask someone at a company you&apos;re targeting, with visibility that
+            opens up gradually so requests don&apos;t sit unseen.
+          </li>
+          <li>
+            <span className="font-semibold text-slate-800">Opportunities</span>{" "}
+            — anyone who hears about an opening can share it, and applicants get
+            a real conversation instead of a black-box form.
+          </li>
+        </ul>
       </ContentSection>
 
       <ContentSection id="who-built-it" title="Who built it">

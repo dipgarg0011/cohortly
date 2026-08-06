@@ -42,7 +42,7 @@ import {
   normalizeMatchedAsk,
   type MentorshipRequest,
 } from "@/lib/mentorship";
-import { buildNeedsYouItems } from "@/lib/dashboard-needs";
+import { buildNeedsYouItems, NEEDS_BUBBLE_DETAIL_CAP } from "@/lib/dashboard-needs";
 import {
   buildWorthALookItems,
   needExclusionSet,
@@ -75,6 +75,7 @@ export default async function DashboardPage() {
     { data: matchedAskRows },
     { data: openReferralRows },
     { data: acceptedReferralRows },
+    { data: referralDismissalRows },
     { data: applicationRows },
     { data: communityRows },
     { data: mentorAvailability },
@@ -114,6 +115,10 @@ export default async function DashboardPage() {
       .is("referred_at", null)
       .order("accepted_at", { ascending: true })
       .limit(10),
+    supabase
+      .from("referral_dismissals")
+      .select("request_id")
+      .eq("user_id", user.id),
     supabase
       .from("opportunity_applications")
       .select(
@@ -202,6 +207,11 @@ export default async function DashboardPage() {
   const acceptedReferrals = (
     (acceptedReferralRows ?? []) as Record<string, unknown>[]
   ).map((row) => normalizeReferralRequest(row));
+  const dismissedReferralIds = new Set(
+    ((referralDismissalRows ?? []) as { request_id: string }[]).map(
+      (row) => row.request_id,
+    ),
+  );
   const pendingApplications = (
     (applicationRows ?? []) as Record<string, unknown>[]
   ).map((row) => normalizeApplication(row));
@@ -216,6 +226,8 @@ export default async function DashboardPage() {
     matchedAsks,
     openReferrals,
     pendingApplications,
+    dismissedReferralIds,
+    viewerCompany: profile?.company ?? null,
   });
 
   const recentOpportunities = (opportunityRows ?? []).map((row) =>
@@ -228,7 +240,7 @@ export default async function DashboardPage() {
     skills: profile?.skills ?? null,
     company: profile?.company ?? null,
     batchYear: profile?.batch_year ?? null,
-    needsIds: needExclusionSet(needItems.slice(0, 5)),
+    needsIds: needExclusionSet(needItems.slice(0, NEEDS_BUBBLE_DETAIL_CAP)),
     recentOpportunities,
     openReferrals,
     openMentorshipAsks,

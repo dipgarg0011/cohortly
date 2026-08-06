@@ -4,8 +4,14 @@ import { formatRelativeTime } from "@/lib/format-time";
 import type { Message } from "@/lib/messages";
 import { otherPartyId } from "@/lib/messages";
 import type { MatchedAsk } from "@/lib/mentorship";
-import type { ReferralRequest } from "@/lib/referrals";
+import {
+  normalizeCompanyName,
+  type ReferralRequest,
+} from "@/lib/referrals";
 import type { OpportunityApplication } from "@/lib/opportunities";
+
+/** Max detail rows shown when the bubble is expanded. */
+export const NEEDS_BUBBLE_DETAIL_CAP = 4;
 
 export type NeedType =
   | "connection"
@@ -141,6 +147,17 @@ function sortNeeds(items: NeedItem[]): NeedItem[] {
   });
 }
 
+function referralMatchesViewerCompany(
+  ref: ReferralRequest,
+  viewerCompanyNorm: string,
+): boolean {
+  if (!viewerCompanyNorm) return false;
+  const target =
+    ref.target_company_normalized?.trim() ||
+    normalizeCompanyName(ref.company);
+  return Boolean(target) && target === viewerCompanyNorm;
+}
+
 /**
  * Build actionable "Needs you" items — only where someone is blocked on this user.
  * Excludes profile nudges, suggested people, and self-followups.
@@ -153,6 +170,10 @@ export function buildNeedsYouItems(input: {
   matchedAsks: MatchedAsk[];
   openReferrals: ReferralRequest[];
   pendingApplications: OpportunityApplication[];
+  /** Dismissed open asks — never surface again in the bubble. */
+  dismissedReferralIds?: Set<string> | ReadonlySet<string>;
+  /** Viewer company — open referral asks only count when they match. */
+  viewerCompany?: string | null;
   /** @deprecated Ignored — self follow-ups are noise, not blockers on this user. */
   acceptedReferrals?: ReferralRequest[];
   now?: Date;
@@ -165,9 +186,12 @@ export function buildNeedsYouItems(input: {
     matchedAsks,
     openReferrals,
     pendingApplications,
+    dismissedReferralIds,
+    viewerCompany,
     now: nowDate = new Date(),
   } = input;
   const now = nowDate.getTime();
+  const viewerCompanyNorm = normalizeCompanyName(viewerCompany);
 
   const items: NeedItem[] = [];
   const seen = new Set<string>();
@@ -183,6 +207,9 @@ export function buildNeedsYouItems(input: {
   for (const ref of openReferrals) {
     if (ref.student_id === currentUserId) continue;
     if (ref.status !== "open") continue;
+    if (dismissedReferralIds?.has(ref.id)) continue;
+    // High-signal only: company-matched asks, not every open referral in view.
+    if (!referralMatchesViewerCompany(ref, viewerCompanyNorm)) continue;
     const name = firstName(ref.student?.full_name);
     const company = ref.company?.trim() || "a company";
     const deadline = ref.deadline;
@@ -330,6 +357,23 @@ export function waitedLabel(iso: string, now = new Date()): string {
 export function needsCountLabel(count: number): string {
   if (count === 1) return "1 thing needs you";
   return `${count} things need you`;
+}
+
+/**
+ * Collapsed bubble copy: single item uses its text; otherwise count,
+ * optionally hinting the top urgent row.
+ */
+export function needsBubbleSummary(items: NeedItem[]): string {
+  if (items.length === 0) return needsCountLabel(0);
+  if (items.length === 1) {
+    const only = items[0]!;
+    return only.text.trim() || needsCountLabel(1);
+  }
+  const urgent = items.find((i) => i.urgent);
+  if (urgent?.text.trim()) {
+    return `${items.length} need you · ${urgent.text.trim()}`;
+  }
+  return needsCountLabel(items.length);
 }
 
 export function seeAllHrefForNeeds(items: NeedItem[]): string {

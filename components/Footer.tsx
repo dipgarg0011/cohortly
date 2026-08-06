@@ -90,12 +90,18 @@ export function Footer() {
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Get in touch
             </h2>
-            <div className="mt-2.5">
+            <div className="mt-2.5 flex flex-col items-start gap-0.5">
               <a
                 href="mailto:cohortly.in@gmail.com"
                 className={`${linkClass} break-safe`}
               >
                 cohortly.in@gmail.com
+              </a>
+              <a
+                href="mailto:cohortly.in@gmail.com?subject=Feedback%20for%20Cohortly"
+                className={linkClass}
+              >
+                Suggest an improvement
               </a>
             </div>
           </div>

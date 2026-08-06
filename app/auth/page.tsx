@@ -9,6 +9,7 @@ import {
   COLLEGE_EMAIL_ERROR,
   isCollegeEmail,
 } from "@/lib/college";
+import { BrandLogo } from "@/components/brand-logo";
 import { ProfileStatusField } from "@/components/profile-status-field";
 import {
   suggestedProfileStatus,
@@ -215,12 +216,9 @@ function AuthForm() {
   return (
     <AuthShell>
       <div className="mb-8 text-center">
-        <Link
-          href="/"
-          className="inline-block rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98] sm:text-5xl"
-        >
-          Cohortly
-        </Link>
+        <div className="flex justify-center">
+          <BrandLogo href="/" variant="wordmark" size="hero" priority />
+        </div>
         <p className="mt-3 text-base text-[var(--muted)]">
           Connect with your college batch — mentors, seniors, and friends.
         </p>

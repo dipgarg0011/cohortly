@@ -1,62 +1,61 @@
 import type { Metadata } from "next";
-import { ContentPage, ContentSection } from "@/components/content-page";
+import { ContentPage } from "@/components/content-page";
 
 export const metadata: Metadata = {
   title: "Contact · Cohortly",
   description:
-    "Reach the Cohortly team for support, data deletion, reporting misuse, or partnership.",
+    "Questions, feedback, bug reports, or interested in bringing Cohortly to your college.",
 };
+
+const MAILTO_LINKS = [
+  {
+    href: "mailto:cohortly.in@gmail.com?subject=Bug%20report",
+    label: "Something not working? Tell us what happened.",
+  },
+  {
+    href: "mailto:cohortly.in@gmail.com?subject=New%20college%20interest",
+    label: "Want to bring Cohortly to your college?",
+  },
+  {
+    href: "mailto:cohortly.in@gmail.com?subject=Safety%20report",
+    label: "Safety concern about another member?",
+  },
+] as const;
 
 export default function ContactPage() {
   return (
     <ContentPage
-      title="Contact"
-      description="We read every message. Tell us what you need and we will get back to you."
+      title="Contact Cohortly"
+      description="Questions, feedback, bug reports, or interested in bringing Cohortly to your college? We read every message."
       showBackToTop={false}
     >
-      <ContentSection id="email" title="Email">
-        <p>
-          Write to{" "}
-          <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>.
-          That is the best way to reach us for support, privacy requests, and
-          campus partnerships.
+      <div className="mx-auto max-w-xl text-center sm:text-left">
+        <p className="text-base leading-relaxed text-slate-700 sm:text-[1.05rem]">
+          Email:{" "}
+          <a
+            href="mailto:cohortly.in@gmail.com"
+            className="font-semibold text-[var(--brand)] hover:text-[var(--brand-dark)] hover:underline"
+          >
+            cohortly.in@gmail.com
+          </a>
         </p>
-      </ContentSection>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
+          We typically respond within 2–3 days.
+        </p>
 
-      <ContentSection id="what-to-write" title="What to write about">
-        <ul>
-          <li>
-            <span className="font-semibold text-slate-800">Support</span> —
-            account access, bugs, or something that looks broken
-          </li>
-          <li>
-            <span className="font-semibold text-slate-800">Data deletion</span> —
-            request to delete your account and associated data (use the email on
-            your account)
-          </li>
-          <li>
-            <span className="font-semibold text-slate-800">Reporting misuse</span>{" "}
-            — spam, harassment, fake profiles, or anything that feels off
-          </li>
-          <li>
-            <span className="font-semibold text-slate-800">Partnership</span> —
-            bring Cohortly to your college, alumni groups, or campus
-            collaborations
-          </li>
+        <ul className="mt-8 space-y-3 text-left">
+          {MAILTO_LINKS.map(({ href, label }) => (
+            <li key={href}>
+              <a
+                href={href}
+                className="text-sm font-semibold text-[var(--brand)] transition hover:text-[var(--brand-dark)] hover:underline sm:text-[0.95rem]"
+              >
+                {label}
+              </a>
+            </li>
+          ))}
         </ul>
-        <p>
-          Include enough context for us to help — what you were trying to do,
-          the college email on the account if relevant, and screenshots when
-          they clarify a bug.
-        </p>
-      </ContentSection>
-
-      <ContentSection id="response-time" title="Expected response time">
-        <p>
-          We usually reply within 2–3 business days. Urgent safety or misuse
-          reports are prioritised as soon as we see them.
-        </p>
-      </ContentSection>
+      </div>
     </ContentPage>
   );
 }

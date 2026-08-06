@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { BackToTopButton } from "@/components/back-to-top";
 
 export type TocItem = {
@@ -63,12 +63,7 @@ export function ContentPage({
             hasToc ? "max-w-6xl" : "max-w-4xl"
           }`}
         >
-          <Link
-            href="/"
-            className="rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] sm:text-xl"
-          >
-            Cohortly
-          </Link>
+          <BrandLogo href="/" variant="wordmark" size="sm" />
         </div>
       </header>
 

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ProfilePreviewProvider } from "@/components/profile-preview";
-import { SiteFooter } from "@/components/site-footer";
+import { Footer } from "@/components/Footer";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -11,7 +11,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <div className="flex w-full min-h-0 min-w-0 flex-1 flex-col">
           {children}
         </div>
-        <SiteFooter />
+        <Footer />
       </div>
     </ProfilePreviewProvider>
   );

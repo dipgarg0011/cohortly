@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/network";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   IconBriefcase,
   IconHome,
@@ -138,9 +139,14 @@ export function Navbar() {
       <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
         <Link
           href={userId ? "/dashboard" : "/"}
-          className="relative z-10 min-w-0 shrink-0 truncate rounded-lg px-1 py-0.5 font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--brand)] transition hover:bg-teal-50 hover:text-[var(--brand-dark)] active:scale-[0.98] sm:text-xl"
+          className="relative z-10 min-w-0 shrink-0"
         >
-          Cohortly
+          <span className="sm:hidden">
+            <BrandLogo href={null} variant="icon" size="sm" />
+          </span>
+          <span className="hidden sm:inline-flex">
+            <BrandLogo href={null} variant="wordmark" size="sm" />
+          </span>
         </Link>
 
         <nav

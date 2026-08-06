@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
+import { isCanonicalShortCode } from "@/lib/departments";
 import {
   OPEN_TO_OPTIONS,
   SKILL_OPTIONS,
@@ -85,6 +87,13 @@ export function ProfileForm({ initialProfile }: Props) {
       return;
     }
 
+    const deptCode = department.trim();
+    if (deptCode && !isCanonicalShortCode(deptCode)) {
+      setError("Select your department from the list.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
     const {
       data: { user },
@@ -106,7 +115,7 @@ export function ProfileForm({ initialProfile }: Props) {
       full_name: fullName.trim(),
       batch_year: year,
       status,
-      department: department.trim() || null,
+      department: deptCode || null,
       company: company.trim() || null,
       past_companies,
       role_title: roleTitle.trim() || null,
@@ -164,13 +173,19 @@ export function ProfileForm({ initialProfile }: Props) {
               Batch year is your graduation year.
             </p>
           </div>
-          <Field
-            label="Department"
-            id="department"
-            value={department}
-            onChange={setDepartment}
-            placeholder="CSE"
-          />
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Department
+            </span>
+            <DepartmentSelect
+              id="department"
+              name="department"
+              value={department}
+              onChange={setDepartment}
+              fetchFromDb
+              allowEmpty
+            />
+          </label>
           <div className="sm:col-span-2">
             <ProfileStatusField
               value={status}

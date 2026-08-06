@@ -19,6 +19,11 @@ import {
   type ConversationRow,
 } from "@/lib/conversations";
 import {
+  FALLBACK_DEPARTMENTS,
+  formatDepartmentLabel,
+  formatDepartmentDisplay,
+} from "@/lib/departments";
+import {
   getProfileRole,
   OPEN_TO_OPTIONS,
   SKILL_OPTIONS,
@@ -115,14 +120,7 @@ export function NetworkDirectory({
     return Array.from(years).sort((a, b) => b - a);
   }, [others, batchYear]);
 
-  const departments = useMemo(() => {
-    const deps = new Set<string>();
-    for (const p of others) {
-      if (p.department?.trim()) deps.add(p.department.trim());
-    }
-    if (department !== "all") deps.add(department);
-    return Array.from(deps).sort((a, b) => a.localeCompare(b));
-  }, [others, department]);
+  const departments = FALLBACK_DEPARTMENTS;
 
   const skillOptions = useMemo(() => {
     const fromProfiles = new Set<string>(SKILL_OPTIONS);
@@ -239,7 +237,7 @@ export function NetworkDirectory({
   if (department !== "all") {
     activeChips.push({
       key: "dept",
-      label: department,
+      label: formatDepartmentDisplay(department),
       onClear: () => setDepartment("all"),
     });
   }
@@ -317,8 +315,8 @@ export function NetworkDirectory({
           >
             <option value="all">All departments</option>
             {departments.map((dep) => (
-              <option key={dep} value={dep}>
-                {dep}
+              <option key={dep.short_code} value={dep.short_code}>
+                {formatDepartmentLabel(dep)}
               </option>
             ))}
           </FilterSelect>

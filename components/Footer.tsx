@@ -19,7 +19,7 @@ const COMPANY_LINKS = [
 ] as const;
 
 const linkClass =
-  "text-sm text-[var(--muted)] transition hover:text-[var(--brand)] hover:underline";
+  "inline-flex min-h-9 items-center text-sm text-[var(--muted)] transition hover:text-[var(--brand)] hover:underline";
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -41,26 +41,26 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto border-t border-teal-900/8 bg-[#e4ebe9]">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
-          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+    <footer className="mt-auto w-full border-t border-teal-900/8 bg-[#e4ebe9]">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-6 sm:gap-x-8 sm:gap-y-8 lg:grid-cols-4 lg:gap-10">
+          <div className="col-span-2 min-w-0 lg:col-span-1">
             <BrandLogo href="/" variant="wordmark" size="lg" />
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
+            <p className="mt-2.5 max-w-sm text-sm leading-relaxed text-[var(--muted)]">
               A private network for students and graduates at your college.
             </p>
-            <p className="mt-3 text-sm text-[var(--muted)]">
+            <p className="mt-1.5 text-sm text-[var(--muted)]">
               Made by students, for students.
             </p>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Features
             </h2>
             <nav
               aria-label="Features"
-              className="mt-3 flex flex-col items-start gap-2"
+              className="mt-2.5 flex flex-col items-start gap-0.5"
             >
               {FEATURE_LINKS.map(({ href, label }) => (
                 <Link key={href} href={href} className={linkClass}>
@@ -70,13 +70,13 @@ export function Footer() {
             </nav>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Company
             </h2>
             <nav
               aria-label="Company"
-              className="mt-3 flex flex-col items-start gap-2"
+              className="mt-2.5 flex flex-col items-start gap-0.5"
             >
               {COMPANY_LINKS.map(({ href, label }) => (
                 <Link key={href} href={href} className={linkClass}>
@@ -86,26 +86,29 @@ export function Footer() {
             </nav>
           </div>
 
-          <div>
+          <div className="col-span-2 min-w-0 lg:col-span-1">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Get in touch
             </h2>
-            <div className="mt-3">
-              <a href="mailto:cohortly.in@gmail.com" className={linkClass}>
+            <div className="mt-2.5">
+              <a
+                href="mailto:cohortly.in@gmail.com"
+                className={`${linkClass} break-safe`}
+              >
                 cohortly.in@gmail.com
               </a>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 border-t border-teal-900/8 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-teal-900/8 pt-4 sm:mt-8 sm:pt-5">
           <p className="text-xs text-[var(--muted)] sm:text-sm">
             © {year} Cohortly. All rights reserved.
           </p>
           <button
             type="button"
             onClick={scrollToTop}
-            className="self-start text-xs font-semibold text-[var(--brand)] transition hover:text-[var(--brand-dark)] hover:underline sm:self-auto sm:text-sm"
+            className="min-h-9 text-xs font-semibold text-[var(--brand)] transition hover:text-[var(--brand-dark)] hover:underline sm:text-sm"
           >
             Back to top
           </button>

@@ -57,7 +57,7 @@ export default async function OpportunitiesPage() {
   return (
     <PageShell accent="opportunities">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-6 sm:px-6 sm:py-10">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-4 py-6 sm:px-6 sm:py-10">
         <PageHeader
           accent="opportunities"
           eyebrow="Openings"

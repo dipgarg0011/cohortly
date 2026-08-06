@@ -285,7 +285,7 @@ export function Navbar() {
           className="max-h-[min(70vh,28rem)] overflow-y-auto border-t border-teal-900/8 bg-white px-3 py-3 sm:px-4 lg:hidden"
           aria-label="Mobile"
         >
-          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-1">
             {PRIMARY_LINKS.map(({ href, label, Icon }) => {
               const active =
                 pathname === href || pathname.startsWith(`${href}/`);

@@ -21,6 +21,21 @@ const PILLARS = [
   },
 ] as const;
 
+const STEPS = [
+  {
+    title: "Ask",
+    blurb: "Post a question or what you need help with.",
+  },
+  {
+    title: "Match",
+    blurb: "Get matched with people from your college network.",
+  },
+  {
+    title: "Answer",
+    blurb: "Get advice, intros, or a clear next step.",
+  },
+] as const;
+
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]";
 
@@ -43,7 +58,7 @@ export default async function Home() {
 
       <main className="relative z-10 mx-auto flex w-full min-w-0 max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:px-5 sm:py-14">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center">
+        <section className="flex flex-col items-center text-center animate-fade-up">
           <h1 className="sr-only">Cohortly</h1>
           <div className="flex justify-center">
             <BrandLogo href={null} variant="wordmark" size="hero" priority />
@@ -61,7 +76,7 @@ export default async function Home() {
         {/* Compact pillars */}
         <section
           aria-label="What you can do"
-          className="mt-12 border-t border-teal-900/10 pt-8 sm:mt-14 sm:pt-10"
+          className="mt-12 border-t border-teal-900/10 pt-8 sm:mt-14 sm:pt-10 animate-fade-up"
         >
           <ul className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
             {PILLARS.map((pillar, i) => (
@@ -73,18 +88,48 @@ export default async function Home() {
               >
                 <Link
                   href={pillar.href}
-                  className={`group inline-flex flex-col items-center rounded-sm ${focusRing}`}
+                  className={`group inline-flex flex-col items-center rounded-sm transition-colors ${focusRing}`}
                 >
-                  <span className="font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition group-hover:text-[var(--brand)] sm:text-lg">
+                  <span className="font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition-colors group-hover:text-[var(--brand)] sm:text-lg">
                     {pillar.title}
                   </span>
-                  <span className="mt-1 max-w-[14rem] text-sm leading-snug text-[var(--muted)]">
+                  <span className="mt-1 max-w-[14rem] text-sm leading-snug text-[var(--muted)] transition-colors group-hover:text-slate-600">
                     {pillar.blurb}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
+        </section>
+
+        {/* How it works — Ask → Match → Answer */}
+        <section
+          aria-labelledby="how-it-works-heading"
+          className="mt-10 border-t border-teal-900/10 pt-8 sm:mt-12 sm:pt-9 animate-fade-up"
+        >
+          <h2
+            id="how-it-works-heading"
+            className="text-center font-[family-name:var(--font-display)] text-base font-bold text-slate-800 sm:text-lg"
+          >
+            How it works
+          </h2>
+          <ol className="mt-5 grid min-w-0 grid-cols-1 gap-5 sm:mt-6 sm:grid-cols-3 sm:gap-0">
+            {STEPS.map((step, i) => (
+              <li
+                key={step.title}
+                className={`min-w-0 text-center sm:px-4 ${
+                  i > 0 ? "border-t border-teal-900/10 pt-5 sm:border-t-0 sm:border-l sm:pt-0" : ""
+                }`}
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--brand)]">
+                  {i + 1}. {step.title}
+                </p>
+                <p className="mt-1.5 max-w-[14rem] mx-auto text-sm leading-snug text-[var(--muted)]">
+                  {step.blurb}
+                </p>
+              </li>
+            ))}
+          </ol>
         </section>
       </main>
     </div>

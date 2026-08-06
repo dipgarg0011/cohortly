@@ -45,7 +45,7 @@ export function Footer() {
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <BrandLogo href="/" variant="wordmark" size="md" />
+            <BrandLogo href="/" variant="wordmark" size="lg" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
               A private network for students and graduates at your college.
             </p>

@@ -59,11 +59,11 @@ export function ContentPage({
 
       <header className="relative z-10 border-b border-teal-900/8 bg-white/70 backdrop-blur-xl">
         <div
-          className={`mx-auto flex h-14 w-full items-center px-4 sm:h-16 sm:px-6 ${
+          className={`mx-auto flex h-16 w-full items-center px-4 sm:h-[4.25rem] sm:px-6 ${
             hasToc ? "max-w-6xl" : "max-w-4xl"
           }`}
         >
-          <BrandLogo href="/" variant="wordmark" size="sm" />
+          <BrandLogo href="/" variant="wordmark" size="md" priority />
         </div>
       </header>
 

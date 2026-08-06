@@ -19,7 +19,8 @@ import {
   IconUsers,
 } from "@/components/ui/icons";
 import {
-  needsCountLabel,
+  NEEDS_BUBBLE_DETAIL_CAP,
+  needsBubbleSummary,
   seeAllHrefForNeeds,
   waitedLabel,
   type NeedInlineAction,
@@ -100,8 +101,9 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
   const visible = items.filter((i) => !exitingIds.has(i.id));
   const count = visible.length;
   const hasUrgent = visible.some((i) => i.urgent);
-  const top = visible.slice(0, 5);
+  const top = visible.slice(0, NEEDS_BUBBLE_DETAIL_CAP);
   const seeAll = seeAllHrefForNeeds(top);
+  const summary = needsBubbleSummary(visible);
 
   const collapse = useCallback(() => setExpanded(false), []);
 
@@ -110,8 +112,19 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") collapse();
     }
+    function onPointerDown(e: MouseEvent | PointerEvent) {
+      const root = rootRef.current;
+      if (!root) return;
+      if (e.target instanceof Node && !root.contains(e.target)) {
+        collapse();
+      }
+    }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [expanded, collapse]);
 
   useEffect(() => {
@@ -326,6 +339,7 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
         type="button"
         aria-expanded={expanded}
         aria-controls={panelId}
+        aria-label={expanded ? "Collapse alerts" : `Expand alerts: ${summary}`}
         onClick={() => setExpanded((v) => !v)}
         className={`inline-flex h-9 w-full max-w-full items-center gap-2 rounded-full border px-3 text-left shadow-sm transition-[background-color,border-color,box-shadow] duration-150 sm:w-auto ${
           hasUrgent
@@ -347,8 +361,8 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
         >
           {count}
         </span>
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold sm:flex-none">
-          {needsCountLabel(count)}
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold sm:flex-none sm:max-w-[14rem]">
+          {summary}
         </span>
         {hasUrgent ? (
           <span
@@ -474,7 +488,7 @@ export function DashboardNeedsYou({ items: initialItems, currentUserId }: Props)
                 );
               })}
             </ul>
-            {visible.length > 5 ? (
+            {visible.length > NEEDS_BUBBLE_DETAIL_CAP ? (
               <div className="mt-1 border-t border-teal-900/6 px-1.5 pt-2">
                 <Link
                   href={seeAll}

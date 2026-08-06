@@ -10,7 +10,9 @@ import {
   isCollegeEmail,
 } from "@/lib/college";
 import { BrandLogo } from "@/components/brand-logo";
+import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
+import { isCanonicalShortCode } from "@/lib/departments";
 import {
   suggestedProfileStatus,
   type ProfileStatus,
@@ -156,6 +158,12 @@ function AuthForm() {
         return;
       }
 
+      const deptCode = department.trim();
+      if (!isCanonicalShortCode(deptCode)) {
+        setError("Select your department from the list.");
+        return;
+      }
+
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
           email: trimmedEmail,
@@ -165,7 +173,7 @@ function AuthForm() {
               full_name: fullName.trim(),
               batch_year: year,
               status,
-              department: department.trim(),
+              department: deptCode,
             },
           },
         });
@@ -186,7 +194,7 @@ function AuthForm() {
         full_name: fullName.trim(),
         batch_year: year,
         status,
-        department: department.trim(),
+        department: deptCode,
       });
 
       if (profileError) {
@@ -293,14 +301,18 @@ function AuthForm() {
                   placeholder="2024"
                   required
                 />
-                <Field
-                  label="Department"
-                  id="department"
-                  value={department}
-                  onChange={setDepartment}
-                  placeholder="CSE"
-                  required
-                />
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Department
+                  </span>
+                  <DepartmentSelect
+                    id="department"
+                    name="department"
+                    value={department}
+                    onChange={setDepartment}
+                    required
+                  />
+                </label>
               </div>
               <ProfileStatusField
                 value={status}

@@ -21,7 +21,9 @@ export default async function Home() {
       />
       <main className="relative z-10 mx-auto flex w-full min-w-0 max-w-2xl flex-1 flex-col items-center justify-center overflow-x-clip px-4 py-12 text-center sm:px-5 sm:py-16">
         <h1 className="sr-only">Cohortly</h1>
-        <BrandLogo href={null} variant="wordmark" size="hero" priority />
+        <div className="flex justify-center">
+          <BrandLogo href={null} variant="wordmark" size="hero" priority />
+        </div>
         <p className="mt-4 max-w-md text-base text-[var(--muted)] sm:text-lg">
           Your college network for mentorship, referrals, and advice.
         </p>

@@ -44,7 +44,7 @@ export default async function CompleteProfilePage() {
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-12 sm:px-6">
         <div className="mb-8 text-center">
           <div className="flex justify-center">
-            <BrandLogo href="/dashboard" variant="wordmark" size="lg" priority />
+            <BrandLogo href="/dashboard" variant="wordmark" size="hero" priority />
           </div>
           <h1 className="mt-4 font-[family-name:var(--font-display)] text-2xl font-bold text-slate-900">
             Complete your profile

@@ -11,25 +11,25 @@ type BrandLogoProps = {
   priority?: boolean;
 };
 
-/** Wordmark asset is ~819×304 (~2.7:1) */
+/** Wordmark asset ~819×304 (~2.7:1) — sized to read clearly in chrome */
 const WORDMARK = {
-  sm: { height: 28, width: 76 },
-  md: { height: 32, width: 86 },
-  lg: { height: 40, width: 108 },
-  hero: { height: 56, width: 151 },
+  sm: { height: 36, width: 98 },
+  md: { height: 44, width: 120 },
+  lg: { height: 52, width: 142 },
+  hero: { height: 72, width: 196 },
 } as const;
 
 const ICON = {
-  sm: { height: 28, width: 28 },
-  md: { height: 36, width: 36 },
-  lg: { height: 44, width: 44 },
-  hero: { height: 64, width: 64 },
+  sm: { height: 36, width: 36 },
+  md: { height: 44, width: 44 },
+  lg: { height: 52, width: 52 },
+  hero: { height: 72, width: 72 },
 } as const;
 
 /**
  * Cohortly brand mark.
  * - wordmark: full logo — navbar, footer, auth, landing
- * - icon: mark only — favicon companion, compact mobile nav
+ * - icon: mark only — favicon companion, tight mobile
  */
 export function BrandLogo({
   href = "/",
@@ -41,23 +41,25 @@ export function BrandLogo({
   const dims = variant === "icon" ? ICON[size] : WORDMARK[size];
   const src =
     variant === "icon" ? "/cohortly-icon.png" : "/cohortly-logo.png";
-  const alt = "Cohortly";
 
   const image = (
     <Image
       src={src}
-      alt={alt}
+      alt="Cohortly"
       width={dims.width}
       height={dims.height}
       priority={priority}
-      className={`h-auto w-auto object-contain ${className}`}
-      style={{ height: dims.height, width: "auto", maxWidth: dims.width }}
+      className={`block object-contain object-left ${className}`}
+      style={{ height: dims.height, width: "auto" }}
     />
   );
 
+  const shellClass =
+    "inline-flex shrink-0 items-center justify-center leading-none";
+
   if (href == null) {
     return (
-      <span className="inline-flex shrink-0 items-center" style={{ height: dims.height }}>
+      <span className={shellClass} style={{ height: dims.height }}>
         {image}
       </span>
     );
@@ -66,7 +68,7 @@ export function BrandLogo({
   return (
     <Link
       href={href}
-      className="inline-flex shrink-0 items-center rounded-md transition hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
+      className={`${shellClass} rounded-md transition hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2`}
       aria-label="Cohortly home"
       style={{ height: dims.height }}
     >

@@ -136,17 +136,13 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 overflow-x-clip border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
+      <div className="mx-auto flex h-16 w-full min-w-0 max-w-6xl items-center gap-3 px-3 sm:h-[4.25rem] sm:gap-4 sm:px-6">
         <Link
           href={userId ? "/dashboard" : "/"}
-          className="relative z-10 min-w-0 shrink-0"
+          className="relative z-10 flex shrink-0 items-center"
+          aria-label="Cohortly home"
         >
-          <span className="sm:hidden">
-            <BrandLogo href={null} variant="icon" size="sm" />
-          </span>
-          <span className="hidden sm:inline-flex">
-            <BrandLogo href={null} variant="wordmark" size="sm" />
-          </span>
+          <BrandLogo href={null} variant="wordmark" size="md" priority />
         </Link>
 
         <nav

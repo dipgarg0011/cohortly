@@ -190,42 +190,12 @@ export function ProfileCard({
           </div>
         )}
         {department && (
-          <div className="flex min-w-0 items-center gap-2">
-            <p
-              title={department}
-              className="min-w-0 flex-1 truncate whitespace-nowrap text-slate-500"
-            >
-              {department}
-            </p>
-            {!isSelf && onSayHi && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSayHi();
-                }}
-                disabled={sayHiDisabled}
-                className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55 sm:hidden"
-              >
-                {sayHiLabel}
-              </button>
-            )}
-          </div>
-        )}
-        {!department && !isSelf && onSayHi && (
-          <div className="flex justify-end sm:hidden">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSayHi();
-              }}
-              disabled={sayHiDisabled}
-              className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {sayHiLabel}
-            </button>
-          </div>
+          <p
+            title={department}
+            className="min-w-0 truncate whitespace-nowrap text-slate-500"
+          >
+            {department}
+          </p>
         )}
         {openTo.length > 0 && (
           <div className="flex min-w-0 flex-wrap gap-1.5 pt-1">
@@ -249,7 +219,7 @@ export function ProfileCard({
             onSayHi();
           }}
           disabled={sayHiDisabled}
-          className="btn-primary mt-4 hidden w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55 sm:block"
+          className="btn-primary mt-4 w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55"
         >
           {sayHiLabel}
         </button>

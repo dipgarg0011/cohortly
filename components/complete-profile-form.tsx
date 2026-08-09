@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
-import { isCanonicalShortCode } from "@/lib/departments";
+import {
+  isValidDepartmentValue,
+  normalizeDepartmentValue,
+} from "@/lib/departments";
 import {
   suggestedProfileStatus,
   type ProfileStatus,
@@ -59,9 +62,11 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       return;
     }
 
-    const deptCode = department.trim();
-    if (!isCanonicalShortCode(deptCode)) {
-      setError("Select your department from the list.");
+    const deptCode = normalizeDepartmentValue(department);
+    if (!isValidDepartmentValue(deptCode)) {
+      setError(
+        "Select your department from the list, or enter it if it isn't listed.",
+      );
       setLoading(false);
       return;
     }

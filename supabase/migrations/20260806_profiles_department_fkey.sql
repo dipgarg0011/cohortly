@@ -1,8 +1,14 @@
 -- Cohortly Phase 2b: FK profiles.department → departments(short_code)
 -- =============================================================================
--- Run ONLY after:
---   1) Phase 1 migration (20260806_departments_canonical.sql) has been applied
---   2) Phase 2 frontend is live (department dropdown — no free-text submit)
+-- DO NOT APPLY while custom departments are allowed.
+-- DepartmentSelect supports "My department isn't listed" and stores free-text
+-- on profiles.department; those values are NOT in public.departments.
+-- Adding this FK would reject custom dept signup / complete-profile / edits.
+--
+-- Kept for a future multi-college / strict-canonical mode only.
+-- If you ever re-enable a hard FK, run ONLY after:
+--   1) Phase 1 + additive seeds applied
+--   2) Custom "not listed" path is removed from the UI
 --   3) profiles.department values are only NULL or canonical short_codes
 --
 -- Verify before applying:

@@ -120,7 +120,24 @@ export function NetworkDirectory({
     return Array.from(years).sort((a, b) => b - a);
   }, [others, batchYear]);
 
-  const departments = FALLBACK_DEPARTMENTS;
+  const departments = useMemo(() => {
+    const byCode = new Map<string, { short_code: string; name: string }>();
+    for (const dep of FALLBACK_DEPARTMENTS) {
+      byCode.set(dep.short_code, dep);
+    }
+    for (const p of others) {
+      const code = p.department?.trim();
+      if (!code || byCode.has(code)) continue;
+      byCode.set(code, { short_code: code, name: code });
+    }
+    // Keep deep-linked dept visible even if no matching profiles yet.
+    if (department !== "all" && !byCode.has(department)) {
+      byCode.set(department, { short_code: department, name: department });
+    }
+    return Array.from(byCode.values()).sort((a, b) =>
+      a.short_code.localeCompare(b.short_code),
+    );
+  }, [others, department]);
 
   const skillOptions = useMemo(() => {
     const fromProfiles = new Set<string>(SKILL_OPTIONS);
@@ -316,7 +333,11 @@ export function NetworkDirectory({
             <option value="all">All departments</option>
             {departments.map((dep) => (
               <option key={dep.short_code} value={dep.short_code}>
-                {formatDepartmentLabel(dep)}
+                {FALLBACK_DEPARTMENTS.some(
+                  (c) => c.short_code === dep.short_code,
+                )
+                  ? formatDepartmentLabel(dep)
+                  : dep.short_code}
               </option>
             ))}
           </FilterSelect>

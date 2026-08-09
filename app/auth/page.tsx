@@ -12,7 +12,10 @@ import {
 import { BrandLogo } from "@/components/brand-logo";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
-import { isCanonicalShortCode } from "@/lib/departments";
+import {
+  isValidDepartmentValue,
+  normalizeDepartmentValue,
+} from "@/lib/departments";
 import {
   suggestedProfileStatus,
   type ProfileStatus,
@@ -158,9 +161,11 @@ function AuthForm() {
         return;
       }
 
-      const deptCode = department.trim();
-      if (!isCanonicalShortCode(deptCode)) {
-        setError("Select your department from the list.");
+      const deptCode = normalizeDepartmentValue(department);
+      if (!isValidDepartmentValue(deptCode)) {
+        setError(
+          "Select your department from the list, or enter it if it isn't listed.",
+        );
         return;
       }
 

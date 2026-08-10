@@ -28,6 +28,7 @@ import {
 } from "@/lib/conversations";
 import {
   formatAbsoluteTime,
+  formatChatBubbleTime,
   formatRelativeTime,
 } from "@/lib/format-time";
 import {
@@ -57,6 +58,8 @@ type TypeFilter = "all" | "referral" | "mentorship" | "opportunity" | "connectio
 
 type Props = {
   currentUserId: string;
+  /** Current user avatar/name for sent-bubble avatars (matches mobile). */
+  currentUserProfile?: Pick<ChatPartner, "full_name" | "avatar_url"> | null;
   initialMessages: Message[];
   initialPartners: ChatPartner[];
   initialConversations: ConversationRow[];
@@ -77,6 +80,7 @@ type ListItem = {
 
 export function MessagesInbox({
   currentUserId,
+  currentUserProfile = null,
   initialMessages,
   initialPartners,
   initialConversations,
@@ -111,6 +115,7 @@ export function MessagesInbox({
   const [actionBusy, setActionBusy] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [safetyBusy, setSafetyBusy] = useState(false);
+  const [safetyError, setSafetyError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(Boolean(initialWithId));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -720,6 +725,7 @@ export function MessagesInbox({
     if (updated) upsertConversation(updated);
     setSafetyOpen(false);
     setSafetyBusy(false);
+    setSafetyError(null);
     setSelectedId(null);
     setMobileShowChat(false);
     router.replace("/messages");
@@ -728,13 +734,14 @@ export function MessagesInbox({
   async function handleDisconnect() {
     if (!selectedConversation || safetyBusy) return;
     setSafetyBusy(true);
+    setSafetyError(null);
     setError(null);
-    const { data, error: safetyError } = await disconnectConversation(
+    const { data, error: err } = await disconnectConversation(
       supabase,
       selectedConversation.id,
     );
-    if (safetyError) {
-      setError(safetyError);
+    if (err) {
+      setSafetyError(err);
       setSafetyBusy(false);
       return;
     }
@@ -744,13 +751,14 @@ export function MessagesInbox({
   async function handleBlockFromSafety() {
     if (!selectedConversation || safetyBusy) return;
     setSafetyBusy(true);
+    setSafetyError(null);
     setError(null);
-    const { data, error: safetyError } = await blockConversation(
+    const { data, error: err } = await blockConversation(
       supabase,
       selectedConversation.id,
     );
-    if (safetyError) {
-      setError(safetyError);
+    if (err) {
+      setSafetyError(err);
       setSafetyBusy(false);
       return;
     }
@@ -764,16 +772,17 @@ export function MessagesInbox({
   ) {
     if (!selectedConversation || !selectedId || safetyBusy) return;
     setSafetyBusy(true);
+    setSafetyError(null);
     setError(null);
-    const { error: safetyError } = await reportUser(supabase, {
+    const { error: err } = await reportUser(supabase, {
       reportedId: selectedId,
       reason,
       details,
       conversationId: selectedConversation.id,
       alsoBlock,
     });
-    if (safetyError) {
-      setError(safetyError);
+    if (err) {
+      setSafetyError(err);
       setSafetyBusy(false);
       return;
     }
@@ -785,6 +794,7 @@ export function MessagesInbox({
     } else {
       setSafetyOpen(false);
       setSafetyBusy(false);
+      setSafetyError(null);
     }
   }
 
@@ -1110,14 +1120,31 @@ export function MessagesInbox({
                   })()
                 )}
               </div>
-              {selectedConversation.status === "accepted" ? (
+              {selectedConversation.status !== "blocked" &&
+              selectedConversation.status !== "declined" ? (
                 <button
                   type="button"
-                  onClick={() => setSafetyOpen(true)}
-                  aria-label="Safety options"
-                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                  onClick={() => {
+                    setSafetyError(null);
+                    setSafetyOpen(true);
+                  }}
+                  aria-label="Safety options: Unmatch, Block, or Report"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-1.5 text-sm font-bold text-[var(--brand)] transition hover:bg-teal-100"
                 >
-                  ···
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                    aria-hidden
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Safety
                 </button>
               ) : null}
             </div>
@@ -1131,54 +1158,42 @@ export function MessagesInbox({
             ) : null}
 
             {isIncomingRequest && (
-              <div className="border-b border-teal-900/8 bg-teal-50/70 px-4 py-4">
-                <div className="flex items-start gap-3">
-                  <ProfilePreviewTrigger userId={selectedId} className="shrink-0">
-                    <Avatar
-                      name={selectedPartner.full_name}
-                      url={selectedPartner.avatar_url}
-                    />
-                  </ProfilePreviewTrigger>
-                  <div className="min-w-0 flex-1">
-                    <p className="break-safe text-sm font-semibold text-slate-900">
-                      <ProfilePreviewTrigger userId={selectedId}>
-                        {partnerName}
-                      </ProfilePreviewTrigger>{" "}
-                      wants to connect
-                    </p>
-                    {thread[0] && (
-                      <p className="mt-1 break-safe rounded-xl bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
-                        “{thread[0].content}”
-                      </p>
-                    )}
-                    <div className="mt-3 btn-row">
-                      <button
-                        type="button"
-                        disabled={responding}
-                        onClick={() => void handleRespond("accepted")}
-                        className="btn-primary disabled:opacity-60"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        disabled={responding}
-                        onClick={() => void handleRespond("declined")}
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                      >
-                        Decline
-                      </button>
-                      <button
-                        type="button"
-                        disabled={responding}
-                        onClick={() => void handleRespond("blocked")}
-                        className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                      >
-                        Block
-                      </button>
-                    </div>
-                  </div>
+              <div className="border-b border-teal-900/8 bg-white px-4 py-4">
+                <p className="text-center text-sm font-semibold text-slate-900">
+                  {partnerFirst === "them" ? partnerName : partnerFirst} wants
+                  to connect
+                </p>
+                {thread[0] ? (
+                  <p className="mx-auto mt-2 max-w-md break-safe rounded-[1.125rem] rounded-bl-md border border-teal-900/10 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm">
+                    “{thread[0].content}”
+                  </p>
+                ) : null}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={responding}
+                    onClick={() => void handleRespond("accepted")}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-[var(--brand)] text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    disabled={responding}
+                    onClick={() => void handleRespond("declined")}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Decline
+                  </button>
                 </div>
+                <button
+                  type="button"
+                  disabled={responding}
+                  onClick={() => void handleRespond("blocked")}
+                  className="mt-2 w-full py-2 text-center text-sm font-semibold text-red-700 transition hover:text-red-800 disabled:opacity-60"
+                >
+                  Block
+                </button>
                 {error && (
                   <p
                     role="alert"
@@ -1190,7 +1205,7 @@ export function MessagesInbox({
               </div>
             )}
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            <div className="flex-1 space-y-2.5 overflow-y-auto px-4 py-4">
               {thread.length === 0 ? (
                 <div className="space-y-3 py-6">
                   <p className="text-center text-sm text-slate-500">
@@ -1219,9 +1234,9 @@ export function MessagesInbox({
                     return (
                       <div
                         key={message.id}
-                        className="flex justify-center px-2"
+                        className="flex justify-center px-2 py-1"
                       >
-                        <p className="max-w-[min(90%,28rem)] text-center text-xs text-slate-500">
+                        <p className="max-w-[min(90%,28rem)] rounded-full bg-slate-100 px-3 py-1.5 text-center text-xs font-medium text-slate-600">
                           {message.content}
                         </p>
                       </div>
@@ -1231,7 +1246,9 @@ export function MessagesInbox({
                   return (
                     <div
                       key={message.id}
-                      className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
+                      className={`flex max-w-full items-end gap-2 ${
+                        mine ? "justify-end self-end" : "justify-start self-start"
+                      }`}
                     >
                       {!mine ? (
                         <Avatar
@@ -1245,29 +1262,38 @@ export function MessagesInbox({
                               ? null
                               : selectedPartner.avatar_url
                           }
-                          size="sm"
+                          size="bubble"
                           anonymous={partnerIsAnonymous}
                         />
                       ) : null}
                       <div
-                        className={`max-w-[min(85%,22rem)] rounded-2xl px-3.5 py-2 text-sm ${
+                        className={`max-w-[min(74%,22rem)] rounded-[1.125rem] px-3.5 py-2.5 text-[15px] leading-snug ${
                           mine
                             ? "rounded-br-md bg-[var(--brand)] text-white"
-                            : "rounded-bl-md bg-slate-100 text-slate-800"
+                            : "rounded-bl-md border border-teal-900/10 bg-white text-slate-900"
                         }`}
                       >
                         <p className="break-safe whitespace-pre-wrap">
                           {message.content}
                         </p>
                         <p
-                          className={`mt-1 text-[10px] ${
-                            mine ? "text-teal-100" : "text-slate-400"
+                          className={`mt-1.5 text-[10px] font-medium ${
+                            mine
+                              ? "text-right text-white/75"
+                              : "text-slate-400"
                           }`}
                           title={formatAbsoluteTime(message.created_at)}
                         >
-                          {formatRelativeTime(message.created_at)}
+                          {formatChatBubbleTime(message.created_at)}
                         </p>
                       </div>
+                      {mine ? (
+                        <Avatar
+                          name={currentUserProfile?.full_name ?? null}
+                          url={currentUserProfile?.avatar_url ?? null}
+                          size="bubble"
+                        />
+                      ) : null}
                     </div>
                   );
                 })
@@ -1278,7 +1304,7 @@ export function MessagesInbox({
             {!isIncomingRequest && (
               <form
                 onSubmit={handleSend}
-                className="border-t border-teal-900/8 p-3"
+                className="border-t border-teal-900/8 bg-white p-3"
               >
                 {error && (
                   <p
@@ -1289,38 +1315,13 @@ export function MessagesInbox({
                   </p>
                 )}
                 {isLockedForSender ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <div
-                      aria-disabled="true"
-                      className="min-w-0 flex-1 cursor-not-allowed break-safe rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
-                    >
-                      Waiting for {partnerFirst} to accept your request. You can
-                      send more messages once they do.
-                    </div>
-                    <button
-                      type="button"
-                      disabled
-                      className="btn-primary w-full shrink-0 cursor-not-allowed opacity-40 sm:w-auto"
-                    >
-                      Send
-                    </button>
+                  <div className="rounded-xl bg-teal-50 px-3.5 py-3 text-center text-sm font-medium text-teal-800">
+                    Waiting for {partnerFirst} to accept your request…
                   </div>
                 ) : turnGate.isStudent && turnGate.waitingOnMentor ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <div
-                      aria-disabled="true"
-                      className="min-w-0 flex-1 cursor-not-allowed break-safe rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500"
-                    >
-                      You&apos;ll be able to send another message once{" "}
-                      {partnerFirst} replies.
-                    </div>
-                    <button
-                      type="button"
-                      disabled
-                      className="btn-primary w-full shrink-0 cursor-not-allowed opacity-40 sm:w-auto"
-                    >
-                      Send
-                    </button>
+                  <div className="rounded-xl bg-teal-50 px-3.5 py-3 text-center text-sm font-medium text-teal-800">
+                    You&apos;ll be able to send another message once{" "}
+                    {partnerFirst} replies.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1340,23 +1341,23 @@ export function MessagesInbox({
                         </p>
                       </div>
                     )}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
+                    <div className="flex items-end gap-2">
+                      <textarea
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         placeholder="Write a message…"
+                        rows={1}
                         maxLength={
                           turnGate.isStudent && turnGate.canSend
                             ? TURN_FOLLOWUP_MAX
                             : undefined
                         }
-                        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                        className="max-h-28 min-h-[2.75rem] min-w-0 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
                       />
                       <button
                         type="submit"
                         disabled={sending || !draft.trim()}
-                        className="btn-primary shrink-0 disabled:opacity-60"
+                        className="inline-flex min-h-[2.75rem] min-w-[4.5rem] shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] px-4 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-50"
                       >
                         {sending ? "…" : "Send"}
                       </button>
@@ -1373,8 +1374,12 @@ export function MessagesInbox({
         open={safetyOpen}
         partnerName={partnerFirst === "them" ? partnerName : partnerFirst}
         busy={safetyBusy}
+        error={safetyError}
         onClose={() => {
-          if (!safetyBusy) setSafetyOpen(false);
+          if (!safetyBusy) {
+            setSafetyOpen(false);
+            setSafetyError(null);
+          }
         }}
         onDisconnect={() => void handleDisconnect()}
         onBlock={() => void handleBlockFromSafety()}
@@ -1394,10 +1399,15 @@ function Avatar({
 }: {
   name: string | null;
   url: string | null;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "bubble";
   anonymous?: boolean;
 }) {
-  const dim = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+  const dim =
+    size === "bubble"
+      ? "h-[34px] w-[34px] text-[11px]"
+      : size === "sm"
+        ? "h-8 w-8 text-xs"
+        : "h-10 w-10 text-sm";
   if (anonymous) {
     return (
       <div

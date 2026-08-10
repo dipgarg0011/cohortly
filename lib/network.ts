@@ -106,6 +106,25 @@ export function getProfileRole(
   return status === "graduate" ? "Graduate" : "Student";
 }
 
+/**
+ * Quiet cohort meta — matches mobile: `MET · 2028`
+ * (department · full batch year).
+ */
+export function formatCohortLockup(
+  batchYear: number | null | undefined,
+  department: string | null | undefined,
+): string | null {
+  const year =
+    batchYear != null && Number.isFinite(batchYear)
+      ? String(batchYear)
+      : null;
+  const dept = department?.trim() || null;
+  if (dept && year) return `${dept} · ${year}`;
+  if (dept) return dept;
+  if (year) return year;
+  return null;
+}
+
 export function isGraduateStatus(
   status: ProfileStatus | null | undefined,
 ): boolean {

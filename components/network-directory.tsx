@@ -222,7 +222,7 @@ export function NetworkDirectory({
       } else if (action.kind === "request_sent") {
         map[profile.id] = {
           onSayHi: () => undefined,
-          sayHiLabel: "Requested",
+          sayHiLabel: "Sent",
           sayHiDisabled: true,
         };
       } else {

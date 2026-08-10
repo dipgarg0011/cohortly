@@ -13,6 +13,8 @@ type Props = {
   open: boolean;
   partnerName: string;
   busy: boolean;
+  /** Shown inside the sheet so RPC failures aren't hidden behind the modal. */
+  error?: string | null;
   onClose: () => void;
   onDisconnect: () => void;
   onBlock: () => void;
@@ -20,13 +22,14 @@ type Props = {
 };
 
 /**
- * Safety actions for an active chat: disconnect, block, report.
- * Mirrors mobile ChatSafetySheet.
+ * Safety actions for an active chat: unmatch, block, report.
+ * Mirrors mobile ChatSafetySheet (Disconnect → Unmatch label for discoverability).
  */
 export function ChatSafetySheet({
   open,
   partnerName,
   busy,
+  error = null,
   onClose,
   onDisconnect,
   onBlock,
@@ -46,6 +49,7 @@ export function ChatSafetySheet({
   }, [open, partnerName]);
 
   function resetAndClose() {
+    if (busy) return;
     setPanel("menu");
     setReason(null);
     setDetails("");
@@ -55,7 +59,7 @@ export function ChatSafetySheet({
 
   const title =
     panel === "confirmDisconnect"
-      ? `Disconnect from ${partnerName}?`
+      ? `Unmatch ${partnerName}?`
       : panel === "confirmBlock"
         ? `Block ${partnerName}?`
         : panel === "report"
@@ -64,7 +68,7 @@ export function ChatSafetySheet({
 
   const description =
     panel === "menu"
-      ? "You're in control. Blocking stops all messages permanently. Disconnect leaves this chat without a permanent block."
+      ? "You're in control. Blocking stops all messages permanently. Unmatch leaves this chat without a permanent block."
       : panel === "confirmDisconnect"
         ? "Messaging stops. You can reconnect later from Network if you change your mind."
         : panel === "confirmBlock"
@@ -78,6 +82,15 @@ export function ChatSafetySheet({
       title={title}
       description={description}
     >
+      {error ? (
+        <p
+          role="alert"
+          className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"
+        >
+          {error}
+        </p>
+      ) : null}
+
       {panel === "menu" ? (
         <div className="space-y-2">
           <button
@@ -87,7 +100,7 @@ export function ChatSafetySheet({
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 disabled:opacity-60"
           >
             <span className="block text-sm font-semibold text-slate-900">
-              Disconnect
+              Unmatch
             </span>
             <span className="mt-0.5 block text-xs text-slate-500">
               Leave this chat. They can&apos;t message you unless you connect
@@ -121,6 +134,14 @@ export function ChatSafetySheet({
               Tell us what happened. You can also block them in the same step.
             </span>
           </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={resetAndClose}
+            className="w-full py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
         </div>
       ) : null}
 
@@ -132,7 +153,7 @@ export function ChatSafetySheet({
             onClick={onDisconnect}
             className="w-full rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
           >
-            {busy ? "Working…" : "Disconnect"}
+            {busy ? "Working…" : "Unmatch"}
           </button>
           <button
             type="button"

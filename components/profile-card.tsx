@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  formatCohortLockup,
   getProfileRole,
   type NetworkProfile,
 } from "@/lib/network";
@@ -25,7 +26,7 @@ export function ProfileCard({
   currentYear = new Date().getFullYear(),
   isSelf = false,
   onSayHi,
-  sayHiLabel = "Send Request",
+  sayHiLabel = "Connect",
   sayHiDisabled = false,
   dense = false,
   accent = "network",
@@ -34,74 +35,71 @@ export function ProfileCard({
   void accent;
   const role = getProfileRole(profile.status);
   const name = profile.full_name?.trim() || "Unnamed member";
-  const isStudent = role === "Student";
   const roleTitle =
     profile.role_title?.trim() || profile.current_job?.trim() || "";
   const company = profile.company?.trim() || "";
   const openTo = profile.open_to ?? [];
-  const department = profile.department?.trim() || "";
+  const cohort = formatCohortLockup(profile.batch_year, profile.department);
+  const meta = [
+    cohort,
+    role,
+    profile.is_founder ? "Founder" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   if (dense) {
     return (
       <SurfaceCard
         as="article"
         interactive
-        className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-2 py-1.5"
+        className="w-full max-w-full min-w-0 overflow-hidden !rounded-xl px-3 py-2.5"
       >
-        <div className="flex w-full min-w-0 items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-3">
           <ProfilePreviewTrigger userId={profile.id} className="shrink-0">
             <PersonAvatar
               id={profile.id}
               name={profile.full_name}
               url={profile.avatar_url}
-              size="sm"
+              size="md"
             />
           </ProfilePreviewTrigger>
           <div className="min-w-0 flex-1 overflow-hidden">
             <ProfilePreviewTrigger userId={profile.id}>
               <h2
                 title={name}
-                className="min-w-0 truncate text-sm font-bold leading-tight text-slate-900"
+                className="min-w-0 truncate text-base font-bold leading-snug text-slate-900"
               >
                 {name}
               </h2>
             </ProfilePreviewTrigger>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-              <span
-                className={`shrink-0 rounded px-1 py-px text-[10px] font-bold leading-4 ${
-                  isStudent
-                    ? "bg-teal-50 text-teal-800"
-                    : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {role}
-              </span>
-              {profile.batch_year != null && (
-                <span className="shrink-0 text-[10px] font-medium leading-4 text-slate-500">
-                  {profile.batch_year}
-                </span>
-              )}
+            {meta ? (
               <p
-                title={department || roleTitle || company || undefined}
-                className="min-w-0 flex-1 truncate text-xs leading-4 text-slate-500"
+                title={meta}
+                className="mt-0.5 min-w-0 truncate text-xs font-medium text-slate-500"
               >
-                {department || roleTitle || company || "—"}
+                {meta}
               </p>
-              {!isSelf && onSayHi && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSayHi();
-                  }}
-                  disabled={sayHiDisabled}
-                  className="shrink-0 rounded-md bg-[var(--brand)] px-1.5 py-0.5 text-[10px] font-bold leading-4 text-white hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
-                >
-                  {sayHiLabel}
-                </button>
-              )}
-            </div>
+            ) : null}
           </div>
+          {!isSelf && onSayHi ? (
+            sayHiDisabled ? (
+              <span className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-500">
+                {sayHiLabel}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSayHi();
+                }}
+                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] px-3.5 text-sm font-bold text-white hover:bg-[var(--brand-dark)]"
+              >
+                {sayHiLabel}
+              </button>
+            )
+          ) : null}
         </div>
       </SurfaceCard>
     );
@@ -146,25 +144,14 @@ export function ProfileCard({
               </a>
             ) : null}
           </div>
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${
-                isStudent
-                  ? "bg-teal-50 text-teal-800"
-                  : "bg-slate-100 text-slate-700"
-              }`}
+          {meta ? (
+            <p
+              title={meta}
+              className="mt-1 min-w-0 truncate text-xs font-medium text-slate-500"
             >
-              {role}
-            </span>
-            {profile.is_founder && (
-              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800">
-                Founder
-              </span>
-            )}
-            {profile.batch_year != null && (
-              <span className="meta-text">Batch {profile.batch_year}</span>
-            )}
-          </div>
+              {meta}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -189,14 +176,6 @@ export function ProfileCard({
             )}
           </div>
         )}
-        {department && (
-          <p
-            title={department}
-            className="min-w-0 truncate whitespace-nowrap text-slate-500"
-          >
-            {department}
-          </p>
-        )}
         {openTo.length > 0 && (
           <div className="flex min-w-0 flex-wrap gap-1.5 pt-1">
             {openTo.map((tag) => (
@@ -212,17 +191,22 @@ export function ProfileCard({
       </div>
 
       {!isSelf && onSayHi && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSayHi();
-          }}
-          disabled={sayHiDisabled}
-          className="btn-primary mt-4 w-full max-w-full disabled:cursor-not-allowed disabled:opacity-55"
-        >
-          {sayHiLabel}
-        </button>
+        sayHiDisabled ? (
+          <div className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">
+            {sayHiLabel}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSayHi();
+            }}
+            className="btn-primary mt-4 w-full max-w-full"
+          >
+            {sayHiLabel}
+          </button>
+        )
       )}
     </SurfaceCard>
   );

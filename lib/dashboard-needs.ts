@@ -219,7 +219,7 @@ export function buildNeedsYouItems(input: {
       type: "referral",
       text: `${name} asked about ${company}`,
       waitedAt,
-      href: "/referrals",
+      href: `/referrals?tab=help&requestId=${encodeURIComponent(ref.id)}`,
       actionLabel: "I'll help",
       entityId: ref.id,
       inlineActions: ["accept", "decline"],
@@ -236,12 +236,14 @@ export function buildNeedsYouItems(input: {
     const topic = ask.title?.trim() || "mentorship";
     const waitedAt = ask.match_created_at || ask.request_created_at;
     const deadline = ask.expires_at ?? null;
+    const mentorQs = new URLSearchParams({ tab: "inbox" });
+    if (ask.request_id) mentorQs.set("requestId", ask.request_id);
     push({
       id: `mentorship:${ask.match_id}`,
       type: "mentorship",
       text: `${name} asked about ${topic}`,
       waitedAt,
-      href: "/mentors",
+      href: `/mentors?${mentorQs.toString()}`,
       actionLabel: "Accept",
       entityId: ask.match_id,
       inlineActions: ["accept", "decline"],
@@ -260,12 +262,15 @@ export function buildNeedsYouItems(input: {
     const title = app.opportunity?.title?.trim() || "your posting";
     const deadline = app.opportunity?.deadline ?? null;
     const waitedAt = app.created_at;
+    const oppQs = new URLSearchParams({ view: "applicants" });
+    oppQs.set("applicationId", app.id);
+    if (app.opportunity_id) oppQs.set("opportunityId", app.opportunity_id);
     push({
       id: `application:${app.id}`,
       type: "application",
       text: `${name} applied to ${title}`,
       waitedAt,
-      href: "/opportunities",
+      href: `/opportunities?${oppQs.toString()}`,
       actionLabel: "Review",
       entityId: app.id,
       inlineActions: ["accept", "decline"],
@@ -388,12 +393,12 @@ export function seeAllHrefForNeeds(items: NeedItem[]): string {
   const top = ranked[0]?.[0];
   switch (top) {
     case "mentorship":
-      return "/mentors";
+      return "/mentors?tab=inbox";
     case "referral":
     case "followup":
-      return "/referrals";
+      return "/referrals?tab=help";
     case "application":
-      return "/opportunities";
+      return "/opportunities?view=applicants";
     case "connection":
     case "unread_turn":
     default:

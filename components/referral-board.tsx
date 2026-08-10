@@ -76,12 +76,34 @@ export function ReferralBoard({
 
   useEffect(() => {
     const nextTab = searchParams.get("tab");
+    const rid = searchParams.get("requestId");
     if (nextTab === "need" || nextTab === "help") {
       setView(nextTab);
+    }
+
+    if (rid) {
+      const target = requests.find((r) => r.id === rid);
+      const iAmHelper =
+        target != null && referralHelperId(target) === currentUserId;
+      const iAmRequester =
+        target != null && target.student_id === currentUserId;
+
+      // Deep links must land on the filter that actually contains the card.
+      if (nextTab === "help" || (!nextTab && iAmHelper)) {
+        setHelpFilter(iAmHelper ? "helping" : "open");
+      }
+      if (nextTab === "need" || (!nextTab && iAmRequester && !iAmHelper)) {
+        const inProgress =
+          iAmRequester &&
+          target != null &&
+          isReferralActiveHelping(target.status);
+        setNeedFilter(inProgress ? "helping" : "all");
+      }
+    } else {
       if (nextTab === "need") setNeedFilter("all");
       if (nextTab === "help") setHelpFilter("open");
     }
-    const rid = searchParams.get("requestId");
+
     setHighlightRequestId(rid);
     if (rid) {
       window.setTimeout(() => {
@@ -90,7 +112,7 @@ export function ReferralBoard({
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 120);
     }
-  }, [searchParams]);
+  }, [searchParams, requests, currentUserId]);
 
   useEffect(() => {
     try {

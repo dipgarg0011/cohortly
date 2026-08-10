@@ -228,7 +228,7 @@ export function NetworkDirectory({
       } else {
         map[profile.id] = {
           onSayHi: () => setRequestTarget(profile),
-          sayHiLabel: "Connect",
+          sayHiLabel: conv?.status === "declined" ? "Connect again" : "Connect",
           sayHiDisabled: false,
         };
       }

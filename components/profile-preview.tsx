@@ -368,7 +368,9 @@ export function ProfilePreviewProvider({ children }: Props) {
                       }}
                       className="btn-primary w-full"
                     >
-                      Send Request
+                      {conversation?.status === "declined"
+                        ? "Connect again"
+                        : "Send Request"}
                     </button>
                   ) : null}
 

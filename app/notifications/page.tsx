@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
           accent="messages"
           eyebrow="Inbox"
           title="Notifications"
-          description="Connection requests, messages, and important updates."
+          description="Requests, messages, applications, and other updates that need you."
         />
 
         {loadError ? (

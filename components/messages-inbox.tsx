@@ -17,6 +17,7 @@ import { ProfilePreviewTrigger } from "@/components/profile-preview";
 import {
   conversationContextLabel,
   conversationLabelFromRow,
+  isConnectionRequest,
   mapMessagingError,
   partnerIdFromConversation,
   resolveContextType,
@@ -246,7 +247,10 @@ export function MessagesInbox({
   const requestItems = useMemo((): ListItem[] => {
     return conversations
       .filter(
-        (c) => c.status === "pending" && c.recipient_id === currentUserId,
+        (c) =>
+          c.status === "pending" &&
+          c.recipient_id === currentUserId &&
+          isConnectionRequest(c),
       )
       .map((conversation) => {
         const partnerId = conversation.initiator_id;
@@ -291,6 +295,15 @@ export function MessagesInbox({
         if (c.status === "accepted") return true;
         // Outbound pending so sender can open locked thread
         if (c.status === "pending" && c.initiator_id === currentUserId) {
+          return true;
+        }
+        // Opportunity / referral / mentorship pending: show in Chats with
+        // stage actions — not as connection Accept/Decline in Requests.
+        if (
+          c.status === "pending" &&
+          c.recipient_id === currentUserId &&
+          !isConnectionRequest(c)
+        ) {
           return true;
         }
         return false;
@@ -365,7 +378,8 @@ export function MessagesInbox({
 
   const isIncomingRequest =
     selectedConversation?.status === "pending" &&
-    selectedConversation.recipient_id === currentUserId;
+    selectedConversation.recipient_id === currentUserId &&
+    isConnectionRequest(selectedConversation);
 
   // Open deep-link on the right tab
   useEffect(() => {
@@ -374,7 +388,11 @@ export function MessagesInbox({
       const partner = partnerIdFromConversation(c, currentUserId);
       return partner === initialWithId;
     });
-    if (conv?.status === "pending" && conv.recipient_id === currentUserId) {
+    if (
+      conv?.status === "pending" &&
+      conv.recipient_id === currentUserId &&
+      isConnectionRequest(conv)
+    ) {
       setTab("requests");
     }
   }, [initialWithId, conversations, currentUserId]);
@@ -1058,7 +1076,8 @@ export function MessagesInbox({
                     {partnerName}
                   </p>
                 </ProfilePreviewTrigger>
-                {selectedConversation.status === "pending" ? (
+                {selectedConversation.status === "pending" &&
+                isConnectionRequest(selectedConversation) ? (
                   <p className="text-xs text-slate-500">Connection request</p>
                 ) : (
                   (() => {
@@ -1072,12 +1091,22 @@ export function MessagesInbox({
                         selectedThreadContext?.title ??
                         null,
                     );
-                    return ctxLabel ? (
-                      <ConversationTypeLabel
-                        label={ctxLabel}
-                        contextType={resolveContextType(selectedConversation)}
-                      />
-                    ) : null;
+                    if (ctxLabel) {
+                      return (
+                        <ConversationTypeLabel
+                          label={ctxLabel}
+                          contextType={resolveContextType(selectedConversation)}
+                        />
+                      );
+                    }
+                    if (selectedConversation.status === "pending") {
+                      return (
+                        <p className="text-xs text-slate-500">
+                          Waiting for acceptance…
+                        </p>
+                      );
+                    }
+                    return null;
                   })()
                 )}
               </div>

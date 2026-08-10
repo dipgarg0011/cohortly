@@ -293,7 +293,9 @@ export default async function MessagesPage({
         description: null,
         answerContent: null,
         pitch: null,
-        linkHref: "/referrals",
+        linkHref: contextId
+          ? `/referrals?tab=${viewerIsHelper ? "help" : "need"}&requestId=${encodeURIComponent(contextId)}`
+          : "/referrals",
         linkLabel: "View referral →",
         nextAction,
       };
@@ -342,7 +344,15 @@ export default async function MessagesPage({
         description: null,
         answerContent: null,
         pitch: live?.pitch ?? snap.pitch ?? null,
-        linkHref: "/opportunities",
+        linkHref: (() => {
+          const oppId = opp?.id ?? snap.opportunity_id ?? null;
+          const qs = new URLSearchParams({
+            view: viewerIsPoster ? "applicants" : "mine",
+          });
+          if (contextId) qs.set("applicationId", contextId);
+          if (oppId) qs.set("opportunityId", String(oppId));
+          return `/opportunities?${qs.toString()}`;
+        })(),
         linkLabel: "View opportunity →",
         nextAction,
       };

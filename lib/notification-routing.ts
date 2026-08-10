@@ -66,7 +66,29 @@ export function hrefFromNotificationPayload(
     return `/referrals?${qs.toString()}`;
   }
 
+  const link = typeof data.link === "string" ? data.link : "";
+  const partnerFromLink = (() => {
+    if (!link.startsWith("/messages")) return null;
+    try {
+      const withMatch = /[?&]with=([^&]+)/.exec(link);
+      return withMatch?.[1] ? decodeURIComponent(withMatch[1]) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const chatPartner = partnerId ?? partnerFromLink;
+
   if (type === "opportunity" || type.startsWith("opportunity")) {
+    // Reviewing / shortlisted / accepted unlock chat — prefer Messages when we know who.
+    if (
+      (type === "opportunity_application_reviewing" ||
+        type === "opportunity_application_shortlisted" ||
+        type === "opportunity_application_accepted") &&
+      chatPartner
+    ) {
+      return `/messages?with=${encodeURIComponent(chatPartner)}`;
+    }
+
     const view =
       type === "opportunity_application"
         ? "applicants"
@@ -82,7 +104,6 @@ export function hrefFromNotificationPayload(
     return `/opportunities?${qs.toString()}`;
   }
 
-  const link = typeof data.link === "string" ? data.link : "";
   if (link.startsWith("/")) {
     if (
       link.startsWith("/messages") ||

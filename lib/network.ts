@@ -59,6 +59,7 @@ export type EditableProfile = {
   skills: string[];
   linkedin_url: string;
   bio: string;
+  avatar_url: string | null;
 };
 
 /**

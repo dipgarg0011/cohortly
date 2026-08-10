@@ -38,7 +38,8 @@ function filterVisible(
   return rows.filter((row) => {
     if (row.id === uid) return false;
     const conv = findConversationWith(conversations, uid, row.id);
-    return connectionActionFor(conv).kind !== "hidden";
+    // Only people you can still Connect with (not already messaging / pending)
+    return connectionActionFor(conv).kind === "send_request";
   });
 }
 

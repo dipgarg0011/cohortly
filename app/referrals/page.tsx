@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { ReferralBoard } from "@/components/referral-board";
@@ -145,17 +146,19 @@ export default async function ReferralsPage() {
             console.
           </div>
         ) : (
-          <ReferralBoard
-            currentUserId={user.id}
-            isGraduate={isGraduate}
-            viewerCompany={me?.company ?? null}
-            initialRequests={requests}
-            knownCompanies={knownCompanies}
-            reachById={reachById}
-            dismissedIds={(dismissalRows ?? []).map(
-              (r) => r.request_id as string,
-            )}
-          />
+          <Suspense fallback={<div className="text-sm text-slate-500">Loading…</div>}>
+            <ReferralBoard
+              currentUserId={user.id}
+              isGraduate={isGraduate}
+              viewerCompany={me?.company ?? null}
+              initialRequests={requests}
+              knownCompanies={knownCompanies}
+              reachById={reachById}
+              dismissedIds={(dismissalRows ?? []).map(
+                (r) => r.request_id as string,
+              )}
+            />
+          </Suspense>
         )}
       </main>
     </PageShell>

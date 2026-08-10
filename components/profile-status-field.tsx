@@ -58,7 +58,7 @@ export function ProfileStatusField({
         })}
       </div>
       <p className="mt-1.5 text-xs text-slate-500">
-        Batch year is your graduation year.
+        Batch year is your graduation / passout year.
       </p>
     </fieldset>
   );

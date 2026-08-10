@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { MentorsBoard } from "@/components/mentors-board";
@@ -179,18 +180,20 @@ export default async function MentorsPage() {
           description="Students ask for help. Graduates see matching asks here and respond."
         />
 
-        <MentorsBoard
-          currentUserId={user.id}
-          isGraduate={isGraduate}
-          initialAvailable={initialAvailable}
-          initialRequests={initialRequests}
-          initialMatchedAsks={isGraduate ? initialMatchedAsks : []}
-          initialAnswers={initialAnswers}
-          connectedByRequestId={connectedByRequest}
-          studentDepartment={
-            (profile?.department as string | null | undefined) ?? null
-          }
-        />
+        <Suspense fallback={<div className="text-sm text-slate-500">Loading…</div>}>
+          <MentorsBoard
+            currentUserId={user.id}
+            isGraduate={isGraduate}
+            initialAvailable={initialAvailable}
+            initialRequests={initialRequests}
+            initialMatchedAsks={isGraduate ? initialMatchedAsks : []}
+            initialAnswers={initialAnswers}
+            connectedByRequestId={connectedByRequest}
+            studentDepartment={
+              (profile?.department as string | null | undefined) ?? null
+            }
+          />
+        </Suspense>
       </main>
     </PageShell>
   );

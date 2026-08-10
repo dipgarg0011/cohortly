@@ -120,7 +120,7 @@ export function PersonRow({
           ) : departmentMeta ? (
             <p
               title={departmentMeta}
-              className="hidden min-w-0 truncate text-xs leading-4 text-slate-500 @[16rem]/pr:block"
+              className="hidden min-w-0 truncate text-[11px] leading-4 text-slate-400 @[16rem]/pr:block"
             >
               {departmentMeta}
             </p>

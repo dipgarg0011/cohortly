@@ -55,7 +55,7 @@ export function SuggestedPeople({
   );
 
   // Resolve connection state for every suggestion from the one conversations list.
-  // Declined/blocked → hide the card entirely.
+  // Blocked → hide; declined → Connect again.
   const actionById = useMemo(() => {
     const map: Record<
       string,
@@ -83,13 +83,13 @@ export function SuggestedPeople({
       } else if (action.kind === "request_sent") {
         map[profile.id] = {
           kind: "request_sent",
-          label: "Request sent",
+          label: "Requested",
           disabled: true,
         };
       } else {
         map[profile.id] = {
           kind: "send_request",
-          label: "Send Request",
+          label: "Connect",
           disabled: false,
         };
       }

@@ -193,7 +193,7 @@ export function NetworkDirectory({
     status,
   ]);
 
-  // Resolve Message / Request sent / Send Request for every visible card from one list.
+  // Resolve Message / Requested / Connect for every visible card from one list.
   const actionById = useMemo(() => {
     const map: Record<
       string,
@@ -222,13 +222,13 @@ export function NetworkDirectory({
       } else if (action.kind === "request_sent") {
         map[profile.id] = {
           onSayHi: () => undefined,
-          sayHiLabel: "Request sent",
+          sayHiLabel: "Requested",
           sayHiDisabled: true,
         };
       } else {
         map[profile.id] = {
           onSayHi: () => setRequestTarget(profile),
-          sayHiLabel: "Send Request",
+          sayHiLabel: "Connect",
           sayHiDisabled: false,
         };
       }
@@ -236,7 +236,7 @@ export function NetworkDirectory({
     return map;
   }, [filtered, conversations, currentUserId, router]);
 
-  // Declined / blocked: omit from the directory (same as suggestions).
+  // Blocked: omit from the directory. Declined can Connect again.
   const visible = useMemo(
     () => filtered.filter((p) => !actionById[p.id]?.hidden),
     [filtered, actionById],

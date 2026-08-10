@@ -18,7 +18,7 @@ export default async function ProfilePage() {
     supabase
       .from("profiles")
       .select(
-        "full_name, batch_year, status, department, company, past_companies, role_title, is_founder, open_to, skills, linkedin_url, bio",
+        "full_name, batch_year, status, department, company, past_companies, role_title, is_founder, open_to, skills, linkedin_url, bio, avatar_url",
       )
       .eq("id", user.id)
       .maybeSingle(),
@@ -49,6 +49,7 @@ export default async function ProfilePage() {
     skills: profile?.skills ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
     bio: profile?.bio ?? "",
+    avatar_url: profile?.avatar_url ?? null,
   };
 
   const mentorInitial = availability
@@ -81,7 +82,7 @@ export default async function ProfilePage() {
           </div>
         ) : (
           <div className="animate-fade-up space-y-6">
-            <ProfileForm initialProfile={initialProfile} />
+            <ProfileForm initialProfile={initialProfile} userId={user.id} />
             {isGraduate ? (
               <div id="mentoring">
                 <MentorSettings

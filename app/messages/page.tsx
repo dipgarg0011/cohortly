@@ -245,7 +245,9 @@ export default async function MessagesPage({
         description: live?.description ?? snap.description ?? null,
         answerContent: answer?.content ?? null,
         pitch: null,
-        linkHref: contextId ? `/mentors#request-${contextId}` : null,
+        linkHref: contextId
+          ? `/mentors?tab=${viewerIsStudent ? "mine" : "inbox"}&requestId=${encodeURIComponent(contextId)}`
+          : null,
         linkLabel: "View full request →",
         nextAction: null,
       };

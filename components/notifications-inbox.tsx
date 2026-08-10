@@ -139,7 +139,7 @@ export function NotificationsInbox({ userId, initialItems }: Props) {
           <EmptyState
             icon={<IconBell size={40} />}
             title="You're all caught up"
-            description="Connection requests, messages, and important updates show up here."
+            description="Requests, messages, applications, and other updates show up here."
             accentSoft="var(--accent-messages-soft)"
           />
         </div>

@@ -72,7 +72,11 @@ export function OpportunitiesBoard({
       setView(nextView);
     }
     const appId = searchParams.get("applicationId");
+    const oppId = searchParams.get("opportunityId");
     setHighlightAppId(appId);
+
+    let scrollId: string | null = appId ? `application-${appId}` : null;
+
     if (appId) {
       // Default tab from application ownership when view omitted
       if (
@@ -85,9 +89,38 @@ export function OpportunitiesBoard({
         if (inReceived) setView("applicants");
         else if (inMine) setView("mine");
       }
+    } else if (oppId) {
+      // Highlight matching application(s) when only opportunityId is present
+      if (
+        nextView !== "board" &&
+        nextView !== "mine" &&
+        nextView !== "applicants"
+      ) {
+        const inReceived = initialReceivedApplications.some(
+          (a) => a.opportunity_id === oppId,
+        );
+        const inMine = initialMyApplications.some(
+          (a) => a.opportunity_id === oppId,
+        );
+        if (inReceived) setView("applicants");
+        else if (inMine) setView("mine");
+        else setView("board");
+      }
+      const matchApp =
+        initialReceivedApplications.find((a) => a.opportunity_id === oppId) ??
+        initialMyApplications.find((a) => a.opportunity_id === oppId);
+      if (matchApp) {
+        setHighlightAppId(matchApp.id);
+        scrollId = `application-${matchApp.id}`;
+      } else {
+        scrollId = `opportunity-${oppId}`;
+      }
+    }
+
+    if (scrollId) {
       window.setTimeout(() => {
         document
-          .getElementById(`application-${appId}`)
+          .getElementById(scrollId!)
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 120);
     }
@@ -247,7 +280,11 @@ export function OpportunitiesBoard({
           ) : (
             <ul className="grid auto-rows-fr grid-cols-1 gap-4 lg:grid-cols-2">
               {filtered.map((item) => (
-                <li key={item.id} className="flex min-w-0">
+                <li
+                  key={item.id}
+                  id={`opportunity-${item.id}`}
+                  className="flex min-w-0"
+                >
                   <OpportunityCard
                     opportunity={item}
                     currentUserId={currentUserId}

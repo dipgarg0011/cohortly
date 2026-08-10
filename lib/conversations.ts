@@ -84,6 +84,17 @@ export function resolveContextType(
   }
 }
 
+/**
+ * True connection requests only — opportunity / referral / mentorship unlocks
+ * must not use Accept/Decline via respond_to_conversation (that skips stage RPCs).
+ */
+export function isConnectionRequest(
+  conv: Pick<ConversationRow, "context_type" | "unlock_reason">,
+): boolean {
+  const type = resolveContextType(conv);
+  return type === null || type === "connection";
+}
+
 export const INTRO_MESSAGE_MAX = 300;
 export const INTRO_MESSAGE_MIN = 20;
 export const TURN_FOLLOWUP_MAX = 500;

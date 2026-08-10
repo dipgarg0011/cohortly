@@ -89,7 +89,7 @@ export function SuggestedPeople({
       } else {
         map[profile.id] = {
           kind: "send_request",
-          label: "Connect",
+          label: conv?.status === "declined" ? "Connect again" : "Connect",
           disabled: false,
         };
       }

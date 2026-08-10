@@ -78,3 +78,29 @@ export function formatRelativeTime(iso: string, now = new Date()): string {
 
 /** @deprecated Prefer formatRelativeTime — kept as alias for call-site migration. */
 export const formatMessageTime = formatRelativeTime;
+
+/**
+ * Compact chat-bubble timestamp (matches mobile):
+ * today → "7:02 AM"; older → "Aug 2".
+ */
+export function formatChatBubbleTime(iso: string, now = new Date()): string {
+  const date = parseDate(iso);
+  if (!date) return "";
+
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return date.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}

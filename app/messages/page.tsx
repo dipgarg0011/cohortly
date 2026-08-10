@@ -66,6 +66,16 @@ export default async function MessagesPage({
   }
   const partnerById = new Map(partners.map((p) => [p.id, p]));
 
+  const { data: meRow } = await supabase
+    .from("profiles")
+    .select("full_name, avatar_url")
+    .eq("id", user.id)
+    .maybeSingle();
+  const currentUserProfile = (meRow as Pick<
+    ChatPartner,
+    "full_name" | "avatar_url"
+  > | null) ?? null;
+
   // Collect polymorphic source ids
   const mentorshipIds = new Set<string>();
   const referralIds = new Set<string>();
@@ -412,6 +422,7 @@ export default async function MessagesPage({
 
         <MessagesInbox
           currentUserId={user.id}
+          currentUserProfile={currentUserProfile}
           initialMessages={messages}
           initialPartners={partnersForClient}
           initialConversations={conversations}

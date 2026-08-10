@@ -7,11 +7,7 @@ import { ProfileCard } from "@/components/profile-card";
 import { PersonRow } from "@/components/ui/person-row";
 import { ConnectionRequestModal } from "@/components/connection-request-modal";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  IconMessage,
-  IconNetworkEmpty,
-  IconUsers,
-} from "@/components/ui/icons";
+import { IconNetworkEmpty } from "@/components/ui/icons";
 import {
   connectionActionFor,
   findConversationWith,
@@ -30,6 +26,38 @@ type Props = {
   /** When true, `limit` only applies below the `sm` breakpoint */
   mobileOnlyLimit?: boolean;
 };
+
+function ActionButton({
+  label,
+  kind,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  kind: ConnectionAction["kind"];
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  if (kind === "request_sent") {
+    return (
+      <span className="inline-flex min-h-8 min-w-[4.5rem] items-center justify-center rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-500">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="inline-flex min-h-10 min-w-[5.25rem] items-center justify-center rounded-xl bg-[var(--brand)] px-3.5 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55"
+    >
+      {label}
+    </button>
+  );
+}
 
 export function SuggestedPeople({
   profiles,
@@ -83,7 +111,7 @@ export function SuggestedPeople({
       } else if (action.kind === "request_sent") {
         map[profile.id] = {
           kind: "request_sent",
-          label: "Requested",
+          label: "Sent",
           disabled: true,
         };
       } else {
@@ -118,68 +146,83 @@ export function SuggestedPeople({
     );
   }
 
+  const denseItems = visible
+    .map((profile, index) => {
+      const hideOnMobile =
+        mobileOnlyLimit && limit != null && index >= limit;
+      const hideAlways =
+        !mobileOnlyLimit && limit != null && index >= limit;
+      if (hideAlways) return null;
+
+      const state = actionById[profile.id];
+      if (!state || state.kind === "hidden") return null;
+
+      const onSayHi =
+        state.kind === "message"
+          ? () => router.push(`/messages?with=${profile.id}`)
+          : state.kind === "send_request"
+            ? () => setRequestTarget(profile)
+            : () => undefined;
+
+      return (
+        <li
+          key={profile.id}
+          className={`min-w-0 max-w-full overflow-hidden border-b border-teal-900/8 last:border-b-0 ${
+            hideOnMobile ? "hidden lg:block" : ""
+          }`}
+        >
+          <PersonRow
+            flush
+            profile={profile}
+            action={
+              <ActionButton
+                label={state.label ?? "Connect"}
+                kind={state.kind}
+                disabled={state.disabled}
+                onClick={onSayHi}
+              />
+            }
+          />
+        </li>
+      );
+    })
+    .filter(Boolean);
+
   return (
     <>
-      <ul
-        className={`mx-auto grid w-full min-w-0 max-w-full grid-cols-1 overflow-x-clip ${
-          dense ? "gap-2" : "gap-4"
-        } ${
-          dense
-            ? ""
-            : compact
-              ? "lg:grid-cols-2"
-              : "md:grid-cols-2 lg:grid-cols-3"
-        }`}
-      >
-        {visible.map((profile, index) => {
-          const hideOnMobile =
-            mobileOnlyLimit && limit != null && index >= limit;
-          const hideAlways =
-            !mobileOnlyLimit && limit != null && index >= limit;
-          if (hideAlways) return null;
+      {dense ? (
+        <ul className="mx-auto w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-teal-900/8 bg-white">
+          {denseItems}
+        </ul>
+      ) : (
+        <ul
+          className={`mx-auto grid w-full min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-clip ${
+            compact ? "lg:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"
+          }`}
+        >
+          {visible.map((profile, index) => {
+            const hideOnMobile =
+              mobileOnlyLimit && limit != null && index >= limit;
+            const hideAlways =
+              !mobileOnlyLimit && limit != null && index >= limit;
+            if (hideAlways) return null;
 
-          const state = actionById[profile.id];
-          if (!state || state.kind === "hidden") return null;
+            const state = actionById[profile.id];
+            if (!state || state.kind === "hidden") return null;
 
-          const itemClass = `min-w-0 max-w-full overflow-hidden${
-            hideOnMobile ? " hidden lg:block" : ""
-          }`;
+            const itemClass = `min-w-0 max-w-full overflow-hidden${
+              hideOnMobile ? " hidden lg:block" : ""
+            }`;
 
-          const onSayHi =
-            state.kind === "message"
-              ? () => router.push(`/messages?with=${profile.id}`)
-              : state.kind === "send_request"
-                ? () => setRequestTarget(profile)
-                : () => undefined;
+            const onSayHi =
+              state.kind === "message"
+                ? () => router.push(`/messages?with=${profile.id}`)
+                : state.kind === "send_request"
+                  ? () => setRequestTarget(profile)
+                  : () => undefined;
 
-          return (
-            <li key={profile.id} className={itemClass}>
-              {dense ? (
-                <PersonRow
-                  profile={profile}
-                  action={
-                    <button
-                      type="button"
-                      onClick={onSayHi}
-                      disabled={state.disabled}
-                      aria-label={state.label}
-                      title={state.label}
-                      className="inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap rounded-lg bg-[var(--brand)] px-2 py-1.5 text-center text-[0.65rem] font-bold text-white transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-55 @[14rem]/pr:min-w-0 @[14rem]/pr:px-2.5 @[14rem]/pr:text-[0.7rem] @[18rem]/pr:px-3 @[18rem]/pr:text-xs"
-                    >
-                      <span className="@[14rem]/pr:hidden" aria-hidden>
-                        {state.kind === "message" ? (
-                          <IconMessage size={16} />
-                        ) : (
-                          <IconUsers size={16} />
-                        )}
-                      </span>
-                      <span className="hidden @[14rem]/pr:inline">
-                        {state.label}
-                      </span>
-                    </button>
-                  }
-                />
-              ) : (
+            return (
+              <li key={profile.id} className={itemClass}>
                 <ProfileCard
                   profile={profile}
                   currentYear={currentYear}
@@ -189,11 +232,11 @@ export function SuggestedPeople({
                   sayHiLabel={state.label}
                   sayHiDisabled={state.disabled}
                 />
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {hasMore && !dense && (
         <div className="mt-3 text-center sm:text-left">

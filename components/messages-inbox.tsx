@@ -827,11 +827,11 @@ export function MessagesInbox({
       : [];
 
   return (
-    <div className="section-card flex min-h-[min(32rem,calc(100dvh-9rem))] w-full max-w-full flex-1 overflow-hidden !p-0 md:min-h-[calc(100dvh-9rem)]">
+    <div className="section-card flex h-[min(40rem,calc(100dvh-8.5rem))] max-h-[calc(100dvh-8.5rem)] min-h-[min(28rem,calc(100dvh-8.5rem))] w-full max-w-full min-w-0 flex-1 overflow-hidden !p-0 md:h-[calc(100dvh-9rem)] md:max-h-[calc(100dvh-9rem)] md:min-h-0">
       <aside
-        className={`w-full max-w-full shrink-0 border-teal-900/8 md:w-80 md:border-r lg:w-96 ${
+        className={`flex min-h-0 w-full max-w-full shrink-0 flex-col border-teal-900/8 md:w-80 md:border-r lg:w-96 ${
           mobileShowChat ? "hidden md:flex" : "flex"
-        } flex-col`}
+        }`}
       >
         <div className="border-b border-teal-900/8 px-4 pt-3">
           <h2 className="font-semibold text-slate-900">Inbox</h2>
@@ -1033,7 +1033,7 @@ export function MessagesInbox({
       </aside>
 
       <section
-        className={`min-w-0 flex-1 flex-col ${
+        className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           mobileShowChat ? "flex" : "hidden md:flex"
         }`}
       >
@@ -1049,34 +1049,35 @@ export function MessagesInbox({
             />
           </div>
         ) : (
-          <>
-            <div className="flex min-w-0 items-center gap-2 border-b border-teal-900/8 px-3 py-3 sm:gap-3 sm:px-4">
-              <button
-                type="button"
-                className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
-                onClick={() => {
-                  setMobileShowChat(false);
-                  setSelectedId(null);
-                  router.replace("/messages");
-                }}
-              >
-                ← Back
-              </button>
-              <ProfilePreviewTrigger
-                userId={selectedId}
-                enabled={!partnerIsAnonymous}
-                className="shrink-0"
-              >
-                <Avatar
-                  name={partnerIsAnonymous ? null : selectedPartner.full_name}
-                  url={partnerIsAnonymous ? null : selectedPartner.avatar_url}
-                  size="sm"
-                  anonymous={partnerIsAnonymous}
-                />
-              </ProfilePreviewTrigger>
-              {/* overflow-hidden is required: ProfilePreviewTrigger is a button
-                  that otherwise grows to the full name width and paints over Safety. */}
-              <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {/* Header: avatar | truncating name | fixed Safety — Safety cannot be covered. */}
+            <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 border-b border-teal-900/8 px-3 py-3 sm:gap-x-3 sm:px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
+                  onClick={() => {
+                    setMobileShowChat(false);
+                    setSelectedId(null);
+                    router.replace("/messages");
+                  }}
+                >
+                  ← Back
+                </button>
+                <ProfilePreviewTrigger
+                  userId={selectedId}
+                  enabled={!partnerIsAnonymous}
+                  className="shrink-0"
+                >
+                  <Avatar
+                    name={partnerIsAnonymous ? null : selectedPartner.full_name}
+                    url={partnerIsAnonymous ? null : selectedPartner.avatar_url}
+                    size="sm"
+                    anonymous={partnerIsAnonymous}
+                  />
+                </ProfilePreviewTrigger>
+              </div>
+              <div className="min-w-0 overflow-hidden">
                 <ProfilePreviewTrigger
                   userId={selectedId}
                   enabled={!partnerIsAnonymous}
@@ -1125,7 +1126,7 @@ export function MessagesInbox({
                   })()
                 )}
               </div>
-              {/* Always pin Safety for any open non-blocked thread (pending + accepted). */}
+              {/* Fixed-width Safety slot — always visible on the right. */}
               {selectedConversation.status !== "blocked" &&
               selectedConversation.status !== "declined" ? (
                 <button
@@ -1135,7 +1136,7 @@ export function MessagesInbox({
                     setSafetyOpen(true);
                   }}
                   aria-label="Safety options: Unmatch, Block, or Report"
-                  className="relative z-10 ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-sm font-bold text-[var(--brand)] transition hover:bg-teal-100 sm:px-3"
+                  className="inline-flex h-9 w-[5.75rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 text-sm font-bold text-[var(--brand)] transition hover:bg-teal-100 sm:w-[6.25rem]"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1152,19 +1153,23 @@ export function MessagesInbox({
                   </svg>
                   Safety
                 </button>
-              ) : null}
+              ) : (
+                <span className="inline-block w-[5.75rem] shrink-0 sm:w-[6.25rem]" aria-hidden />
+              )}
             </div>
 
             {selectedThreadContext ? (
-              <ConversationContextHeader
-                context={selectedThreadContext}
-                busyAction={actionBusy}
-                onNextAction={(action) => void handleNextAction(action)}
-              />
+              <div className="shrink-0">
+                <ConversationContextHeader
+                  context={selectedThreadContext}
+                  busyAction={actionBusy}
+                  onNextAction={(action) => void handleNextAction(action)}
+                />
+              </div>
             ) : null}
 
             {isIncomingRequest && (
-              <div className="border-b border-teal-900/8 bg-white px-4 py-4">
+              <div className="shrink-0 border-b border-teal-900/8 bg-white px-4 py-4">
                 <p className="text-center text-sm font-semibold text-slate-900">
                   {partnerFirst === "them" ? partnerName : partnerFirst} wants
                   to connect
@@ -1211,7 +1216,7 @@ export function MessagesInbox({
               </div>
             )}
 
-            <div className="flex-1 space-y-2.5 overflow-y-auto px-4 py-4">
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-4 py-4">
               {thread.length === 0 ? (
                 <div className="space-y-3 py-6">
                   <p className="text-center text-sm text-slate-500">
@@ -1310,7 +1315,7 @@ export function MessagesInbox({
             {!isIncomingRequest && (
               <form
                 onSubmit={handleSend}
-                className="border-t border-teal-900/8 bg-white p-3"
+                className="shrink-0 border-t border-teal-900/8 bg-white p-3"
               >
                 {error && (
                   <p
@@ -1372,7 +1377,7 @@ export function MessagesInbox({
                 )}
               </form>
             )}
-          </>
+          </div>
         )}
       </section>
 

@@ -1050,7 +1050,7 @@ export function MessagesInbox({
           </div>
         ) : (
           <>
-            <div className="flex min-w-0 items-center gap-3 border-b border-teal-900/8 px-3 py-3 sm:px-4">
+            <div className="flex min-w-0 items-center gap-2 border-b border-teal-900/8 px-3 py-3 sm:gap-3 sm:px-4">
               <button
                 type="button"
                 className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 md:hidden"
@@ -1074,21 +1074,26 @@ export function MessagesInbox({
                   anonymous={partnerIsAnonymous}
                 />
               </ProfilePreviewTrigger>
-              <div className="min-w-0 flex-1">
+              {/* overflow-hidden is required: ProfilePreviewTrigger is a button
+                  that otherwise grows to the full name width and paints over Safety. */}
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <ProfilePreviewTrigger
                   userId={selectedId}
                   enabled={!partnerIsAnonymous}
+                  className="block w-full min-w-0 max-w-full overflow-hidden"
                 >
                   <p
                     title={partnerName}
-                    className="min-w-0 truncate whitespace-nowrap font-semibold text-slate-900"
+                    className="truncate whitespace-nowrap font-semibold text-slate-900"
                   >
                     {partnerName}
                   </p>
                 </ProfilePreviewTrigger>
                 {selectedConversation.status === "pending" &&
                 isConnectionRequest(selectedConversation) ? (
-                  <p className="text-xs text-slate-500">Connection request</p>
+                  <p className="truncate text-xs text-slate-500">
+                    Connection request
+                  </p>
                 ) : (
                   (() => {
                     const ctxLabel = conversationLabelFromRow(
@@ -1111,7 +1116,7 @@ export function MessagesInbox({
                     }
                     if (selectedConversation.status === "pending") {
                       return (
-                        <p className="text-xs text-slate-500">
+                        <p className="truncate text-xs text-slate-500">
                           Waiting for acceptance…
                         </p>
                       );
@@ -1120,6 +1125,7 @@ export function MessagesInbox({
                   })()
                 )}
               </div>
+              {/* Always pin Safety for any open non-blocked thread (pending + accepted). */}
               {selectedConversation.status !== "blocked" &&
               selectedConversation.status !== "declined" ? (
                 <button
@@ -1129,13 +1135,13 @@ export function MessagesInbox({
                     setSafetyOpen(true);
                   }}
                   aria-label="Safety options: Unmatch, Block, or Report"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-1.5 text-sm font-bold text-[var(--brand)] transition hover:bg-teal-100"
+                  className="relative z-10 ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-sm font-bold text-[var(--brand)] transition hover:bg-teal-100 sm:px-3"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
-                    className="h-4 w-4"
+                    className="h-4 w-4 shrink-0"
                     aria-hidden
                   >
                     <path

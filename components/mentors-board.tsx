@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, getProfileRole, SKILL_OPTIONS } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -69,11 +69,31 @@ export function MentorsBoard({
   // Graduates only: inbox when available or they already have matched asks.
   const showInbox =
     isGraduate && (initialAvailable || initialMatchedAsks.length > 0);
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(showInbox ? "inbox" : "ask");
   const [requests, setRequests] = useState(initialRequests);
   const [asks, setAsks] = useState(initialMatchedAsks);
   const [answers, setAnswers] = useState(initialAnswers);
   const [connected] = useState(connectedByRequestId);
+  const [highlightRequestId, setHighlightRequestId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const nextTab = searchParams.get("tab");
+    if (nextTab === "inbox" && showInbox) setTab("inbox");
+    else if (nextTab === "mine" || nextTab === "my_asks") setTab("my_asks");
+    else if (nextTab === "ask") setTab("ask");
+    const rid = searchParams.get("requestId");
+    setHighlightRequestId(rid);
+    if (rid) {
+      window.setTimeout(() => {
+        document
+          .getElementById(`request-${rid}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+    }
+  }, [searchParams, showInbox]);
 
   const pendingInbox = asks.filter((a) => a.match_status === "pending");
   const respondedInbox = asks.filter((a) => a.match_status !== "pending");
@@ -172,6 +192,7 @@ export function MentorsBoard({
           pending={regularPending}
           unansweredPool={unansweredPool}
           responded={respondedInbox}
+          highlightRequestId={highlightRequestId}
           onAsksChange={setAsks}
         />
       )}
@@ -182,6 +203,7 @@ export function MentorsBoard({
           answers={answers}
           connectedByRequestId={connected}
           studentDepartment={studentDepartment}
+          highlightRequestId={highlightRequestId}
           onRequestsChange={setRequests}
           onAnswersChange={setAnswers}
         />
@@ -568,11 +590,13 @@ function MentorInbox({
   pending,
   unansweredPool,
   responded,
+  highlightRequestId = null,
   onAsksChange,
 }: {
   pending: MatchedAsk[];
   unansweredPool: MatchedAsk[];
   responded: MatchedAsk[];
+  highlightRequestId?: string | null;
   onAsksChange: (updater: (prev: MatchedAsk[]) => MatchedAsk[]) => void;
 }) {
   const router = useRouter();
@@ -684,6 +708,7 @@ function MentorInbox({
                 key={ask.match_id}
                 ask={ask}
                 busy={busyId === ask.match_id}
+                highlighted={highlightRequestId === ask.request_id}
                 onAccept={() => void respond(ask.match_id, "accepted")}
                 onDecline={() => void respond(ask.match_id, "declined")}
                 onAnswer={() => setAnswerAsk(ask)}
@@ -707,6 +732,7 @@ function MentorInbox({
                 key={ask.match_id}
                 ask={ask}
                 busy={busyId === ask.match_id}
+                highlighted={highlightRequestId === ask.request_id}
                 onAccept={() => void respond(ask.match_id, "accepted")}
                 onDecline={() => void respond(ask.match_id, "declined")}
                 onAnswer={() => setAnswerAsk(ask)}
@@ -728,6 +754,7 @@ function MentorInbox({
                 ask={ask}
                 busy={false}
                 readonly
+                highlighted={highlightRequestId === ask.request_id}
                 onAnswer={
                   ask.match_status === "accepted" ||
                   ask.match_status === "answered"
@@ -766,6 +793,7 @@ function MatchAskCard({
   ask,
   busy,
   readonly = false,
+  highlighted = false,
   onAccept,
   onDecline,
   onAnswer,
@@ -773,6 +801,7 @@ function MatchAskCard({
   ask: MatchedAsk;
   busy: boolean;
   readonly?: boolean;
+  highlighted?: boolean;
   onAccept?: () => void;
   onDecline?: () => void;
   onAnswer?: () => void;
@@ -787,7 +816,9 @@ function MatchAskCard({
   return (
     <li
       id={`request-${ask.request_id}`}
-      className="surface-card min-w-0 max-w-full p-4 sm:p-5"
+      className={`surface-card min-w-0 max-w-full p-4 sm:p-5 ${
+        highlighted ? "ring-2 ring-teal-500 ring-offset-2" : ""
+      }`}
     >
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
@@ -1097,6 +1128,7 @@ function MyAsks({
   answers,
   connectedByRequestId,
   studentDepartment = null,
+  highlightRequestId = null,
   onRequestsChange,
   onAnswersChange,
 }: {
@@ -1104,6 +1136,7 @@ function MyAsks({
   answers: RequestAnswer[];
   connectedByRequestId: Record<string, RequestMatch>;
   studentDepartment?: string | null;
+  highlightRequestId?: string | null;
   onRequestsChange: (
     updater: (prev: MentorshipRequest[]) => MentorshipRequest[],
   ) => void;
@@ -1295,7 +1328,15 @@ function MyAsks({
               state.computed_stage >= 4);
 
           return (
-            <li id={`request-${req.id}`} key={req.id} className="surface-card p-5">
+            <li
+              id={`request-${req.id}`}
+              key={req.id}
+              className={`surface-card p-5 ${
+                highlightRequestId === req.id
+                  ? "ring-2 ring-teal-500 ring-offset-2"
+                  : ""
+              }`}
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">

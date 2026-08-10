@@ -170,7 +170,9 @@ export function connectionActionFor(
   if (!conv) return { kind: "send_request" };
   if (conv.status === "accepted") return { kind: "message" };
   if (conv.status === "pending") return { kind: "request_sent" };
-  return { kind: "hidden" };
+  // declined — allow Connect again; only blocked stays hidden
+  if (conv.status === "blocked") return { kind: "hidden" };
+  return { kind: "send_request" };
 }
 
 /** Short inbox / dashboard label from unlock reason / context type + detail. */

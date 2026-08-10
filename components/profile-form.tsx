@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
+import { PersonAvatar } from "@/components/ui/person-avatar";
 import {
   isValidDepartmentValue,
   normalizeDepartmentValue,
@@ -16,18 +17,23 @@ import {
   type EditableProfile,
   type ProfileStatus,
 } from "@/lib/network";
+import { uploadAvatarFile } from "@/lib/upload-avatar";
 
 type Props = {
   initialProfile: EditableProfile;
+  userId: string;
 };
 
-export function ProfileForm({ initialProfile }: Props) {
+export function ProfileForm({ initialProfile, userId }: Props) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState(initialProfile.full_name);
+  const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url);
   const [batchYear, setBatchYear] = useState(
     initialProfile.batch_year != null ? String(initialProfile.batch_year) : "",
   );
@@ -75,6 +81,41 @@ export function ProfileForm({ initialProfile }: Props) {
     setList(
       list.includes(tag) ? list.filter((item) => item !== tag) : [...list, tag],
     );
+  }
+
+  async function handleAvatarChange(file: File | null) {
+    if (!file) return;
+    setAvatarBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    const supabase = createClient();
+    const uploaded = await uploadAvatarFile({
+      supabase,
+      userId,
+      file,
+    });
+    if ("error" in uploaded) {
+      setError(uploaded.error);
+      setAvatarBusy(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: uploaded.url })
+      .eq("id", userId);
+
+    if (updateError) {
+      setError(updateError.message);
+      setAvatarBusy(false);
+      return;
+    }
+
+    setAvatarUrl(uploaded.url);
+    setSuccess("Photo updated.");
+    setAvatarBusy(false);
+    router.refresh();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -154,6 +195,48 @@ export function ProfileForm({ initialProfile }: Props) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <section className="surface-card p-5 sm:p-6">
         <h2 className="text-sm font-bold uppercase tracking-wide text-teal-800/80">
+          Photo
+        </h2>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <PersonAvatar
+            id={userId}
+            name={fullName}
+            url={avatarUrl}
+            size="xl"
+          />
+          <div className="min-w-0 space-y-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                e.target.value = "";
+                void handleAvatarChange(file);
+              }}
+            />
+            <button
+              type="button"
+              disabled={avatarBusy}
+              onClick={() => fileRef.current?.click()}
+              className="btn-secondary disabled:opacity-60"
+            >
+              {avatarBusy
+                ? "Uploading…"
+                : avatarUrl
+                  ? "Replace photo"
+                  : "Upload photo"}
+            </button>
+            <p className="text-xs text-slate-500">
+              JPEG, PNG, or WebP · under 2 MB
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface-card p-5 sm:p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-teal-800/80">
           Basics
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -167,7 +250,7 @@ export function ProfileForm({ initialProfile }: Props) {
           />
           <div className="space-y-1.5">
             <Field
-              label="Batch year"
+              label="Batch year (passout year)"
               id="batchYear"
               type="number"
               value={batchYear}
@@ -175,7 +258,7 @@ export function ProfileForm({ initialProfile }: Props) {
               required
             />
             <p className="text-xs text-slate-500">
-              Batch year is your graduation year.
+              Your graduation / passout year.
             </p>
           </div>
           <label className="block">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { deadlineLabel, isDeadlineUrgent } from "@/lib/referrals";
@@ -52,6 +52,7 @@ export function OpportunitiesBoard({
   initialMyApplications,
   initialReceivedApplications,
 }: Props) {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState(initialOpportunities);
   const [myApps, setMyApps] = useState(initialMyApplications);
   const [received, setReceived] = useState(initialReceivedApplications);
@@ -59,6 +60,38 @@ export function OpportunitiesBoard({
   const [view, setView] = useState<BoardView>("board");
   const [showForm, setShowForm] = useState(false);
   const [applyTarget, setApplyTarget] = useState<Opportunity | null>(null);
+  const [highlightAppId, setHighlightAppId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextView = searchParams.get("view");
+    if (
+      nextView === "board" ||
+      nextView === "mine" ||
+      nextView === "applicants"
+    ) {
+      setView(nextView);
+    }
+    const appId = searchParams.get("applicationId");
+    setHighlightAppId(appId);
+    if (appId) {
+      // Default tab from application ownership when view omitted
+      if (
+        nextView !== "board" &&
+        nextView !== "mine" &&
+        nextView !== "applicants"
+      ) {
+        const inReceived = initialReceivedApplications.some((a) => a.id === appId);
+        const inMine = initialMyApplications.some((a) => a.id === appId);
+        if (inReceived) setView("applicants");
+        else if (inMine) setView("mine");
+      }
+      window.setTimeout(() => {
+        document
+          .getElementById(`application-${appId}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+    }
+  }, [searchParams, initialMyApplications, initialReceivedApplications]);
 
   const myAppByOpportunity = useMemo(() => {
     const map = new Map<string, OpportunityApplication>();
@@ -234,6 +267,7 @@ export function OpportunitiesBoard({
       {view === "mine" && (
         <MyApplicationsList
           applications={myApps}
+          highlightAppId={highlightAppId}
           onWithdrawn={(id) =>
             setMyApps((prev) =>
               prev.map((a) =>
@@ -247,6 +281,7 @@ export function OpportunitiesBoard({
       {view === "applicants" && (
         <ApplicantsList
           applications={received}
+          highlightAppId={highlightAppId}
           onUpdated={(updated) =>
             setReceived((prev) =>
               prev.map((a) => (a.id === updated.id ? updated : a)),
@@ -881,8 +916,8 @@ function ApplyForm({
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
         <p className="rounded-xl bg-teal-50 px-3.5 py-3 text-sm text-teal-900">
-          Your pitch becomes your first message. You won&apos;t be able to send
-          another until the poster accepts your application.
+          Your pitch becomes your first message. Chat unlocks when the poster
+          reviews your application and messages you.
         </p>
 
         <label className="block">
@@ -972,9 +1007,11 @@ function ApplyForm({
 
 function MyApplicationsList({
   applications,
+  highlightAppId = null,
   onWithdrawn,
 }: {
   applications: OpportunityApplication[];
+  highlightAppId?: string | null;
   onWithdrawn: (id: string) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -1030,8 +1067,14 @@ function MyApplicationsList({
           const company = app.opportunity?.company?.trim();
           const posterId = app.opportunity?.posted_by;
           return (
-            <li key={app.id}>
-              <SurfaceCard className="p-4 sm:p-5">
+            <li key={app.id} id={`application-${app.id}`}>
+              <SurfaceCard
+                className={`p-4 sm:p-5 ${
+                  highlightAppId === app.id
+                    ? "ring-2 ring-teal-500 ring-offset-2"
+                    : ""
+                }`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     {company && (
@@ -1050,6 +1093,11 @@ function MyApplicationsList({
                 <p className="mt-3 line-clamp-3 break-safe text-sm text-slate-600">
                   {app.pitch}
                 </p>
+                {app.status === "pending" ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Chat unlocks when the poster reviews your application.
+                  </p>
+                ) : null}
                 {isApplicationChatUnlocked(app.status) &&
                   app.opportunity?.contact_info?.trim() && (
                     <p className="mt-3 break-safe rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -1090,9 +1138,11 @@ function MyApplicationsList({
 
 function ApplicantsList({
   applications,
+  highlightAppId = null,
   onUpdated,
 }: {
   applications: OpportunityApplication[];
+  highlightAppId?: string | null;
   onUpdated: (app: OpportunityApplication) => void;
 }) {
   const router = useRouter();
@@ -1259,8 +1309,14 @@ function ApplicantsList({
           const name = app.applicant?.full_name?.trim() || "Applicant";
           const title = app.opportunity?.title ?? "Your opportunity";
           return (
-            <li key={app.id}>
-              <SurfaceCard className="p-4 sm:p-5">
+            <li key={app.id} id={`application-${app.id}`}>
+              <SurfaceCard
+                className={`p-4 sm:p-5 ${
+                  highlightAppId === app.id
+                    ? "ring-2 ring-teal-500 ring-offset-2"
+                    : ""
+                }`}
+              >
                 <div className="flex items-start gap-3">
                   <ProfilePreviewTrigger
                     userId={app.applicant_id}
@@ -1346,7 +1402,9 @@ function ApplicantsList({
                             onClick={() => void decide(app, "reviewing")}
                             className="btn-primary disabled:opacity-60"
                           >
-                            {busyId === app.id ? "Working…" : "Move forward"}
+                            {busyId === app.id
+                              ? "Opening…"
+                              : "Review & message"}
                           </button>
                           <button
                             type="button"
@@ -1381,7 +1439,7 @@ function ApplicantsList({
                             onClick={() => void decide(app, "closed")}
                             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                           >
-                            Close
+                            Not a fit
                           </button>
                         </>
                       )}
@@ -1399,7 +1457,7 @@ function ApplicantsList({
                             onClick={() => void decide(app, "closed")}
                             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                           >
-                            Close
+                            Not a fit
                           </button>
                         </>
                       )}

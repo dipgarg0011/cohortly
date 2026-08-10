@@ -43,6 +43,13 @@ import {
   type ThreadContext,
 } from "@/components/conversation-context-header";
 import { suggestedOpeners } from "@/lib/conversation-context";
+import { ChatSafetySheet } from "@/components/chat-safety-sheet";
+import {
+  blockConversation,
+  disconnectConversation,
+  reportUser,
+  type ReportReasonId,
+} from "@/lib/safety";
 
 type InboxTab = "chats" | "requests";
 type TypeFilter = "all" | "referral" | "mentorship" | "opportunity" | "connection";
@@ -101,6 +108,8 @@ export function MessagesInbox({
   const [sending, setSending] = useState(false);
   const [responding, setResponding] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [safetyBusy, setSafetyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(Boolean(initialWithId));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -689,6 +698,78 @@ export function MessagesInbox({
     }
   }
 
+  async function leaveAfterSafety(updated: ConversationRow | null) {
+    if (updated) upsertConversation(updated);
+    setSafetyOpen(false);
+    setSafetyBusy(false);
+    setSelectedId(null);
+    setMobileShowChat(false);
+    router.replace("/messages");
+  }
+
+  async function handleDisconnect() {
+    if (!selectedConversation || safetyBusy) return;
+    setSafetyBusy(true);
+    setError(null);
+    const { data, error: safetyError } = await disconnectConversation(
+      supabase,
+      selectedConversation.id,
+    );
+    if (safetyError) {
+      setError(safetyError);
+      setSafetyBusy(false);
+      return;
+    }
+    await leaveAfterSafety(data);
+  }
+
+  async function handleBlockFromSafety() {
+    if (!selectedConversation || safetyBusy) return;
+    setSafetyBusy(true);
+    setError(null);
+    const { data, error: safetyError } = await blockConversation(
+      supabase,
+      selectedConversation.id,
+    );
+    if (safetyError) {
+      setError(safetyError);
+      setSafetyBusy(false);
+      return;
+    }
+    await leaveAfterSafety(data);
+  }
+
+  async function handleReport(
+    reason: ReportReasonId,
+    details: string,
+    alsoBlock: boolean,
+  ) {
+    if (!selectedConversation || !selectedId || safetyBusy) return;
+    setSafetyBusy(true);
+    setError(null);
+    const { error: safetyError } = await reportUser(supabase, {
+      reportedId: selectedId,
+      reason,
+      details,
+      conversationId: selectedConversation.id,
+      alsoBlock,
+    });
+    if (safetyError) {
+      setError(safetyError);
+      setSafetyBusy(false);
+      return;
+    }
+    if (alsoBlock) {
+      await leaveAfterSafety({
+        ...selectedConversation,
+        status: "blocked",
+      });
+    } else {
+      setSafetyOpen(false);
+      setSafetyBusy(false);
+    }
+  }
+
   function openConversation(partnerId: string, preferTab?: InboxTab) {
     setSelectedId(partnerId);
     setMobileShowChat(true);
@@ -1000,6 +1081,16 @@ export function MessagesInbox({
                   })()
                 )}
               </div>
+              {selectedConversation.status === "accepted" ? (
+                <button
+                  type="button"
+                  onClick={() => setSafetyOpen(true)}
+                  aria-label="Safety options"
+                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                >
+                  ···
+                </button>
+              ) : null}
             </div>
 
             {selectedThreadContext ? (
@@ -1111,8 +1202,24 @@ export function MessagesInbox({
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                      className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
                     >
+                      {!mine ? (
+                        <Avatar
+                          name={
+                            partnerIsAnonymous
+                              ? null
+                              : selectedPartner.full_name
+                          }
+                          url={
+                            partnerIsAnonymous
+                              ? null
+                              : selectedPartner.avatar_url
+                          }
+                          size="sm"
+                          anonymous={partnerIsAnonymous}
+                        />
+                      ) : null}
                       <div
                         className={`max-w-[min(85%,22rem)] rounded-2xl px-3.5 py-2 text-sm ${
                           mine
@@ -1232,6 +1339,20 @@ export function MessagesInbox({
           </>
         )}
       </section>
+
+      <ChatSafetySheet
+        open={safetyOpen}
+        partnerName={partnerFirst === "them" ? partnerName : partnerFirst}
+        busy={safetyBusy}
+        onClose={() => {
+          if (!safetyBusy) setSafetyOpen(false);
+        }}
+        onDisconnect={() => void handleDisconnect()}
+        onBlock={() => void handleBlockFromSafety()}
+        onReport={(reason, details, alsoBlock) =>
+          void handleReport(reason, details, alsoBlock)
+        }
+      />
     </div>
   );
 }

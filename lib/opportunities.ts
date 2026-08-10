@@ -80,11 +80,11 @@ export type OpportunityFilter = (typeof TYPE_FILTERS)[number]["id"];
 
 export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
   pending: "Pending",
-  reviewing: "Being reviewed",
+  reviewing: "In review",
   shortlisted: "Shortlisted",
   closed: "Closed",
   withdrawn: "Withdrawn",
-  accepted: "Being reviewed",
+  accepted: "In review",
   declined: "Closed",
 };
 

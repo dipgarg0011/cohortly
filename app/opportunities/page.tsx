@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { OpportunitiesBoard } from "@/components/opportunities-board";
@@ -73,12 +74,14 @@ export default async function OpportunitiesPage() {
               : ". Run the opportunities SQL migration in Supabase if you haven&apos;t yet."}
           </div>
         ) : (
-          <OpportunitiesBoard
-            currentUserId={user.id}
-            initialOpportunities={opportunities}
-            initialMyApplications={myApplications}
-            initialReceivedApplications={receivedApplications}
-          />
+          <Suspense fallback={<div className="text-sm text-slate-500">Loading…</div>}>
+            <OpportunitiesBoard
+              currentUserId={user.id}
+              initialOpportunities={opportunities}
+              initialMyApplications={myApplications}
+              initialReceivedApplications={receivedApplications}
+            />
+          </Suspense>
         )}
       </main>
     </PageShell>

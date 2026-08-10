@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/network";
 import { BrandLogo } from "@/components/brand-logo";
 import {
+  IconBell,
   IconBriefcase,
   IconHome,
   IconMentor,
@@ -32,6 +33,7 @@ export function Navbar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -46,21 +48,28 @@ export function Navbar() {
       if (cancelled || !user) return;
       setUserId(user.id);
 
-      const [{ count }, { data: profile }] = await Promise.all([
-        supabase
-          .from("messages")
-          .select("id", { count: "exact", head: true })
-          .eq("receiver_id", user.id)
-          .eq("read", false),
-        supabase
-          .from("profiles")
-          .select("full_name, avatar_url")
-          .eq("id", user.id)
-          .maybeSingle(),
-      ]);
+      const [{ count }, { count: notifCount }, { data: profile }] =
+        await Promise.all([
+          supabase
+            .from("messages")
+            .select("id", { count: "exact", head: true })
+            .eq("receiver_id", user.id)
+            .eq("read", false),
+          supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .is("read_at", null),
+          supabase
+            .from("profiles")
+            .select("full_name, avatar_url")
+            .eq("id", user.id)
+            .maybeSingle(),
+        ]);
 
       if (!cancelled) {
         setUnreadCount(count ?? 0);
+        setNotifUnread(notifCount ?? 0);
         setFullName(profile?.full_name ?? null);
         setAvatarUrl(profile?.avatar_url ?? null);
       }
@@ -109,6 +118,23 @@ export function Navbar() {
             .then(({ count }) => setUnreadCount(count ?? 0));
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .is("read_at", null)
+            .then(({ count }) => setNotifUnread(count ?? 0));
+        },
+      )
       .subscribe();
 
     return () => {
@@ -133,6 +159,8 @@ export function Navbar() {
 
   const messagesActive =
     pathname === "/messages" || pathname.startsWith("/messages/");
+  const notificationsActive =
+    pathname === "/notifications" || pathname.startsWith("/notifications/");
 
   return (
     <header className="sticky top-0 z-30 overflow-x-clip border-b border-teal-900/8 bg-white/80 backdrop-blur-xl">
@@ -178,6 +206,23 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1.5">
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            className={`relative rounded-xl p-2 transition sm:p-2.5 ${
+              notificationsActive
+                ? "bg-teal-50 text-[var(--brand)]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+            }`}
+          >
+            <IconBell size={18} />
+            {notifUnread > 0 && (
+              <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand)] px-1 text-[10px] font-bold text-white">
+                {notifUnread > 9 ? "9+" : notifUnread}
+              </span>
+            )}
+          </Link>
+
           <Link
             href="/messages"
             aria-label="Messages"
@@ -232,6 +277,19 @@ export function Navbar() {
                 >
                   <IconUser size={15} />
                   Profile
+                </Link>
+                <Link
+                  href="/notifications"
+                  role="menuitem"
+                  className="flex items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-teal-50"
+                >
+                  <IconBell size={15} />
+                  Notifications
+                  {notifUnread > 0 && (
+                    <span className="ml-auto rounded-full bg-teal-100 px-1.5 text-[10px] font-bold text-teal-800">
+                      {notifUnread}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   href="/messages"

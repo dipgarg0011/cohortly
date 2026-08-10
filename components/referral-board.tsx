@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/network";
@@ -54,6 +54,7 @@ export function ReferralBoard({
   dismissedIds: initialDismissed,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const [requests, setRequests] = useState(initialRequests);
   const [reachById, setReachById] = useState(initialReach);
@@ -66,9 +67,30 @@ export function ReferralBoard({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [askTarget, setAskTarget] = useState<ReferralRequest | null>(null);
   const [acceptTarget, setAcceptTarget] = useState<ReferralRequest | null>(null);
+  const [highlightRequestId, setHighlightRequestId] = useState<string | null>(
+    null,
+  );
   const [followupDismissed, setFollowupDismissed] = useState<Set<string>>(
     () => new Set(),
   );
+
+  useEffect(() => {
+    const nextTab = searchParams.get("tab");
+    if (nextTab === "need" || nextTab === "help") {
+      setView(nextTab);
+      if (nextTab === "need") setNeedFilter("all");
+      if (nextTab === "help") setHelpFilter("open");
+    }
+    const rid = searchParams.get("requestId");
+    setHighlightRequestId(rid);
+    if (rid) {
+      window.setTimeout(() => {
+        document
+          .getElementById(`request-${rid}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     try {
@@ -685,7 +707,15 @@ export function ReferralBoard({
       ) : (
         <ul className="grid grid-cols-1 gap-4">
           {list.map((request) => (
-            <li key={request.id} className="min-w-0">
+            <li
+              key={request.id}
+              id={`request-${request.id}`}
+              className={`min-w-0 rounded-2xl transition ${
+                highlightRequestId === request.id
+                  ? "ring-2 ring-teal-500 ring-offset-2"
+                  : ""
+              }`}
+            >
               <ReferralCard
                 request={request}
                 currentUserId={currentUserId}
@@ -1257,7 +1287,7 @@ function ReferralCard({
               onClick={onHelp}
               className="btn-primary disabled:opacity-60"
             >
-              {busy ? "…" : isHelper ? "You're helping" : "I'll help with this"}
+              {busy ? "…" : isHelper ? "You're helping" : "Accept & refer"}
             </button>
             <button
               type="button"

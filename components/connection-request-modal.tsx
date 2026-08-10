@@ -10,6 +10,9 @@ import {
 } from "@/lib/conversations";
 import { createClient } from "@/lib/supabase/client";
 
+/** Short starter that clears the min-length gate (20+ chars). */
+const SUGGESTED_INTRO = "Hi, would love to connect!";
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -28,13 +31,13 @@ export function ConnectionRequestModal({
   onSent,
 }: Props) {
   const displayName = recipientName?.trim() || firstName(recipientName);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(SUGGESTED_INTRO);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setDraft("");
+    setDraft(SUGGESTED_INTRO);
     setError(null);
     setSending(false);
   }, [open, recipientName]);
@@ -74,19 +77,8 @@ export function ConnectionRequestModal({
     <AppModal
       open={open}
       onClose={onClose}
-      title="Send a connection request"
-      description={
-        <>
-          You can send one message.{" "}
-          <span
-            title={displayName}
-            className="inline-block max-w-[14rem] truncate align-bottom font-semibold text-slate-800 sm:max-w-[18rem]"
-          >
-            {displayName}
-          </span>{" "}
-          needs to accept before you can keep chatting.
-        </>
-      }
+      title={`Connect with ${displayName}`}
+      description="One message until they accept. Edit the opener or send as-is."
     >
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
@@ -94,10 +86,10 @@ export function ConnectionRequestModal({
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            rows={4}
+            rows={3}
             maxLength={INTRO_MESSAGE_MAX + 20}
             className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            placeholder={`Hi ${firstName(recipientName)}, I'd love to connect!`}
+            placeholder={SUGGESTED_INTRO}
             autoFocus
             required
           />
@@ -145,7 +137,7 @@ export function ConnectionRequestModal({
             disabled={!canSend}
             className="btn-primary flex-1 disabled:opacity-60"
           >
-            {sending ? "Sending…" : "Send request"}
+            {sending ? "Sending…" : "Send"}
           </button>
         </div>
       </form>

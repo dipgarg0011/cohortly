@@ -412,13 +412,15 @@ export default async function MessagesPage({
   return (
     <PageShell accent="messages">
       <Navbar />
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip px-3 py-5 sm:px-6 sm:py-8">
-        <PageHeader
-          accent="messages"
-          eyebrow="Inbox"
-          title="Messages"
-          description="Connection requests and chats with your college community."
-        />
+      <main className="relative z-10 mx-auto flex w-full min-h-0 min-w-0 max-w-6xl flex-1 flex-col overflow-x-clip px-3 py-5 sm:px-6 sm:py-8">
+        <div className="shrink-0">
+          <PageHeader
+            accent="messages"
+            eyebrow="Inbox"
+            title="Messages"
+            description="Connection requests and chats with your college community."
+          />
+        </div>
 
         <MessagesInbox
           currentUserId={user.id}

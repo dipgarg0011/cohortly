@@ -22,7 +22,7 @@ const COMPANY_LINKS = [
 const FOOTER_BG = "#e4ebe9";
 
 const linkClass =
-  "inline-flex min-h-8 items-center rounded-sm text-[0.8125rem] leading-none text-[var(--muted)] transition-colors duration-150 hover:text-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4ebe9]";
+  "inline-flex items-center rounded-sm py-0.5 text-[0.8125rem] leading-none text-[var(--muted)] transition-colors duration-150 hover:text-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4ebe9]";
 
 const sectionLabelClass =
   "text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-slate-700";
@@ -48,7 +48,7 @@ export function Footer() {
 
   return (
     <footer
-      className="relative mt-auto w-full border-t border-teal-900/10"
+      className="relative mt-auto w-full shrink-0 border-t border-teal-900/10"
       style={{
         background: `linear-gradient(180deg, #e9f0ee 0%, ${FOOTER_BG} 42%)`,
       }}
@@ -58,11 +58,11 @@ export function Footer() {
         className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-700/20 to-transparent"
       />
 
-      <div className="mx-auto w-full max-w-6xl px-4 pb-5 pt-7 sm:px-6 sm:pb-6 sm:pt-9">
-        <div className="grid gap-7 sm:gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.9fr)] lg:items-start lg:gap-14">
-          <div className="min-w-0 space-y-3">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-7">
+        <div className="grid gap-6 sm:gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.9fr)] lg:items-start lg:gap-12">
+          <div className="min-w-0 space-y-2.5">
             <BrandLogo href="/" variant="wordmark" size="lg" />
-            <div className="max-w-[17.5rem] space-y-1.5">
+            <div className="max-w-[17.5rem] space-y-1">
               <p className="text-sm leading-snug text-slate-600">
                 A private network for students and graduates at your college.
               </p>
@@ -72,12 +72,12 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-0">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-0">
             <div className="min-w-0">
               <h2 className={sectionLabelClass}>Features</h2>
               <nav
                 aria-label="Features"
-                className="mt-3 flex flex-col items-start gap-2"
+                className="mt-6 flex flex-col items-start gap-5"
               >
                 {FEATURE_LINKS.map(({ href, label }) => (
                   <Link key={href} href={href} className={linkClass}>
@@ -91,7 +91,7 @@ export function Footer() {
               <h2 className={sectionLabelClass}>Company</h2>
               <nav
                 aria-label="Company"
-                className="mt-3 flex flex-col items-start gap-2"
+                className="mt-6 flex flex-col items-start gap-5"
               >
                 {COMPANY_LINKS.map(({ href, label }) => (
                   <Link key={href} href={href} className={linkClass}>
@@ -101,9 +101,9 @@ export function Footer() {
               </nav>
             </div>
 
-            <div className="col-span-2 min-w-0 border-t border-teal-900/8 pt-5 sm:col-span-1 sm:border-t-0 sm:pt-0">
+            <div className="col-span-2 min-w-0 border-t border-teal-900/8 pt-4 sm:col-span-1 sm:border-t-0 sm:pt-0">
               <h2 className={sectionLabelClass}>Get in touch</h2>
-              <div className="mt-3 flex flex-col items-start gap-2">
+              <div className="mt-6 flex flex-col items-start gap-5">
                 <a
                   href="mailto:cohortly.in@gmail.com"
                   className={`${linkClass} break-safe font-medium text-slate-600 hover:text-[var(--brand-dark)]`}
@@ -121,14 +121,14 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-7 flex items-center justify-between gap-4 border-t border-teal-900/10 pt-4 sm:mt-8">
+        <div className="mt-11 flex flex-col items-start gap-3 border-t border-teal-900/10 py-5 sm:mt-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-6">
           <p className="text-xs text-slate-500">
             © {year} Cohortly. All rights reserved.
           </p>
           <button
             type="button"
             onClick={scrollToTop}
-            className="min-h-8 shrink-0 rounded-sm text-xs font-semibold text-[var(--brand)] transition-colors duration-150 hover:text-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4ebe9]"
+            className="shrink-0 rounded-sm py-0.5 text-xs font-semibold text-[var(--brand)] transition-colors duration-150 hover:text-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4ebe9]"
           >
             Back to top
           </button>

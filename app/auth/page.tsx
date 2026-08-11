@@ -297,15 +297,20 @@ function AuthForm() {
                 required
               />
               <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label="Batch year"
-                  id="batchYear"
-                  type="number"
-                  value={batchYear}
-                  onChange={onBatchYearChange}
-                  placeholder="2024"
-                  required
-                />
+                <div>
+                  <Field
+                    label="Batch year"
+                    id="batchYear"
+                    type="number"
+                    value={batchYear}
+                    onChange={onBatchYearChange}
+                    placeholder="2024"
+                    required
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Graduation / passout year — not the year you joined.
+                  </p>
+                </div>
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium text-slate-700">
                     Department

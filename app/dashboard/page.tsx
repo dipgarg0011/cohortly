@@ -351,7 +351,9 @@ export default async function DashboardPage() {
           <DashboardNeedsYou items={needItems} currentUserId={user.id} />
         </div>
 
-        {showCompanyNudge ? <GraduateCompanyNudgeBanner /> : null}
+        {showCompanyNudge ? (
+          <GraduateCompanyNudgeBanner userId={user.id} />
+        ) : null}
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 

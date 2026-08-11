@@ -8,6 +8,7 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/complete-profile",
   "/messages",
+  "/notifications",
   "/referrals",
   "/mentors",
   "/opportunities",

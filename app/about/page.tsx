@@ -12,7 +12,7 @@ export default function AboutPage() {
   return (
     <ContentPage
       title="About Cohortly"
-      description="A private college network so students and graduates at your college can find mentors, referrals, and opportunities among people who already share a campus."
+      description="A private college network so students and graduates at your college can find mentors, referrals, and opportunities among people who already share a campus. This launch is for one verified college community."
       showBackToTop={false}
     >
       <ContentSection id="the-problem" title="The problem">

@@ -25,19 +25,20 @@ export default function PrivacyPage() {
   return (
     <ContentPage
       title="Privacy Policy"
-      description="This page explains what Cohortly collects, why we collect it, who can see it, and how you can ask us to change or delete it. It is written in plain English for members of your college network."
-      lastUpdated="August 6, 2026"
+      description="This page explains what Cohortly collects, why we collect it, who can see it, and how you can ask us to change or delete it. Cohortly is currently available to one college network (verified college email). It is written in plain English for members of that community."
+      lastUpdated="August 11, 2026"
       toc={[...TOC]}
     >
       <ContentSection id="introduction" number={1} title="Introduction">
         <p>
           Cohortly (&quot;we,&quot; &quot;us,&quot; &quot;Cohortly&quot;) operates
-          a private networking platform for students and graduates of
-          participating colleges. This policy applies to anyone who creates an
-          account, whether you are a current student, a graduate, or an
-          administrator of your college&apos;s network. We built Cohortly to be
-          used inside a trusted, verified community. This policy explains what
-          that trust is based on.
+          a private networking platform for students and graduates of a
+          participating college. This launch is scoped to one verified college
+          network — not a public multi-college directory. This policy applies to
+          anyone who creates an account, whether you are a current student, a
+          graduate, or an administrator helping run the network. We built
+          Cohortly to be used inside a trusted, verified community. This policy
+          explains what that trust is based on.
         </p>
       </ContentSection>
 
@@ -101,17 +102,21 @@ export default function PrivacyPage() {
         title="Retention and deletion"
       >
         <p>
-          Data is retained while your account is active. If you delete your
-          account, profile and personal content are deleted within 30 days,
-          except limited records we&apos;re required to retain for legal or
-          safety-investigation purposes.
+          Data is retained while your account is active. You can delete your
+          account anytime from <strong>Profile → Delete my account</strong>, or
+          by emailing{" "}
+          <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>. When
+          you delete, we scrub personal profile fields, remove your avatar and
+          resume files, and delete your login. Limited records may be retained
+          where required for legal or safety-investigation purposes (for example
+          abuse reports under review).
         </p>
       </ContentSection>
 
       <ContentSection id="your-rights" number={7} title="Your rights">
         <p>
-          You can access, correct, or request deletion of your data, and ask
-          what we&apos;ve collected and why. Email{" "}
+          You can access, correct, or delete your data (including in-app account
+          deletion), and ask what we&apos;ve collected and why. Email{" "}
           <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>; we
           respond within 30 days. If you&apos;re in India, these rights are
           additionally protected under the Digital Personal Data Protection Act,

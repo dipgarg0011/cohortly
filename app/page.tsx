@@ -3,46 +3,48 @@ import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { createClient } from "@/lib/supabase/server";
 
-const PILLARS = [
+const FEATURES = [
   {
     href: "/network",
     title: "Network",
-    blurb: "Stay connected with batchmates and alumni.",
+    blurb: "Find batchmates and alumni from your campus.",
   },
   {
     href: "/mentors",
     title: "Mentors",
-    blurb: "Guidance from seniors who've been there.",
+    blurb: "Ask seniors who've already done the hard parts.",
   },
   {
     href: "/referrals",
     title: "Referrals",
-    blurb: "Intros when you're ready to apply.",
+    blurb: "Request intros when you're ready to apply.",
   },
   {
     href: "/opportunities",
     title: "Opportunities",
-    blurb: "Roles shared by your network.",
+    blurb: "See roles shared by people you trust.",
   },
 ] as const;
 
 const STEPS = [
   {
-    title: "Connect",
-    blurb: "Find people from your college — classmates, seniors, alumni.",
+    title: "Find",
+    blurb: "Search people from your college by batch, role, or company.",
   },
   {
-    title: "Ask",
-    blurb: "Reach out for advice, intros, or just to stay in touch.",
+    title: "Connect",
+    blurb: "Reach out for advice, mentorship, or a warm intro.",
   },
   {
     title: "Help",
-    blurb: "Share what you know and keep the community strong.",
+    blurb: "Share what you know so the next person moves faster.",
   },
 ] as const;
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]";
+
+const sectionRule = "border-t border-teal-900/10";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -61,53 +63,79 @@ export default async function Home() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#d8f3ee_0%,_transparent_55%),radial-gradient(ellipse_at_bottom_right,_#e8eefc_0%,_transparent_45%)]"
       />
 
-      <main className="relative z-10 mx-auto flex w-full min-w-0 max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:px-5 sm:py-14">
-        {/* Hero */}
-        <section className="flex flex-col items-center text-center animate-fade-up">
-          <h1 className="sr-only">Cohortly</h1>
-          <div className="flex justify-center">
-            <BrandLogo href={null} variant="wordmark" size="hero" priority />
-          </div>
-          <p className="mt-4 max-w-md text-base text-[var(--muted)] sm:text-lg">
-            Your private college community — stay connected with batchmates and
-            alumni after graduation.
+      <main className="relative z-10 mx-auto flex w-full min-w-0 max-w-2xl flex-1 flex-col px-4 py-12 sm:max-w-3xl sm:px-6 sm:py-16 lg:py-20">
+        {/* 1. Hero */}
+        <section className="flex min-w-0 flex-col items-center text-center animate-fade-up">
+          <BrandLogo href={null} variant="wordmark" size="lg" priority />
+          <h1 className="mt-8 max-w-xl font-[family-name:var(--font-display)] text-[clamp(1.85rem,5.5vw,2.75rem)] font-bold leading-[1.12] tracking-[-0.02em] text-slate-900">
+            Your college. Your people. Your network.
+          </h1>
+          <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+            Find people. Get referrals. Find mentors. Discover opportunities.
           </p>
-          <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-            For students and graduates at your college.
-          </p>
-          <div className="mt-7 flex w-full min-w-0 max-w-xs justify-center sm:max-w-none">
-            <Link href="/auth" className={`btn-primary w-full sm:w-auto ${focusRing}`}>
-              Get started
+          <div className="mt-8 flex w-full min-w-0 max-w-xs justify-center sm:max-w-none">
+            <Link
+              href="/auth"
+              className={`btn-primary w-full sm:w-auto ${focusRing}`}
+            >
+              Join your college network →
             </Link>
           </div>
         </section>
 
-        {/* Compact pillars */}
+        {/* 2. Problem */}
         <section
-          aria-label="What you can do"
-          className="mt-12 border-t border-teal-900/10 pt-8 sm:mt-14 sm:pt-10 animate-fade-up"
+          aria-labelledby="problem-heading"
+          className={`mt-20 min-w-0 pt-14 sm:mt-24 sm:pt-16 animate-fade-up ${sectionRule}`}
         >
-          <ul className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 sm:gap-0">
-            {PILLARS.map((pillar, i) => (
-              <li
-                key={pillar.href}
-                className={`min-w-0 text-center sm:px-3 ${
-                  i > 0
-                    ? "sm:border-l sm:border-teal-900/10"
-                    : ""
-                } ${
-                  i >= 2 ? "border-t border-teal-900/10 pt-6 sm:border-t-0 sm:pt-0" : ""
-                }`}
-              >
+          <h2
+            id="problem-heading"
+            className="max-w-lg font-[family-name:var(--font-display)] text-[clamp(1.45rem,4vw,2rem)] font-bold leading-tight tracking-[-0.015em] text-slate-900"
+          >
+            Your network already exists.
+            <span className="mt-2 block text-slate-500">
+              It&apos;s just scattered everywhere.
+            </span>
+          </h2>
+          <p className="mt-8 max-w-sm text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+            WhatsApp. LinkedIn. Random DMs. Alumni groups.
+          </p>
+          <p className="mt-6 max-w-md font-[family-name:var(--font-display)] text-lg font-semibold text-slate-800 sm:text-xl">
+            Cohortly brings it together.
+          </p>
+        </section>
+
+        {/* 3. Features */}
+        <section
+          aria-labelledby="features-heading"
+          className={`mt-20 min-w-0 pt-14 sm:mt-24 sm:pt-16 animate-fade-up ${sectionRule}`}
+        >
+          <h2
+            id="features-heading"
+            className="max-w-lg font-[family-name:var(--font-display)] text-[clamp(1.35rem,3.5vw,1.75rem)] font-bold leading-tight tracking-[-0.015em] text-slate-900"
+          >
+            Everything your college network should make easier.
+          </h2>
+          <ul className="mt-10 divide-y divide-teal-900/10">
+            {FEATURES.map((feature) => (
+              <li key={feature.href} className="min-w-0">
                 <Link
-                  href={pillar.href}
-                  className={`group inline-flex flex-col items-center rounded-sm transition-colors ${focusRing}`}
+                  href={feature.href}
+                  className={`group flex min-w-0 items-baseline justify-between gap-4 py-4 transition-colors sm:py-5 ${focusRing} rounded-sm`}
                 >
-                  <span className="font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition-colors group-hover:text-[var(--brand)] sm:text-lg">
-                    {pillar.title}
+                  <span className="min-w-0">
+                    <span className="block font-[family-name:var(--font-display)] text-base font-bold text-slate-800 transition-colors group-hover:text-[var(--brand)] sm:text-lg">
+                      {feature.title}
+                    </span>
+                    <span className="mt-1 block text-sm leading-snug text-[var(--muted)] sm:text-[0.9375rem]">
+                      {feature.blurb}
+                    </span>
                   </span>
-                  <span className="mt-1 max-w-[11rem] text-sm leading-snug text-[var(--muted)] transition-colors group-hover:text-slate-600">
-                    {pillar.blurb}
+                  <span
+                    aria-hidden
+                    className="shrink-0 text-[var(--muted)] transition-colors group-hover:text-[var(--brand)]"
+                  >
+                    →
                   </span>
                 </Link>
               </li>
@@ -115,34 +143,72 @@ export default async function Home() {
           </ul>
         </section>
 
-        {/* How it works — Connect → Ask → Help */}
+        {/* 4. How it works */}
         <section
           aria-labelledby="how-it-works-heading"
-          className="mt-10 border-t border-teal-900/10 pt-8 sm:mt-12 sm:pt-9 animate-fade-up"
+          className={`mt-20 min-w-0 pt-14 sm:mt-24 sm:pt-16 animate-fade-up ${sectionRule}`}
         >
           <h2
             id="how-it-works-heading"
-            className="text-center font-[family-name:var(--font-display)] text-base font-bold text-slate-800 sm:text-lg"
+            className="font-[family-name:var(--font-display)] text-[clamp(1.35rem,3.5vw,1.75rem)] font-bold tracking-[-0.015em] text-slate-900"
           >
-            How it works
+            Find → Connect → Help
           </h2>
-          <ol className="mt-5 grid min-w-0 grid-cols-1 gap-5 sm:mt-6 sm:grid-cols-3 sm:gap-0">
+          <ol className="mt-10 grid min-w-0 grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6">
             {STEPS.map((step, i) => (
-              <li
-                key={step.title}
-                className={`min-w-0 text-center sm:px-4 ${
-                  i > 0 ? "border-t border-teal-900/10 pt-5 sm:border-t-0 sm:border-l sm:pt-0" : ""
-                }`}
-              >
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--brand)]">
+              <li key={step.title} className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--brand)]">
                   {i + 1}. {step.title}
                 </p>
-                <p className="mt-1.5 max-w-[14rem] mx-auto text-sm leading-snug text-[var(--muted)]">
+                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)] sm:text-[0.9375rem]">
                   {step.blurb}
                 </p>
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* 5. Differentiator */}
+        <section
+          aria-labelledby="differentiator-heading"
+          className={`mt-20 min-w-0 pt-14 sm:mt-24 sm:pt-16 animate-fade-up ${sectionRule}`}
+        >
+          <h2
+            id="differentiator-heading"
+            className="max-w-md font-[family-name:var(--font-display)] text-[clamp(1.45rem,4vw,2rem)] font-bold leading-tight tracking-[-0.015em] text-slate-900"
+          >
+            Not another LinkedIn.
+            <span className="mt-2 block">Just your college.</span>
+          </h2>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+            A college-verified community — people you actually share a campus
+            with, so every ask is relevant and every intro starts with trust.
+          </p>
+        </section>
+
+        {/* 6. Final CTA */}
+        <section
+          aria-labelledby="final-cta-heading"
+          className={`mt-20 mb-4 min-w-0 pt-14 text-center sm:mt-24 sm:mb-8 sm:pt-16 animate-fade-up ${sectionRule}`}
+        >
+          <h2
+            id="final-cta-heading"
+            className="mx-auto max-w-md font-[family-name:var(--font-display)] text-[clamp(1.45rem,4vw,2rem)] font-bold leading-tight tracking-[-0.015em] text-slate-900"
+          >
+            Your college already has a network.
+            <span className="mt-2 block">Make it useful.</span>
+          </h2>
+          <div className="mt-8 flex w-full min-w-0 justify-center">
+            <Link
+              href="/auth"
+              className={`btn-primary w-full max-w-xs sm:w-auto sm:max-w-none ${focusRing}`}
+            >
+              Join Cohortly →
+            </Link>
+          </div>
+          <p className="mt-5 text-sm text-[var(--muted)]">
+            Starting with one campus. Building for every campus.
+          </p>
         </section>
       </main>
     </div>

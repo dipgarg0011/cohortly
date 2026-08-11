@@ -1,11 +1,18 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
 import { PersonAvatar } from "@/components/ui/person-avatar";
+import {
+  assertAffiliationFromEmail,
+  expectedPassoutWindow,
+  joinYearPassoutHint,
+  mustBeStudentFromJoinYear,
+  parseJoinYearFromEmail,
+} from "@/lib/batch-from-email";
 import {
   isValidDepartmentValue,
   normalizeDepartmentValue,
@@ -22,9 +29,10 @@ import { uploadAvatarFile } from "@/lib/upload-avatar";
 type Props = {
   initialProfile: EditableProfile;
   userId: string;
+  email: string;
 };
 
-export function ProfileForm({ initialProfile, userId }: Props) {
+export function ProfileForm({ initialProfile, userId, email }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -32,12 +40,19 @@ export function ProfileForm({ initialProfile, userId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const joinYear = useMemo(() => parseJoinYearFromEmail(email), [email]);
+  const passoutWindow = joinYear != null ? expectedPassoutWindow(joinYear) : null;
+  const graduateBlocked =
+    joinYear != null && mustBeStudentFromJoinYear(joinYear);
+
   const [fullName, setFullName] = useState(initialProfile.full_name);
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url);
   const [batchYear, setBatchYear] = useState(
     initialProfile.batch_year != null ? String(initialProfile.batch_year) : "",
   );
-  const [status, setStatus] = useState<ProfileStatus>(initialProfile.status);
+  const [status, setStatus] = useState<ProfileStatus>(
+    graduateBlocked ? "student" : initialProfile.status,
+  );
   const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState(initialProfile.department);
   const [company, setCompany] = useState(initialProfile.company);
@@ -51,6 +66,13 @@ export function ProfileForm({ initialProfile, userId }: Props) {
   const [linkedinUrl, setLinkedinUrl] = useState(initialProfile.linkedin_url);
   const [bio, setBio] = useState(initialProfile.bio);
 
+  useEffect(() => {
+    if (graduateBlocked) {
+      setStatus("student");
+      setOpenTo((prev) => prev.filter((tag) => tag !== "Mentoring"));
+    }
+  }, [graduateBlocked]);
+
   const isGraduate = status === "graduate";
   const openToOptions = isGraduate
     ? OPEN_TO_OPTIONS
@@ -58,7 +80,7 @@ export function ProfileForm({ initialProfile, userId }: Props) {
 
   function onBatchYearChange(value: string) {
     setBatchYear(value);
-    if (statusTouched) return;
+    if (statusTouched || graduateBlocked) return;
     const year = Number(value);
     if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
       setStatus(suggestedProfileStatus(year));
@@ -66,6 +88,7 @@ export function ProfileForm({ initialProfile, userId }: Props) {
   }
 
   function onStatusChange(next: ProfileStatus) {
+    if (graduateBlocked && next === "graduate") return;
     setStatusTouched(true);
     setStatus(next);
     if (next === "student") {
@@ -131,6 +154,18 @@ export function ProfileForm({ initialProfile, userId }: Props) {
       return;
     }
 
+    const resolvedStatus = graduateBlocked ? "student" : status;
+    const affiliation = assertAffiliationFromEmail(
+      email,
+      resolvedStatus,
+      year,
+    );
+    if (!affiliation.ok) {
+      setError(affiliation.error);
+      setLoading(false);
+      return;
+    }
+
     const deptCode = normalizeDepartmentValue(department);
     if (!isValidDepartmentValue(deptCode, { allowEmpty: true })) {
       setError(
@@ -160,16 +195,17 @@ export function ProfileForm({ initialProfile, userId }: Props) {
     const payload = {
       full_name: fullName.trim(),
       batch_year: year,
-      status,
+      status: resolvedStatus,
       department: deptCode || null,
       company: company.trim() || null,
       past_companies,
       role_title: roleTitle.trim() || null,
       current_job: roleTitle.trim() || null,
       is_founder: isFounder,
-      open_to: isGraduate
-        ? openTo
-        : openTo.filter((tag) => tag !== "Mentoring"),
+      open_to:
+        resolvedStatus === "graduate"
+          ? openTo
+          : openTo.filter((tag) => tag !== "Mentoring"),
       skills,
       linkedin_url: linkedinUrl.trim() || null,
       bio: bio.trim() || null,
@@ -260,6 +296,11 @@ export function ProfileForm({ initialProfile, userId }: Props) {
             <p className="text-xs text-slate-500">
               Your graduation / passout year.
             </p>
+            {joinYear != null ? (
+              <p className="text-xs text-teal-800/80">
+                {joinYearPassoutHint(joinYear)}
+              </p>
+            ) : null}
           </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -279,6 +320,12 @@ export function ProfileForm({ initialProfile, userId }: Props) {
               value={status}
               onChange={onStatusChange}
               idPrefix="profile-status"
+              graduateDisabled={graduateBlocked}
+              graduateDisabledReason={
+                joinYear != null
+                  ? `Your email suggests joining ${joinYear}; graduation is typically ${passoutWindow?.min}–${passoutWindow?.typicalMax}. You can't register as a graduate yet.`
+                  : undefined
+              }
             />
           </div>
           <Field

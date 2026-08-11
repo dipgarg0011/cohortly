@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +16,13 @@ import {
   COLLEGE_EMAIL_ERROR,
   isCollegeEmail,
 } from "@/lib/college";
+import {
+  assertAffiliationFromEmail,
+  expectedPassoutWindow,
+  joinYearPassoutHint,
+  mustBeStudentFromJoinYear,
+  parseJoinYearFromEmail,
+} from "@/lib/batch-from-email";
 import { BrandLogo } from "@/components/brand-logo";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
@@ -76,9 +90,14 @@ function AuthForm() {
   const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState("");
 
+  const joinYear = useMemo(() => parseJoinYearFromEmail(email), [email]);
+  const passoutWindow = joinYear != null ? expectedPassoutWindow(joinYear) : null;
+  const graduateBlocked =
+    joinYear != null && mustBeStudentFromJoinYear(joinYear);
+
   function onBatchYearChange(value: string) {
     setBatchYear(value);
-    if (statusTouched) return;
+    if (statusTouched || graduateBlocked) return;
     const year = Number(value);
     if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
       setStatus(suggestedProfileStatus(year));
@@ -91,6 +110,17 @@ function AuthForm() {
       setError(fromUrl);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (joinYear == null || passoutWindow == null) return;
+    setBatchYear((prev) => {
+      if (prev.trim()) return prev;
+      return String(passoutWindow.typicalMax);
+    });
+    if (graduateBlocked) {
+      setStatus("student");
+    }
+  }, [joinYear, passoutWindow, graduateBlocked]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -161,6 +191,16 @@ function AuthForm() {
         return;
       }
 
+      const affiliation = assertAffiliationFromEmail(
+        trimmedEmail,
+        status,
+        year,
+      );
+      if (!affiliation.ok) {
+        setError(affiliation.error);
+        return;
+      }
+
       const deptCode = normalizeDepartmentValue(department);
       if (!isValidDepartmentValue(deptCode)) {
         setError(
@@ -168,6 +208,8 @@ function AuthForm() {
         );
         return;
       }
+
+      const resolvedStatus = graduateBlocked ? "student" : status;
 
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
@@ -177,7 +219,7 @@ function AuthForm() {
             data: {
               full_name: fullName.trim(),
               batch_year: year,
-              status,
+              status: resolvedStatus,
               department: deptCode,
             },
           },
@@ -198,7 +240,7 @@ function AuthForm() {
         id: userId,
         full_name: fullName.trim(),
         batch_year: year,
-        status,
+        status: resolvedStatus,
         department: deptCode,
       });
 
@@ -287,52 +329,14 @@ function AuthForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
-            <>
-              <Field
-                label="Full name"
-                id="fullName"
-                value={fullName}
-                onChange={setFullName}
-                autoComplete="name"
-                required
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Field
-                    label="Batch year"
-                    id="batchYear"
-                    type="number"
-                    value={batchYear}
-                    onChange={onBatchYearChange}
-                    placeholder="2024"
-                    required
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Graduation / passout year — not the year you joined.
-                  </p>
-                </div>
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Department
-                  </span>
-                  <DepartmentSelect
-                    id="department"
-                    name="department"
-                    value={department}
-                    onChange={setDepartment}
-                    required
-                  />
-                </label>
-              </div>
-              <ProfileStatusField
-                value={status}
-                onChange={(next) => {
-                  setStatusTouched(true);
-                  setStatus(next);
-                }}
-                idPrefix="signup-status"
-              />
-            </>
+            <Field
+              label="Full name"
+              id="fullName"
+              value={fullName}
+              onChange={setFullName}
+              autoComplete="name"
+              required
+            />
           )}
 
           <Field
@@ -350,6 +354,64 @@ function AuthForm() {
           <p className="-mt-2 text-xs text-slate-500">
             Only @{COLLEGE_EMAIL_DOMAIN} addresses can sign up or log in.
           </p>
+
+          {mode === "signup" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Field
+                    label="Batch year"
+                    id="batchYear"
+                    type="number"
+                    value={batchYear}
+                    onChange={onBatchYearChange}
+                    placeholder={
+                      passoutWindow
+                        ? String(passoutWindow.typicalMax)
+                        : "2024"
+                    }
+                    required
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Graduation / passout year — not the year you joined.
+                  </p>
+                  {joinYear != null ? (
+                    <p className="mt-1 text-xs text-teal-800/80">
+                      {joinYearPassoutHint(joinYear)}
+                    </p>
+                  ) : null}
+                </div>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Department
+                  </span>
+                  <DepartmentSelect
+                    id="department"
+                    name="department"
+                    value={department}
+                    onChange={setDepartment}
+                    required
+                  />
+                </label>
+              </div>
+              <ProfileStatusField
+                value={status}
+                onChange={(next) => {
+                  if (graduateBlocked && next === "graduate") return;
+                  setStatusTouched(true);
+                  setStatus(next);
+                }}
+                idPrefix="signup-status"
+                graduateDisabled={graduateBlocked}
+                graduateDisabledReason={
+                  joinYear != null
+                    ? `Your email suggests joining ${joinYear}; graduation is typically ${passoutWindow?.min}–${passoutWindow?.typicalMax}. You can't register as a graduate yet.`
+                    : undefined
+                }
+              />
+            </>
+          )}
+
           <Field
             label="Password"
             id="password"

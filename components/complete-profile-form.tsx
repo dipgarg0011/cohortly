@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DepartmentSelect } from "@/components/department-select";
 import { ProfileStatusField } from "@/components/profile-status-field";
+import {
+  assertAffiliationFromEmail,
+  expectedPassoutWindow,
+  joinYearPassoutHint,
+  mustBeStudentFromJoinYear,
+  parseJoinYearFromEmail,
+} from "@/lib/batch-from-email";
 import {
   isValidDepartmentValue,
   normalizeDepartmentValue,
@@ -24,10 +31,17 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const joinYear = useMemo(() => parseJoinYearFromEmail(email), [email]);
+  const passoutWindow = joinYear != null ? expectedPassoutWindow(joinYear) : null;
+  const graduateBlocked =
+    joinYear != null && mustBeStudentFromJoinYear(joinYear);
+
   const [fullName, setFullName] = useState(defaultFullName);
-  const [batchYear, setBatchYear] = useState("");
+  const [batchYear, setBatchYear] = useState(
+    passoutWindow ? String(passoutWindow.typicalMax) : "",
+  );
   const [status, setStatus] = useState<ProfileStatus>(
-    suggestedProfileStatus(null),
+    graduateBlocked ? "student" : suggestedProfileStatus(null),
   );
   const [statusTouched, setStatusTouched] = useState(false);
   const [department, setDepartment] = useState("");
@@ -35,9 +49,13 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
   const [roleTitle, setRoleTitle] = useState("");
   const [isFounder, setIsFounder] = useState(false);
 
+  useEffect(() => {
+    if (graduateBlocked) setStatus("student");
+  }, [graduateBlocked]);
+
   function onBatchYearChange(value: string) {
     setBatchYear(value);
-    if (statusTouched) return;
+    if (statusTouched || graduateBlocked) return;
     const year = Number(value);
     if (Number.isInteger(year) && year >= 1950 && year <= 2100) {
       setStatus(suggestedProfileStatus(year));
@@ -58,6 +76,18 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
 
     if (!fullName.trim()) {
       setError("Name and department are required.");
+      setLoading(false);
+      return;
+    }
+
+    const resolvedStatus = graduateBlocked ? "student" : status;
+    const affiliation = assertAffiliationFromEmail(
+      email,
+      resolvedStatus,
+      year,
+    );
+    if (!affiliation.ok) {
+      setError(affiliation.error);
       setLoading(false);
       return;
     }
@@ -91,7 +121,7 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       id: user.id,
       full_name: fullName.trim(),
       batch_year: year,
-      status,
+      status: resolvedStatus,
       department: deptCode,
       company: company.trim() || null,
       role_title: roleTitle.trim() || null,
@@ -139,13 +169,20 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
             type="number"
             value={batchYear}
             onChange={(e) => onBatchYearChange(e.target.value)}
-            placeholder="2024"
+            placeholder={
+              passoutWindow ? String(passoutWindow.typicalMax) : "2024"
+            }
             required
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
           />
           <span className="mt-1.5 block text-xs text-slate-500">
             Graduation / passout year — not the year you joined.
           </span>
+          {joinYear != null ? (
+            <span className="mt-1 block text-xs text-teal-800/80">
+              {joinYearPassoutHint(joinYear)}
+            </span>
+          ) : null}
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -165,10 +202,17 @@ export function CompleteProfileForm({ defaultFullName, email }: Props) {
       <ProfileStatusField
         value={status}
         onChange={(next) => {
+          if (graduateBlocked && next === "graduate") return;
           setStatusTouched(true);
           setStatus(next);
         }}
         idPrefix="complete-status"
+        graduateDisabled={graduateBlocked}
+        graduateDisabledReason={
+          joinYear != null
+            ? `Your email suggests joining ${joinYear}; graduation is typically ${passoutWindow?.min}–${passoutWindow?.typicalMax}. You can't register as a graduate yet.`
+            : undefined
+        }
       />
 
       <div className="grid grid-cols-2 gap-3">

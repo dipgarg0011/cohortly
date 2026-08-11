@@ -6,6 +6,9 @@ type Props = {
   value: ProfileStatus;
   onChange: (next: ProfileStatus) => void;
   idPrefix?: string;
+  /** When true, Graduate cannot be selected (email join-year still early). */
+  graduateDisabled?: boolean;
+  graduateDisabledReason?: string;
 };
 
 /** Required student / graduate control used on signup and profile edit. */
@@ -13,6 +16,8 @@ export function ProfileStatusField({
   value,
   onChange,
   idPrefix = "status",
+  graduateDisabled = false,
+  graduateDisabledReason,
 }: Props) {
   return (
     <fieldset className="min-w-0">
@@ -32,14 +37,17 @@ export function ProfileStatusField({
         ).map((option) => {
           const active = value === option.id;
           const inputId = `${idPrefix}-${option.id}`;
+          const disabled = option.id === "graduate" && graduateDisabled;
           return (
             <label
               key={option.id}
               htmlFor={inputId}
-              className={`cursor-pointer rounded-lg px-2 py-2 text-center text-sm font-semibold transition ${
-                active
-                  ? "bg-white text-teal-900 shadow-sm"
-                  : "text-teal-700/70 hover:text-teal-900"
+              className={`rounded-lg px-2 py-2 text-center text-sm font-semibold transition ${
+                disabled
+                  ? "cursor-not-allowed text-teal-700/35"
+                  : active
+                    ? "cursor-pointer bg-white text-teal-900 shadow-sm"
+                    : "cursor-pointer text-teal-700/70 hover:text-teal-900"
               }`}
             >
               <input
@@ -48,7 +56,11 @@ export function ProfileStatusField({
                 name={idPrefix}
                 value={option.id}
                 checked={active}
-                onChange={() => onChange(option.id)}
+                disabled={disabled}
+                onChange={() => {
+                  if (disabled) return;
+                  onChange(option.id);
+                }}
                 className="sr-only"
                 required
               />
@@ -58,7 +70,9 @@ export function ProfileStatusField({
         })}
       </div>
       <p className="mt-1.5 text-xs text-slate-500">
-        Batch year is your graduation / passout year.
+        {graduateDisabled && graduateDisabledReason
+          ? graduateDisabledReason
+          : "Batch year is your graduation / passout year."}
       </p>
     </fieldset>
   );

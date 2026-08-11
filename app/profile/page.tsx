@@ -83,7 +83,11 @@ export default async function ProfilePage() {
           </div>
         ) : (
           <div className="animate-fade-up space-y-6">
-            <ProfileForm initialProfile={initialProfile} userId={user.id} />
+            <ProfileForm
+              initialProfile={initialProfile}
+              userId={user.id}
+              email={user.email ?? ""}
+            />
             {isGraduate ? (
               <div id="mentoring">
                 <MentorSettings

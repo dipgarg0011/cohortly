@@ -13,11 +13,24 @@ export type ProfileCompletionFields = {
   open_to: string[] | null;
 };
 
+/** High-signal copy for graduates missing `profiles.company`. */
+export const GRADUATE_COMPANY_TIP =
+  "Add your company so students looking for referrals can find you.";
+
+export function isGraduateMissingCompany(
+  profile: Pick<ProfileCompletionFields, "status" | "company"> | null | undefined,
+): boolean {
+  if (!profile) return false;
+  return profile.status === "graduate" && !profile.company?.trim();
+}
+
 const COMPLETION_CHECKS: {
   key: keyof ProfileCompletionFields;
   label: string;
   tip: string;
   isFilled: (profile: ProfileCompletionFields) => boolean;
+  /** When set, tip is only offered if this returns true. Still counts toward %. */
+  tipWhen?: (profile: ProfileCompletionFields) => boolean;
 }[] = [
   {
     key: "full_name",
@@ -52,8 +65,10 @@ const COMPLETION_CHECKS: {
   {
     key: "company",
     label: "company",
-    tip: "Add your company so juniors can find you for referrals",
+    tip: GRADUATE_COMPANY_TIP,
     isFilled: (p) => Boolean(p.company?.trim()),
+    // Students often have no workplace yet — only nudge graduates (referrals).
+    tipWhen: (p) => p.status === "graduate",
   },
   {
     key: "bio",
@@ -97,6 +112,15 @@ const UNLOCK_TIP_ORDER: (keyof ProfileCompletionFields)[] = [
   "avatar_url",
 ];
 
+function isTipEligible(
+  check: (typeof COMPLETION_CHECKS)[number],
+  profile: ProfileCompletionFields,
+): boolean {
+  if (check.isFilled(profile)) return false;
+  if (check.tipWhen && !check.tipWhen(profile)) return false;
+  return true;
+}
+
 export function getProfileCompletion(profile: ProfileCompletionFields) {
   const total = COMPLETION_CHECKS.length;
   const filled = COMPLETION_CHECKS.filter((check) =>
@@ -107,11 +131,12 @@ export function getProfileCompletion(profile: ProfileCompletionFields) {
   const byKey = new Map(COMPLETION_CHECKS.map((c) => [c.key, c]));
   let next =
     UNLOCK_TIP_ORDER.map((key) => byKey.get(key)).find(
-      (check) => check && !check.isFilled(profile),
+      (check) => check && isTipEligible(check, profile),
     ) ?? null;
 
   if (!next) {
-    next = COMPLETION_CHECKS.find((check) => !check.isFilled(profile)) ?? null;
+    next =
+      COMPLETION_CHECKS.find((check) => isTipEligible(check, profile)) ?? null;
   }
 
   return {
@@ -119,6 +144,7 @@ export function getProfileCompletion(profile: ProfileCompletionFields) {
     filled,
     total,
     nextTip: next?.tip ?? null,
+    nextTipKey: next?.key ?? null,
     message:
       percent >= 100
         ? "Your profile is complete."

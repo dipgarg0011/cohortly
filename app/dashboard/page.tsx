@@ -14,7 +14,10 @@ import { DashboardWorthALook } from "@/components/dashboard-worth-a-look";
 import { DashboardCommunity } from "@/components/dashboard-community";
 import { PageShell } from "@/components/ui/page-shell";
 import { SectionCard } from "@/components/ui/section-card";
-import { getProfileCompletion } from "@/lib/profile-completion";
+import {
+  getProfileCompletion,
+  isGraduateMissingCompany,
+} from "@/lib/profile-completion";
 import {
   firstName,
   hasBatchYearPassed,
@@ -22,6 +25,7 @@ import {
   type ProfileStatus,
 } from "@/lib/network";
 import { GraduationNudgeBanner } from "@/components/graduation-nudge-banner";
+import { GraduateCompanyNudgeBanner } from "@/components/graduate-company-nudge-banner";
 import { MentorOnboardingCard } from "@/components/mentor-onboarding-card";
 import {
   buildConversations,
@@ -328,9 +332,14 @@ export default async function DashboardPage() {
     },
   );
 
+  const showCompanyNudge = isGraduateMissingCompany(profile);
+
   // Profile tip stays below the fold — never inside the Needs bubble.
+  // Skip when the dedicated graduate company banner already covers that tip.
   const showProfileTipBanner =
-    completion.percent < 100 && Boolean(completion.nextTip);
+    !showCompanyNudge &&
+    completion.percent < 100 &&
+    Boolean(completion.nextTip);
 
   return (
     <PageShell accent="home">
@@ -341,6 +350,8 @@ export default async function DashboardPage() {
           <h1 className="page-title break-safe">Welcome, {displayName}</h1>
           <DashboardNeedsYou items={needItems} currentUserId={user.id} />
         </div>
+
+        {showCompanyNudge ? <GraduateCompanyNudgeBanner /> : null}
 
         {showGradNudge && <GraduationNudgeBanner userId={user.id} />}
 

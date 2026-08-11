@@ -1,5 +1,9 @@
 import type { ProfileCompletionFields } from "@/lib/profile-completion";
-import { getProfileCompletion } from "@/lib/profile-completion";
+import {
+  GRADUATE_COMPANY_TIP,
+  getProfileCompletion,
+  isGraduateMissingCompany,
+} from "@/lib/profile-completion";
 
 export type CaughtUpNudge = {
   text: string;
@@ -10,7 +14,7 @@ export type CaughtUpNudge = {
 /**
  * When Needs you is empty, surface ONE suggested action.
  * Priority (highest first):
- * 1. Missing company — unlocks referrals for juniors
+ * 1. Graduate missing company — unlocks referral matching
  * 2. New people in the viewer's branch this week — timely social signal
  * 3. Any other profile completion tip
  * 4. null → UI shows plain "You're all caught up"
@@ -26,12 +30,11 @@ export function pickCaughtUpNudge(input: {
   const { profile, newBranchJoins, department } = input;
   if (!profile) return null;
 
-  const companyMissing = !profile.company?.trim();
-  if (companyMissing) {
+  if (isGraduateMissingCompany(profile)) {
     return {
-      text: "Add your company so juniors can find you for referrals",
-      href: "/profile",
-      actionLabel: "Edit profile",
+      text: GRADUATE_COMPANY_TIP,
+      href: "/profile#company",
+      actionLabel: "Add company",
     };
   }
 

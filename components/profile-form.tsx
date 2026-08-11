@@ -358,13 +358,20 @@ export function ProfileForm({ initialProfile, userId, email }: Props) {
           Work & startup
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Company"
-            id="company"
-            value={company}
-            onChange={setCompany}
-            placeholder="Company or startup name"
-          />
+          <div>
+            <Field
+              label="Company"
+              id="company"
+              value={company}
+              onChange={setCompany}
+              placeholder="Company or startup name"
+            />
+            {isGraduate && !company.trim() ? (
+              <p className="mt-1.5 text-xs leading-snug text-slate-500">
+                Add your company so students looking for referrals can find you.
+              </p>
+            ) : null}
+          </div>
           <Field
             label="Role title"
             id="roleTitle"

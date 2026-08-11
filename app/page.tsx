@@ -71,7 +71,7 @@ export default async function Home() {
             Your college. Your people. Your network.
           </h1>
           <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--muted)] sm:text-lg">
-            Find people. Get referrals. Find mentors. Discover opportunities.
+            Find people. Reconnect with your network. Get referrals. Find mentors. Discover opportunities — all within your college.
           </p>
           <div className="mt-8 flex w-full min-w-0 max-w-xs justify-center sm:max-w-none">
             <Link

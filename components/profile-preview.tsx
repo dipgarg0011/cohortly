@@ -28,6 +28,7 @@ import {
   type NetworkProfile,
   type ProfileStatus,
 } from "@/lib/network";
+import { ReportUserModal } from "@/components/report-user-modal";
 
 const PROFILE_SELECT =
   "id, full_name, batch_year, status, department, current_job, company, role_title, is_founder, open_to, skills, linkedin_url, avatar_url, bio";
@@ -86,6 +87,7 @@ export function ProfilePreviewProvider({ children }: Props) {
     id: string;
     full_name: string | null;
   } | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -415,12 +417,35 @@ export function ProfilePreviewProvider({ children }: Props) {
                       Ask for help
                     </Link>
                   ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => setReportOpen(true)}
+                    className="w-full py-2 text-sm font-semibold text-red-700/90 transition hover:text-red-800 hover:underline"
+                  >
+                    Report this member
+                  </button>
                 </>
               )}
             </div>
           </div>
         ) : null}
       </AppModal>
+
+      {reportOpen && profile && !isSelf ? (
+        <ReportUserModal
+          open={reportOpen}
+          reportedId={profile.id}
+          reportedName={firstName(profile.full_name) || "this member"}
+          conversationId={
+            conversation?.status === "accepted" ||
+            conversation?.status === "blocked"
+              ? conversation.id
+              : null
+          }
+          onClose={() => setReportOpen(false)}
+        />
+      ) : null}
 
       {requestTarget && viewerId ? (
         <ConnectionRequestModal

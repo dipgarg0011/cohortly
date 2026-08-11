@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/require-profile";
 import { Navbar } from "@/components/navbar";
 import { ProfileForm } from "@/components/profile-form";
 import { MentorSettings } from "@/components/mentor-settings";
+import { DeleteAccountSection } from "@/components/delete-account-section";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
 import { isGraduateStatus } from "@/lib/network";
 import {
@@ -92,6 +93,7 @@ export default async function ProfilePage() {
                 />
               </div>
             ) : null}
+            <DeleteAccountSection />
           </div>
         )}
       </main>

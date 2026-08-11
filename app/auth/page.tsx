@@ -388,6 +388,56 @@ function AuthForm() {
                 ? "Log in"
                 : "Create account"}
           </button>
+
+          {mode === "signup" ? (
+            <p className="text-center text-xs leading-relaxed text-slate-500">
+              By creating an account you agree to our{" "}
+              <Link
+                href="/terms"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Terms
+              </Link>
+              ,{" "}
+              <Link
+                href="/privacy"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              , and{" "}
+              <Link
+                href="/guidelines"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Community Guidelines
+              </Link>
+              .
+            </p>
+          ) : (
+            <p className="text-center text-xs text-slate-500">
+              <Link
+                href="/privacy"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Privacy
+              </Link>
+              {" · "}
+              <Link
+                href="/terms"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Terms
+              </Link>
+              {" · "}
+              <Link
+                href="/guidelines"
+                className="font-semibold text-[var(--brand)] hover:underline"
+              >
+                Guidelines
+              </Link>
+            </p>
+          )}
         </form>
       </div>
     </AuthShell>

@@ -28,8 +28,8 @@ export default function TermsPage() {
   return (
     <ContentPage
       title="Terms of Use"
-      description="These terms explain who may use Cohortly, how we expect people to behave, and what the platform does and does not promise. By creating an account or using the service, you agree to them."
-      lastUpdated="August 6, 2026"
+      description="These terms explain who may use Cohortly, how we expect people to behave, and what the platform does and does not promise. Cohortly is currently available to one verified college network. By creating an account or using the service, you agree to them."
+      lastUpdated="August 11, 2026"
       toc={[...TOC]}
     >
       <ContentSection
@@ -47,11 +47,13 @@ export default function TermsPage() {
 
       <ContentSection id="eligibility" number={2} title="Eligibility">
         <p>
-          Cohortly is available to current students and graduates of
-          participating colleges, verified through a college email or another
-          verification method we may offer. You must provide accurate
-          affiliation, batch, and status information. Accounts with false
-          affiliation information may be suspended.
+          Cohortly is available to current students and graduates of the
+          participating college for this launch, verified through a college
+          email (or another verification method we may offer). Access is limited
+          to that verified campus community — it is not an open multi-college
+          directory. You must provide accurate affiliation, batch, and status
+          information. Accounts with false affiliation information may be
+          suspended.
         </p>
       </ContentSection>
 
@@ -126,8 +128,8 @@ export default function TermsPage() {
         <p>
           We may suspend or terminate accounts that violate these terms, pose a
           safety risk, or were created with false information, and will notify
-          the affected member where practical. Members can request deletion of
-          their own account anytime via{" "}
+          the affected member where practical. Members can delete their own
+          account anytime from Profile → Delete my account, or by emailing{" "}
           <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>.
         </p>
       </ContentSection>

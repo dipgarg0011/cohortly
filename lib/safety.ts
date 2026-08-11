@@ -21,6 +21,9 @@ export function mapSafetyError(
   if (msg.includes("Not a participant")) {
     return "You can only manage conversations you're part of.";
   }
+  if (msg.includes("ACCOUNT_DELETE_FAILED")) {
+    return "Couldn’t finish deleting your account. Email cohortly.in@gmail.com and we’ll help.";
+  }
   if (msg.trim()) return msg;
   return "Something went wrong. Please try again.";
 }

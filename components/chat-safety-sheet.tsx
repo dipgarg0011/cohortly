@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AppModal } from "@/components/ui/app-modal";
 import {
   REPORT_REASONS,
@@ -134,6 +135,17 @@ export function ChatSafetySheet({
               Tell us what happened. You can also block them in the same step.
             </span>
           </button>
+          <p className="pt-1 text-center text-xs text-slate-500">
+            See{" "}
+            <Link
+              href="/guidelines#safety"
+              className="font-semibold text-[var(--brand)] hover:underline"
+              onClick={resetAndClose}
+            >
+              Community Guidelines
+            </Link>{" "}
+            for harassment, spam, and how we handle reports.
+          </p>
           <button
             type="button"
             disabled={busy}

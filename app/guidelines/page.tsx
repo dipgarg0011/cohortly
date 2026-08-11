@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ContentPage, ContentSection } from "@/components/content-page";
 
 export const metadata: Metadata = {
   title: "Community Guidelines · Cohortly",
   description:
-    "Ground rules for trusting the person on the other side of a Cohortly request.",
+    "Ground rules for trusting the person on the other side of a Cohortly request — including safety, reporting, and harassment.",
 };
 
 export default function GuidelinesPage() {
   return (
     <ContentPage
       title="Community Guidelines"
-      description="Cohortly only works if people can trust the person on the other side of a request. These are the ground rules."
-      lastUpdated="August 6, 2026"
+      description="Cohortly is launching with one college network. It only works if people can trust the person on the other side of a request. These are the ground rules."
+      lastUpdated="August 11, 2026"
     >
       <ContentSection
         id="why-these-exist"
@@ -21,7 +22,8 @@ export default function GuidelinesPage() {
         <p>
           Cohortly connects you with real people from your college — seniors,
           classmates, and graduates who are giving their time voluntarily. These
-          guidelines exist to keep that trust intact.
+          guidelines exist to keep that trust intact inside this verified
+          campus community.
         </p>
       </ContentSection>
 
@@ -60,10 +62,40 @@ export default function GuidelinesPage() {
         </p>
       </ContentSection>
 
+      <ContentSection id="safety" title="Safety & reporting">
+        <p>
+          Harassment, bullying, threats, hate, sexual misconduct, spam, scams,
+          and phishing have no place on Cohortly. If someone makes you
+          uncomfortable or misuses the platform:
+        </p>
+        <ul>
+          <li>
+            In a chat, open <strong>Safety</strong> to Unmatch, Block, or
+            Report.
+          </li>
+          <li>
+            From someone&apos;s profile preview, use{" "}
+            <strong>Report this member</strong>.
+          </li>
+          <li>
+            Or email{" "}
+            <a href="mailto:cohortly.in@gmail.com?subject=Safety%20report">
+              cohortly.in@gmail.com
+            </a>{" "}
+            with what happened.
+          </li>
+        </ul>
+        <p>
+          Report — don&apos;t retaliate. We review reports (rate-limited to
+          prevent abuse). Blocking is private: we don&apos;t tell the other
+          person you blocked them.
+        </p>
+      </ContentSection>
+
       <ContentSection id="report" title="Report, don't retaliate">
         <p>
           If someone makes you uncomfortable or misuses the platform, report it
-          — don&apos;t respond in kind. We review every report.
+          — don&apos;t respond in kind. We review every report we can action.
         </p>
       </ContentSection>
 
@@ -80,7 +112,9 @@ export default function GuidelinesPage() {
 
       <ContentSection id="contact" title="Contact">
         <p>
-          <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>.
+          <a href="mailto:cohortly.in@gmail.com">cohortly.in@gmail.com</a>. See
+          also our <Link href="/privacy">Privacy Policy</Link> and{" "}
+          <Link href="/terms">Terms of Use</Link>.
         </p>
       </ContentSection>
     </ContentPage>

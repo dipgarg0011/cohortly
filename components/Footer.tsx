@@ -172,6 +172,14 @@ export function Footer() {
                     cohortly.in@gmail.com
                   </a>
                   <a
+                    href="https://www.linkedin.com/company/143100184/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={linkClass}
+                  >
+                    LinkedIn
+                  </a>
+                  <a
                     href="mailto:cohortly.in@gmail.com?subject=Feedback%20for%20Cohortly"
                     className={linkClass}
                   >

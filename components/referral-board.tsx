@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { companySearchMatch } from "@/lib/company-search";
 import { getInitials } from "@/lib/network";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
@@ -887,10 +888,10 @@ function ReferralRequestForm({
   const [error, setError] = useState<string | null>(null);
 
   const suggestions = useMemo(() => {
-    const q = company.trim().toLowerCase();
+    const q = company.trim();
     if (!q) return knownCompanies.slice(0, 8);
     return knownCompanies
-      .filter((c) => c.toLowerCase().includes(q))
+      .filter((c) => companySearchMatch(q, c))
       .slice(0, 8);
   }, [company, knownCompanies]);
 

@@ -24,6 +24,10 @@ import {
   formatDepartmentDisplay,
 } from "@/lib/departments";
 import {
+  companySearchMatch,
+  nameSearchMatch,
+} from "@/lib/company-search";
+import {
   getProfileRole,
   OPEN_TO_OPTIONS,
   SKILL_OPTIONS,
@@ -150,14 +154,18 @@ export function NetworkDirectory({
   }, [others]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
 
     return others.filter((profile) => {
       const role = getProfileRole(profile.status);
-      const name = profile.full_name?.toLowerCase() ?? "";
-      const company = profile.company?.toLowerCase() ?? "";
 
-      if (q && !name.includes(q) && !company.includes(q)) return false;
+      if (
+        q &&
+        !nameSearchMatch(q, profile.full_name) &&
+        !companySearchMatch(q, profile.company)
+      ) {
+        return false;
+      }
       if (batchYear !== "all" && String(profile.batch_year) !== batchYear) {
         return false;
       }

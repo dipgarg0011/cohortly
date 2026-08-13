@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNotBlockedEmail } from "@/lib/blocked-email";
 import { COLLEGE_EMAIL_ERROR, isCollegeEmail } from "@/lib/college";
 
 /** Require a logged-in user with a college email and an existing profiles row. */
@@ -16,6 +17,12 @@ export async function requireProfile() {
   if (!isCollegeEmail(user.email)) {
     await supabase.auth.signOut();
     redirect(`/auth?error=${encodeURIComponent(COLLEGE_EMAIL_ERROR)}`);
+  }
+
+  const blocked = await assertNotBlockedEmail(supabase, user.email);
+  if (!blocked.ok) {
+    await supabase.auth.signOut();
+    redirect(`/auth?error=${encodeURIComponent(blocked.error)}`);
   }
 
   const { data: profile } = await supabase

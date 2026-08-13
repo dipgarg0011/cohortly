@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { requireProfile } from "@/lib/require-profile";
+import { isAdminEmail } from "@/lib/admin";
 import { Navbar } from "@/components/navbar";
 import { ProfileForm } from "@/components/profile-form";
 import { MentorSettings } from "@/components/mentor-settings";
@@ -14,6 +16,7 @@ import type { MentorOnboardingState } from "@/lib/mentorship";
 
 export default async function ProfilePage() {
   const { supabase, user } = await requireProfile();
+  const showModeration = isAdminEmail(user.email);
 
   const [{ data: profile, error }, { data: availability }] = await Promise.all([
     supabase
@@ -75,6 +78,18 @@ export default async function ProfilePage() {
           title="Your profile"
           description="Help seniors and peers find you — share what you do and what you're open to."
         />
+
+        {showModeration ? (
+          <p className="mb-4 text-sm">
+            <Link
+              href="/admin/moderation"
+              className="font-semibold text-[var(--brand)] hover:underline"
+            >
+              Moderation
+            </Link>
+            <span className="text-slate-500"> — review reports (admin only)</span>
+          </p>
+        ) : null}
 
         {error ? (
           <div className="surface-card border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">

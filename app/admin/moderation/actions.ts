@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import {
+  listRecentMembersForModeration,
   logAdminAction,
   searchMembersForModeration,
   type AdminMemberRow,
@@ -216,7 +217,7 @@ export async function markReportReviewed(input: {
 export async function searchModerationMembers(input: {
   query: string;
 }): Promise<
-  | { ok: true; members: AdminMemberRow[] }
+  | { ok: true; members: AdminMemberRow[]; warning?: string }
   | { ok: false; error: string }
 > {
   await requireAdmin();
@@ -228,11 +229,41 @@ export async function searchModerationMembers(input: {
     if (result.error && result.members.length === 0) {
       return { ok: false, error: result.error };
     }
-    return { ok: true, members: result.members };
+    return {
+      ok: true,
+      members: result.members,
+      warning: result.error ?? undefined,
+    };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Search failed.",
+    };
+  }
+}
+
+export async function loadRecentModerationMembers(): Promise<
+  | { ok: true; members: AdminMemberRow[]; warning?: string }
+  | { ok: false; error: string }
+> {
+  await requireAdmin();
+  const svc = serviceOrError();
+  if (!svc.ok) return svc;
+
+  try {
+    const result = await listRecentMembersForModeration(svc.service, 20);
+    if (result.error && result.members.length === 0) {
+      return { ok: false, error: result.error };
+    }
+    return {
+      ok: true,
+      members: result.members,
+      warning: result.error ?? undefined,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Failed to load recent members.",
     };
   }
 }

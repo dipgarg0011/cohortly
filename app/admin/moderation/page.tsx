@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/admin";
 import {
   listBlockedEmails,
   listModerationReports,
+  listRecentMembersForModeration,
+  type AdminMemberRow,
 } from "@/lib/admin-moderation";
 import {
   createServiceClient,
@@ -22,18 +24,26 @@ export default async function AdminModerationPage() {
   let reports: Awaited<ReturnType<typeof listModerationReports>>["reports"] =
     [];
   let blocked: Awaited<ReturnType<typeof listBlockedEmails>>["blocked"] = [];
+  let recentMembers: AdminMemberRow[] = [];
   let loadError: string | null = null;
 
   if (serviceConfigured) {
     try {
       const service = createServiceClient();
-      const [reportResult, blockedResult] = await Promise.all([
+      const [reportResult, blockedResult, recentResult] = await Promise.all([
         listModerationReports(service),
         listBlockedEmails(service),
+        listRecentMembersForModeration(service, 20),
       ]);
       reports = reportResult.reports;
       blocked = blockedResult.blocked;
-      loadError = reportResult.error ?? blockedResult.error;
+      recentMembers = recentResult.members;
+      loadError =
+        reportResult.error ??
+        blockedResult.error ??
+        (recentResult.error && recentResult.members.length === 0
+          ? recentResult.error
+          : null);
     } catch (e) {
       loadError =
         e instanceof Error ? e.message : "Failed to load moderation data.";
@@ -61,6 +71,7 @@ export default async function AdminModerationPage() {
         <AdminModerationConsole
           reports={reports}
           blocked={blocked}
+          recentMembers={recentMembers}
           loadError={loadError}
           serviceConfigured={serviceConfigured}
         />

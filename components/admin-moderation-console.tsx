@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   blockReportedEmail,
+  loadRecentModerationMembers,
   markReportReviewed,
   removeReportedUser,
   searchModerationMembers,
@@ -57,11 +58,13 @@ const tabBtn =
 export function AdminModerationConsole({
   reports,
   blocked,
+  recentMembers: initialRecentMembers,
   loadError,
   serviceConfigured,
 }: {
   reports: AdminReportRow[];
   blocked: BlockedEmailRow[];
+  recentMembers: AdminMemberRow[];
   loadError: string | null;
   serviceConfigured: boolean;
 }) {
@@ -75,7 +78,13 @@ export function AdminModerationConsole({
   const [blockReasonInput, setBlockReasonInput] = useState("");
   const [memberQuery, setMemberQuery] = useState("");
   const [members, setMembers] = useState<AdminMemberRow[]>([]);
+  const [recentMembers, setRecentMembers] =
+    useState<AdminMemberRow[]>(initialRecentMembers);
   const [memberSearched, setMemberSearched] = useState(false);
+
+  useEffect(() => {
+    setRecentMembers(initialRecentMembers);
+  }, [initialRecentMembers]);
 
   function runConfirm() {
     if (!confirm) return;
@@ -121,7 +130,13 @@ export function AdminModerationConsole({
         const refreshed = await searchModerationMembers({
           query: memberQuery,
         });
-        if (refreshed.ok) setMembers(refreshed.members);
+        if (refreshed.ok) {
+          setMembers(refreshed.members);
+          if (refreshed.warning) setError(refreshed.warning);
+        }
+      } else {
+        const recent = await loadRecentModerationMembers();
+        if (recent.ok) setRecentMembers(recent.members);
       }
     });
   }
@@ -137,6 +152,7 @@ export function AdminModerationConsole({
         return;
       }
       setMembers(result.members);
+      if (result.warning) setError(result.warning);
     });
   }
 
@@ -284,8 +300,15 @@ export function AdminModerationConsole({
       {tab === "members" ? (
         <MembersPanel
           query={memberQuery}
-          onQueryChange={setMemberQuery}
+          onQueryChange={(value) => {
+            setMemberQuery(value);
+            if (memberSearched && value.trim().length < 2) {
+              setMemberSearched(false);
+              setMembers([]);
+            }
+          }}
           members={members}
+          recentMembers={recentMembers}
           searched={memberSearched}
           pending={pending}
           onSearch={runMemberSearch}
@@ -602,10 +625,79 @@ function BlockedPanel({
   );
 }
 
+function MemberList({
+  members,
+  pending,
+  onBlock,
+  onRemove,
+}: {
+  members: AdminMemberRow[];
+  pending: boolean;
+  onBlock: (member: AdminMemberRow) => void;
+  onRemove: (member: AdminMemberRow) => void;
+}) {
+  return (
+    <ul className="space-y-3">
+      {members.map((member) => {
+        const skills = (member.skills ?? []).slice(0, 6);
+        return (
+          <li
+            key={member.id}
+            className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-4 sm:px-5"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  {member.full_name ?? "Unknown"}
+                  {member.is_blocked ? (
+                    <span className="ml-2 text-xs font-semibold text-red-700">
+                      Blocked
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-600">
+                  {member.email ?? "No email on file"}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              Batch {member.batch_year ?? "—"}
+              {member.department ? ` · ${member.department}` : ""}
+              {member.status ? ` · ${member.status}` : ""}
+              {member.role_title ? ` · ${member.role_title}` : ""}
+              {member.company ? ` · ${member.company}` : ""}
+              {skills.length > 0 ? ` · ${skills.join(", ")}` : ""}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={pending || !member.email || member.is_blocked}
+                onClick={() => onBlock(member)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-45"
+              >
+                Block email
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onRemove(member)}
+                className="rounded-xl border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-45"
+              >
+                Remove account
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function MembersPanel({
   query,
   onQueryChange,
   members,
+  recentMembers,
   searched,
   pending,
   onSearch,
@@ -615,6 +707,7 @@ function MembersPanel({
   query: string;
   onQueryChange: (v: string) => void;
   members: AdminMemberRow[];
+  recentMembers: AdminMemberRow[];
   searched: boolean;
   pending: boolean;
   onSearch: () => void;
@@ -654,74 +747,50 @@ function MembersPanel({
         </div>
       </form>
 
-      {!searched ? (
+      {searched ? (
+        members.length === 0 ? (
+          <EmptyState
+            icon={<span className="text-2xl font-bold">∅</span>}
+            title="No matches"
+            description="Try another name spelling or the full college email address."
+            accentSoft="var(--accent-profile-soft)"
+          />
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Search results
+            </p>
+            <MemberList
+              members={members}
+              pending={pending}
+              onBlock={onBlock}
+              onRemove={onRemove}
+            />
+          </div>
+        )
+      ) : recentMembers.length === 0 ? (
         <EmptyState
           icon={<span className="text-2xl font-bold">⌕</span>}
           title="Search members"
           description="Enter a name or email above to see a profile summary and take action."
           accentSoft="var(--accent-profile-soft)"
         />
-      ) : members.length === 0 ? (
-        <EmptyState
-          icon={<span className="text-2xl font-bold">∅</span>}
-          title="No matches"
-          description="Try another name spelling or the full college email address."
-          accentSoft="var(--accent-profile-soft)"
-        />
       ) : (
-        <ul className="space-y-3">
-          {members.map((member) => {
-            const skills = (member.skills ?? []).slice(0, 6);
-            return (
-              <li
-                key={member.id}
-                className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-4 sm:px-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">
-                      {member.full_name ?? "Unknown"}
-                      {member.is_blocked ? (
-                        <span className="ml-2 text-xs font-semibold text-red-700">
-                          Blocked
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-600">
-                      {member.email ?? "No email on file"}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                  Batch {member.batch_year ?? "—"}
-                  {member.department ? ` · ${member.department}` : ""}
-                  {member.status ? ` · ${member.status}` : ""}
-                  {member.role_title ? ` · ${member.role_title}` : ""}
-                  {member.company ? ` · ${member.company}` : ""}
-                  {skills.length > 0 ? ` · ${skills.join(", ")}` : ""}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={pending || !member.email || member.is_blocked}
-                    onClick={() => onBlock(member)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-45"
-                  >
-                    Block email
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => onRemove(member)}
-                    className="rounded-xl border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-45"
-                  >
-                    Remove account
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Recent members
+          </p>
+          <p className="text-xs text-slate-500">
+            Last {recentMembers.length} signups. Search above to find someone
+            specific.
+          </p>
+          <MemberList
+            members={recentMembers}
+            pending={pending}
+            onBlock={onBlock}
+            onRemove={onRemove}
+          />
+        </div>
       )}
     </div>
   );

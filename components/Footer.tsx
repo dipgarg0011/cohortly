@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 
 const FEATURE_LINKS = [
@@ -65,7 +66,7 @@ function LinkedInIcon({ className }: { className?: string }) {
   );
 }
 
-export function Footer() {
+export function Footer({ adminLink }: { adminLink?: ReactNode } = {}) {
   const pathname = usePathname();
 
   const hideFooter =
@@ -122,6 +123,7 @@ export function Footer() {
                     {label}
                   </Link>
                 ))}
+                {adminLink}
               </nav>
             </div>
 

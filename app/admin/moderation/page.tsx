@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
-import { listModerationReports } from "@/lib/admin-moderation";
+import {
+  listBlockedEmails,
+  listModerationReports,
+} from "@/lib/admin-moderation";
 import {
   createServiceClient,
   hasServiceRoleKey,
@@ -18,13 +21,19 @@ export default async function AdminModerationPage() {
   const serviceConfigured = hasServiceRoleKey();
   let reports: Awaited<ReturnType<typeof listModerationReports>>["reports"] =
     [];
+  let blocked: Awaited<ReturnType<typeof listBlockedEmails>>["blocked"] = [];
   let loadError: string | null = null;
 
   if (serviceConfigured) {
     try {
-      const result = await listModerationReports(createServiceClient());
-      reports = result.reports;
-      loadError = result.error;
+      const service = createServiceClient();
+      const [reportResult, blockedResult] = await Promise.all([
+        listModerationReports(service),
+        listBlockedEmails(service),
+      ]);
+      reports = reportResult.reports;
+      blocked = blockedResult.blocked;
+      loadError = reportResult.error ?? blockedResult.error;
     } catch (e) {
       loadError =
         e instanceof Error ? e.message : "Failed to load moderation data.";
@@ -38,8 +47,8 @@ export default async function AdminModerationPage() {
         <PageHeader
           accent="profile"
           eyebrow="Admin"
-          title="Moderation"
-          description="Review user reports. Block emails or remove accounts without SQL. Private chat messages are not shown here."
+          title="Safety console"
+          description="Review reports, manage blocked emails, and look up members. Private chat messages are never shown here."
         />
         <p className="mb-4 text-sm">
           <Link
@@ -51,6 +60,7 @@ export default async function AdminModerationPage() {
         </p>
         <AdminModerationConsole
           reports={reports}
+          blocked={blocked}
           loadError={loadError}
           serviceConfigured={serviceConfigured}
         />

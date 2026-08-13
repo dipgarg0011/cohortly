@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
-import { logAdminAction } from "@/lib/admin-moderation";
+import {
+  logAdminAction,
+  searchMembersForModeration,
+  type AdminMemberRow,
+} from "@/lib/admin-moderation";
 import { normalizeEmail } from "@/lib/college";
 import {
   createServiceClient,
@@ -33,6 +37,10 @@ function serviceOrError():
   }
 }
 
+function revalidateModeration() {
+  revalidatePath("/admin/moderation");
+}
+
 export async function blockReportedEmail(input: {
   email: string;
   reason?: string;
@@ -46,6 +54,10 @@ export async function blockReportedEmail(input: {
   const email = normalizeEmail(input.email);
   if (!email.includes("@")) {
     return { ok: false, error: "Invalid email." };
+  }
+
+  if (user.email && normalizeEmail(user.email) === email) {
+    return { ok: false, error: "You cannot block your own email." };
   }
 
   const reason =
@@ -70,7 +82,39 @@ export async function blockReportedEmail(input: {
     detail: reason,
   });
 
-  revalidatePath("/admin/moderation");
+  revalidateModeration();
+  return { ok: true };
+}
+
+export async function unblockEmail(input: {
+  email: string;
+}): Promise<ModerationActionResult> {
+  const { user } = await requireAdmin();
+  const svc = serviceOrError();
+  if (!svc.ok) return svc;
+
+  const email = normalizeEmail(input.email);
+  if (!email.includes("@")) {
+    return { ok: false, error: "Invalid email." };
+  }
+
+  const { error } = await svc.service
+    .from("blocked_emails")
+    .delete()
+    .eq("email", email);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  await logAdminAction(svc.service, {
+    admin_email: user.email ?? "",
+    action: "unblock_email",
+    target_email: email,
+    detail: "Unblocked via admin moderation console",
+  });
+
+  revalidateModeration();
   return { ok: true };
 }
 
@@ -85,6 +129,10 @@ export async function removeReportedUser(input: {
 
   if (!input.userId) {
     return { ok: false, error: "User id required." };
+  }
+
+  if (user.id === input.userId) {
+    return { ok: false, error: "You cannot remove your own account from here." };
   }
 
   const reason =
@@ -123,7 +171,7 @@ export async function removeReportedUser(input: {
     detail: reason,
   });
 
-  revalidatePath("/admin/moderation");
+  revalidateModeration();
   return { ok: true };
 }
 
@@ -161,6 +209,30 @@ export async function markReportReviewed(input: {
     report_id: input.reportId,
   });
 
-  revalidatePath("/admin/moderation");
+  revalidateModeration();
   return { ok: true };
+}
+
+export async function searchModerationMembers(input: {
+  query: string;
+}): Promise<
+  | { ok: true; members: AdminMemberRow[] }
+  | { ok: false; error: string }
+> {
+  await requireAdmin();
+  const svc = serviceOrError();
+  if (!svc.ok) return svc;
+
+  try {
+    const result = await searchMembersForModeration(svc.service, input.query);
+    if (result.error && result.members.length === 0) {
+      return { ok: false, error: result.error };
+    }
+    return { ok: true, members: result.members };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Search failed.",
+    };
+  }
 }

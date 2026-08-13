@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { companySearchMatch } from "@/lib/company-search";
 import { normalizeEmail } from "@/lib/college";
 import { REPORT_REASONS, type ReportReasonId } from "@/lib/safety";
 
@@ -433,24 +434,44 @@ export async function searchMembersForModeration(
     memberById.set(member.id, member);
   }
 
-  const { data: nameHits, error: nameError } = await service
-    .from("profiles")
-    .select(PROFILE_MEMBER_SELECT)
-    .ilike("full_name", `%${q}%`)
-    .limit(20);
+  const [{ data: nameHits, error: nameError }, { data: companyRows, error: companyError }] =
+    await Promise.all([
+      service
+        .from("profiles")
+        .select(PROFILE_MEMBER_SELECT)
+        .ilike("full_name", `%${q}%`)
+        .limit(20),
+      // College-scale: load companies and match punctuation-insensitively in JS.
+      service
+        .from("profiles")
+        .select(PROFILE_MEMBER_SELECT)
+        .not("company", "is", null)
+        .neq("company", "")
+        .limit(500),
+    ]);
 
   if (nameError) {
     return { members: [], error: nameError.message };
   }
+  if (companyError && !warning) {
+    warning = companyError.message;
+  }
 
   const nameProfiles = (nameHits ?? []) as ProfileSnippet[];
-  if (nameProfiles.length > 0) {
-    const missingIds = nameProfiles
-      .map((p) => p.id)
-      .filter((id) => !memberById.has(id));
+  const companyProfiles = ((companyRows ?? []) as ProfileSnippet[]).filter(
+    (p) => companySearchMatch(q, p.company),
+  );
+  const profileHits = [...nameProfiles, ...companyProfiles];
+
+  if (profileHits.length > 0) {
+    const missingIds = [
+      ...new Set(
+        profileHits.map((p) => p.id).filter((id) => !memberById.has(id)),
+      ),
+    ];
     const emailMap = await emailsForIds(service, missingIds);
 
-    for (const profile of nameProfiles) {
+    for (const profile of profileHits) {
       const existing = memberById.get(profile.id);
       if (existing) {
         existing.full_name = profile.full_name;

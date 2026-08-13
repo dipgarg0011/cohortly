@@ -201,6 +201,20 @@ export async function listBlockedEmails(
   };
 }
 
+const PROFILE_MEMBER_SELECT =
+  "id, full_name, batch_year, department, status, skills, role_title, company";
+
+const MIGRATION_20260815_HINT =
+  "Run migration 20260815_admin_moderation_expand.sql in Supabase SQL Editor for faster email/recent lookups.";
+
+function isMissingRpcError(message: string): boolean {
+  return (
+    message.includes("Could not find the function") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist")
+  );
+}
+
 async function blockedSetForEmails(
   service: SupabaseClient,
   emails: string[],
@@ -220,8 +234,178 @@ async function blockedSetForEmails(
   );
 }
 
+async function applyBlockedFlags(
+  service: SupabaseClient,
+  members: AdminMemberRow[],
+): Promise<AdminMemberRow[]> {
+  const blocked = await blockedSetForEmails(
+    service,
+    members.map((m) => m.email).filter((e): e is string => Boolean(e)),
+  );
+  for (const m of members) {
+    m.is_blocked = Boolean(m.email && blocked.has(normalizeEmail(m.email)));
+  }
+  return members;
+}
+
+async function profilesByIds(
+  service: SupabaseClient,
+  ids: string[],
+): Promise<Map<string, ProfileSnippet>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await service
+    .from("profiles")
+    .select(PROFILE_MEMBER_SELECT)
+    .in("id", ids);
+  return new Map(
+    ((data ?? []) as ProfileSnippet[]).map((p) => [p.id, p]),
+  );
+}
+
+/** Auth Admin API fallback when SQL helpers are not installed yet. */
+async function listAuthUsersFallback(
+  service: SupabaseClient,
+  options: { emailQuery?: string; recentLimit?: number },
+): Promise<{ user_id: string; email: string }[]> {
+  const needle = options.emailQuery?.trim().toLowerCase() ?? "";
+  const recentLimit = options.recentLimit ?? 0;
+  const collected: { user_id: string; email: string; created_at: string }[] =
+    [];
+
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await service.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error || !data?.users?.length) break;
+
+    for (const user of data.users) {
+      if (!user.email) continue;
+      const email = normalizeEmail(user.email);
+      if (needle && !email.includes(needle)) continue;
+      collected.push({
+        user_id: user.id,
+        email,
+        created_at: user.created_at ?? "",
+      });
+    }
+
+    if (data.users.length < 200) break;
+  }
+
+  if (recentLimit > 0 && !needle) {
+    collected.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return collected.slice(0, recentLimit).map(({ user_id, email }) => ({
+      user_id,
+      email,
+    }));
+  }
+
+  return collected.slice(0, 20).map(({ user_id, email }) => ({
+    user_id,
+    email,
+  }));
+}
+
+async function findUsersByEmail(
+  service: SupabaseClient,
+  query: string,
+): Promise<{
+  hits: { user_id: string; email: string }[];
+  warning: string | null;
+  error: string | null;
+}> {
+  const { data, error } = await service.rpc("admin_find_users_by_email", {
+    p_query: query,
+  });
+
+  if (!error) {
+    const hits = ((data ?? []) as { user_id: string; email: string }[]).map(
+      (row) => ({
+        user_id: row.user_id,
+        email: normalizeEmail(row.email),
+      }),
+    );
+    return { hits, warning: null, error: null };
+  }
+
+  const msg = error.message ?? "";
+  if (isMissingRpcError(msg)) {
+    const hits = await listAuthUsersFallback(service, { emailQuery: query });
+    return { hits, warning: MIGRATION_20260815_HINT, error: null };
+  }
+
+  return { hits: [], warning: null, error: msg };
+}
+
+async function membersFromAuthHits(
+  service: SupabaseClient,
+  hits: { user_id: string; email: string }[],
+): Promise<AdminMemberRow[]> {
+  if (hits.length === 0) return [];
+  const profileById = await profilesByIds(
+    service,
+    hits.map((h) => h.user_id),
+  );
+
+  return hits.map((hit) => {
+    const profile = profileById.get(hit.user_id);
+    return {
+      id: hit.user_id,
+      email: hit.email,
+      full_name: profile?.full_name ?? null,
+      batch_year: profile?.batch_year ?? null,
+      department: profile?.department ?? null,
+      status: profile?.status ?? null,
+      skills: profile?.skills ?? null,
+      role_title: profile?.role_title ?? null,
+      company: profile?.company ?? null,
+      is_blocked: false,
+    };
+  });
+}
+
 /**
- * Member lookup by name (profiles) and/or email (auth.users via RPC).
+ * Newest signups (auth.users). Falls back to Auth Admin listUsers if RPC missing.
+ * Never returns private message bodies.
+ */
+export async function listRecentMembersForModeration(
+  service: SupabaseClient,
+  limit = 20,
+): Promise<{ members: AdminMemberRow[]; error: string | null }> {
+  const capped = Math.max(1, Math.min(limit, 50));
+  let hits: { user_id: string; email: string }[] = [];
+  let warning: string | null = null;
+
+  const { data, error } = await service.rpc("admin_list_recent_users", {
+    p_limit: capped,
+  });
+
+  if (!error) {
+    hits = ((data ?? []) as { user_id: string; email: string }[]).map(
+      (row) => ({
+        user_id: row.user_id,
+        email: normalizeEmail(row.email),
+      }),
+    );
+  } else {
+    const msg = error.message ?? "";
+    if (!isMissingRpcError(msg)) {
+      return { members: [], error: msg };
+    }
+    hits = await listAuthUsersFallback(service, { recentLimit: capped });
+    warning = MIGRATION_20260815_HINT;
+  }
+
+  const members = await applyBlockedFlags(
+    service,
+    await membersFromAuthHits(service, hits),
+  );
+  return { members, error: warning };
+}
+
+/**
+ * Member lookup by name (profiles ilike) AND email (auth.users via RPC / Admin API).
  * Never returns private message bodies.
  */
 export async function searchMembersForModeration(
@@ -236,67 +420,22 @@ export async function searchMembersForModeration(
     };
   }
 
-  const looksLikeEmail = q.includes("@") || q.includes(".");
   const memberById = new Map<string, AdminMemberRow>();
+  let warning: string | null = null;
 
-  if (looksLikeEmail) {
-    const { data: emailHits, error: emailError } = await service.rpc(
-      "admin_find_users_by_email",
-      { p_query: q },
-    );
+  const emailResult = await findUsersByEmail(service, q);
+  if (emailResult.error) {
+    return { members: [], error: emailResult.error };
+  }
+  if (emailResult.warning) warning = emailResult.warning;
 
-    if (emailError) {
-      const msg = emailError.message ?? "";
-      if (
-        msg.includes("Could not find the function") ||
-        msg.includes("schema cache")
-      ) {
-        return {
-          members: [],
-          error:
-            "Run migration 20260815_admin_moderation_expand.sql in Supabase SQL Editor, then retry email search.",
-        };
-      }
-      return { members: [], error: msg };
-    }
-
-    const rows = (emailHits ?? []) as { user_id: string; email: string }[];
-    if (rows.length > 0) {
-      const ids = rows.map((r) => r.user_id);
-      const { data: profiles } = await service
-        .from("profiles")
-        .select(
-          "id, full_name, batch_year, department, status, skills, role_title, company",
-        )
-        .in("id", ids);
-
-      const profileById = new Map(
-        ((profiles ?? []) as ProfileSnippet[]).map((p) => [p.id, p]),
-      );
-
-      for (const row of rows) {
-        const profile = profileById.get(row.user_id);
-        memberById.set(row.user_id, {
-          id: row.user_id,
-          email: normalizeEmail(row.email),
-          full_name: profile?.full_name ?? null,
-          batch_year: profile?.batch_year ?? null,
-          department: profile?.department ?? null,
-          status: profile?.status ?? null,
-          skills: profile?.skills ?? null,
-          role_title: profile?.role_title ?? null,
-          company: profile?.company ?? null,
-          is_blocked: false,
-        });
-      }
-    }
+  for (const member of await membersFromAuthHits(service, emailResult.hits)) {
+    memberById.set(member.id, member);
   }
 
   const { data: nameHits, error: nameError } = await service
     .from("profiles")
-    .select(
-      "id, full_name, batch_year, department, status, skills, role_title, company",
-    )
+    .select(PROFILE_MEMBER_SELECT)
     .ilike("full_name", `%${q}%`)
     .limit(20);
 
@@ -305,7 +444,6 @@ export async function searchMembersForModeration(
   }
 
   const nameProfiles = (nameHits ?? []) as ProfileSnippet[];
-
   if (nameProfiles.length > 0) {
     const missingIds = nameProfiles
       .map((p) => p.id)
@@ -339,23 +477,16 @@ export async function searchMembersForModeration(
     }
   }
 
-  const members = Array.from(memberById.values());
-  const blocked = await blockedSetForEmails(
+  const members = await applyBlockedFlags(
     service,
-    members.map((m) => m.email).filter((e): e is string => Boolean(e)),
+    Array.from(memberById.values()),
   );
-
-  for (const m of members) {
-    if (m.email && blocked.has(normalizeEmail(m.email))) {
-      m.is_blocked = true;
-    }
-  }
 
   members.sort((a, b) =>
     (a.full_name ?? a.email ?? "").localeCompare(b.full_name ?? b.email ?? ""),
   );
 
-  return { members, error: null };
+  return { members, error: warning };
 }
 
 export async function logAdminAction(

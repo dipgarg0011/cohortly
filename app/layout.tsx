@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito, Fraunces } from "next/font/google";
 import { AppProviders } from "@/components/app-providers";
+import { FooterAdminLink } from "@/components/footer-admin-link";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -37,7 +38,7 @@ export default function RootLayout({
       className={`${nunito.variable} ${fraunces.variable} h-full max-w-full overflow-x-hidden antialiased`}
     >
       <body className="flex min-h-full min-w-0 max-w-full flex-col overflow-x-hidden font-sans">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders adminLink={<FooterAdminLink />}>{children}</AppProviders>
       </body>
     </html>
   );

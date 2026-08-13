@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/referrals",
   "/mentors",
   "/opportunities",
+  "/admin",
 ];
 
 export async function updateSession(request: NextRequest) {

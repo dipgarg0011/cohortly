@@ -30,6 +30,7 @@ type ProfileSnippet = {
   status: string | null;
   skills: string[] | null;
   role_title: string | null;
+  company?: string | null;
 };
 
 type RawReport = {
@@ -114,6 +115,25 @@ async function enrichReports(
   });
 }
 
+export type BlockedEmailRow = {
+  email: string;
+  reason: string | null;
+  created_at: string;
+};
+
+export type AdminMemberRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  batch_year: number | null;
+  department: string | null;
+  status: string | null;
+  skills: string[] | null;
+  role_title: string | null;
+  company: string | null;
+  is_blocked: boolean;
+};
+
 /** Newest reports first. Service-role client required (RLS blocks authenticated list). */
 export async function listModerationReports(
   service: SupabaseClient,
@@ -160,11 +180,193 @@ export async function listModerationReports(
   return { reports, error: warning };
 }
 
+/** Newest blocks first. Service-role client required. */
+export async function listBlockedEmails(
+  service: SupabaseClient,
+  limit = 200,
+): Promise<{ blocked: BlockedEmailRow[]; error: string | null }> {
+  const { data, error } = await service
+    .from("blocked_emails")
+    .select("email, reason, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { blocked: [], error: error.message };
+  }
+
+  return {
+    blocked: (data ?? []) as BlockedEmailRow[],
+    error: null,
+  };
+}
+
+async function blockedSetForEmails(
+  service: SupabaseClient,
+  emails: string[],
+): Promise<Set<string>> {
+  const unique = Array.from(
+    new Set(emails.map(normalizeEmail).filter((e) => e.includes("@"))),
+  );
+  if (unique.length === 0) return new Set();
+
+  const { data } = await service
+    .from("blocked_emails")
+    .select("email")
+    .in("email", unique);
+
+  return new Set(
+    ((data ?? []) as { email: string }[]).map((r) => normalizeEmail(r.email)),
+  );
+}
+
+/**
+ * Member lookup by name (profiles) and/or email (auth.users via RPC).
+ * Never returns private message bodies.
+ */
+export async function searchMembersForModeration(
+  service: SupabaseClient,
+  query: string,
+): Promise<{ members: AdminMemberRow[]; error: string | null }> {
+  const q = query.trim();
+  if (q.length < 2) {
+    return {
+      members: [],
+      error: "Enter at least 2 characters to search.",
+    };
+  }
+
+  const looksLikeEmail = q.includes("@") || q.includes(".");
+  const memberById = new Map<string, AdminMemberRow>();
+
+  if (looksLikeEmail) {
+    const { data: emailHits, error: emailError } = await service.rpc(
+      "admin_find_users_by_email",
+      { p_query: q },
+    );
+
+    if (emailError) {
+      const msg = emailError.message ?? "";
+      if (
+        msg.includes("Could not find the function") ||
+        msg.includes("schema cache")
+      ) {
+        return {
+          members: [],
+          error:
+            "Run migration 20260815_admin_moderation_expand.sql in Supabase SQL Editor, then retry email search.",
+        };
+      }
+      return { members: [], error: msg };
+    }
+
+    const rows = (emailHits ?? []) as { user_id: string; email: string }[];
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.user_id);
+      const { data: profiles } = await service
+        .from("profiles")
+        .select(
+          "id, full_name, batch_year, department, status, skills, role_title, company",
+        )
+        .in("id", ids);
+
+      const profileById = new Map(
+        ((profiles ?? []) as ProfileSnippet[]).map((p) => [p.id, p]),
+      );
+
+      for (const row of rows) {
+        const profile = profileById.get(row.user_id);
+        memberById.set(row.user_id, {
+          id: row.user_id,
+          email: normalizeEmail(row.email),
+          full_name: profile?.full_name ?? null,
+          batch_year: profile?.batch_year ?? null,
+          department: profile?.department ?? null,
+          status: profile?.status ?? null,
+          skills: profile?.skills ?? null,
+          role_title: profile?.role_title ?? null,
+          company: profile?.company ?? null,
+          is_blocked: false,
+        });
+      }
+    }
+  }
+
+  const { data: nameHits, error: nameError } = await service
+    .from("profiles")
+    .select(
+      "id, full_name, batch_year, department, status, skills, role_title, company",
+    )
+    .ilike("full_name", `%${q}%`)
+    .limit(20);
+
+  if (nameError) {
+    return { members: [], error: nameError.message };
+  }
+
+  const nameProfiles = (nameHits ?? []) as ProfileSnippet[];
+
+  if (nameProfiles.length > 0) {
+    const missingIds = nameProfiles
+      .map((p) => p.id)
+      .filter((id) => !memberById.has(id));
+    const emailMap = await emailsForIds(service, missingIds);
+
+    for (const profile of nameProfiles) {
+      const existing = memberById.get(profile.id);
+      if (existing) {
+        existing.full_name = profile.full_name;
+        existing.batch_year = profile.batch_year;
+        existing.department = profile.department;
+        existing.status = profile.status;
+        existing.skills = profile.skills;
+        existing.role_title = profile.role_title;
+        existing.company = profile.company ?? null;
+        continue;
+      }
+      memberById.set(profile.id, {
+        id: profile.id,
+        email: emailMap.get(profile.id) ?? null,
+        full_name: profile.full_name,
+        batch_year: profile.batch_year,
+        department: profile.department,
+        status: profile.status,
+        skills: profile.skills,
+        role_title: profile.role_title,
+        company: profile.company ?? null,
+        is_blocked: false,
+      });
+    }
+  }
+
+  const members = Array.from(memberById.values());
+  const blocked = await blockedSetForEmails(
+    service,
+    members.map((m) => m.email).filter((e): e is string => Boolean(e)),
+  );
+
+  for (const m of members) {
+    if (m.email && blocked.has(normalizeEmail(m.email))) {
+      m.is_blocked = true;
+    }
+  }
+
+  members.sort((a, b) =>
+    (a.full_name ?? a.email ?? "").localeCompare(b.full_name ?? b.email ?? ""),
+  );
+
+  return { members, error: null };
+}
+
 export async function logAdminAction(
   service: SupabaseClient,
   entry: {
     admin_email: string;
-    action: "block_email" | "remove_user" | "mark_reviewed";
+    action:
+      | "block_email"
+      | "unblock_email"
+      | "remove_user"
+      | "mark_reviewed";
     target_user_id?: string | null;
     target_email?: string | null;
     report_id?: string | null;

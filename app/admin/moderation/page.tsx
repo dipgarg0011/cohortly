@@ -9,6 +9,9 @@ import { AdminModerationConsole } from "@/components/admin-moderation-console";
 import { Navbar } from "@/components/navbar";
 import { PageShell, PageHeader } from "@/components/ui/page-shell";
 
+/** Always evaluate ADMIN_EMAILS / session at request time. */
+export const dynamic = "force-dynamic";
+
 export default async function AdminModerationPage() {
   await requireAdmin();
 

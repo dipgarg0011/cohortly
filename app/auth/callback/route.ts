@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { assertNotBlockedEmail } from "@/lib/blocked-email";
 import {
   COLLEGE_EMAIL_ERROR,
   isCollegeEmail,
@@ -50,6 +51,14 @@ export async function GET(request: Request) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       `${origin}/auth?error=${encodeURIComponent(COLLEGE_EMAIL_ERROR)}`,
+    );
+  }
+
+  const blocked = await assertNotBlockedEmail(supabase, user.email);
+  if (!blocked.ok) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      `${origin}/auth?error=${encodeURIComponent(blocked.error)}`,
     );
   }
 

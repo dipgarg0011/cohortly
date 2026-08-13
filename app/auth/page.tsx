@@ -11,11 +11,8 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import {
-  COLLEGE_EMAIL_DOMAIN,
-  COLLEGE_EMAIL_ERROR,
-  isCollegeEmail,
-} from "@/lib/college";
+import { COLLEGE_EMAIL_DOMAIN } from "@/lib/college";
+import { assertAllowedAuthEmail } from "@/app/auth/actions";
 import {
   assertAffiliationFromEmail,
   expectedPassoutWindow,
@@ -164,8 +161,9 @@ function AuthForm() {
     const trimmedEmail = email.trim().toLowerCase();
 
     try {
-      if (!isCollegeEmail(trimmedEmail)) {
-        setError(COLLEGE_EMAIL_ERROR);
+      const allowed = await assertAllowedAuthEmail(trimmedEmail);
+      if (!allowed.ok) {
+        setError(allowed.error);
         return;
       }
 

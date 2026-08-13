@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { createClient } from "@/lib/supabase/server";
 import { CompleteProfileForm } from "@/components/complete-profile-form";
+import { assertNotBlockedEmail } from "@/lib/blocked-email";
 import { isCollegeEmail, COLLEGE_EMAIL_ERROR } from "@/lib/college";
 
 export default async function CompleteProfilePage() {
@@ -17,6 +18,12 @@ export default async function CompleteProfilePage() {
   if (!isCollegeEmail(user.email)) {
     await supabase.auth.signOut();
     redirect(`/auth?error=${encodeURIComponent(COLLEGE_EMAIL_ERROR)}`);
+  }
+
+  const blocked = await assertNotBlockedEmail(supabase, user.email);
+  if (!blocked.ok) {
+    await supabase.auth.signOut();
+    redirect(`/auth?error=${encodeURIComponent(blocked.error)}`);
   }
 
   const { data: profile } = await supabase

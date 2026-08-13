@@ -9,10 +9,15 @@ export function getCollegeEmailDomain(): string {
   return COLLEGE_EMAIL_DOMAIN;
 }
 
+/** Normalize for comparisons and blocked_emails lookups. */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /** True only when the address is exactly *@itbhu.ac.in (or the configured domain). */
 export function isCollegeEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeEmail(email);
   const at = normalized.lastIndexOf("@");
   if (at <= 0 || at === normalized.length - 1) return false;
 
@@ -25,3 +30,6 @@ export function isCollegeEmail(email: string | null | undefined): boolean {
 
 export const COLLEGE_EMAIL_ERROR =
   "Only @itbhu.ac.in college email addresses are allowed";
+
+export const BLOCKED_EMAIL_ERROR =
+  "This email address is not allowed to use Cohortly.";

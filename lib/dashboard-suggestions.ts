@@ -119,48 +119,55 @@ export async function loadDashboardSuggestions(opts: {
   const exclude = new Set<string>([uid]);
   const fallback: NetworkProfile[] = [];
 
-  const { data: grads, error: gradError } = await supabase
-    .from("profiles")
-    .select(profileSelect)
-    .eq("status", "graduate")
-    .neq("id", uid)
-    .order("batch_year", { ascending: false })
-    .limit(12);
-
-  if (gradError) {
-    console.error("dashboard graduate fallback failed", gradError);
-  } else {
-    for (const row of filterVisible(
-      (grads ?? []) as unknown as NetworkProfile[],
-      uid,
-      conversations,
-    )) {
-      if (exclude.has(row.id)) continue;
-      exclude.add(row.id);
-      fallback.push(row);
-      if (fallback.length >= limit) break;
-    }
-  }
-
-  if (fallback.length < limit) {
-    const recentAttempt = await supabase
+  // These pools are independent. Fetch them together so an empty graduate
+  // pool does not add another full database round trip to the dashboard.
+  const [gradAttempt, recentAttempt, anyAttempt] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(profileSelect)
+      .eq("status", "graduate")
+      .neq("id", uid)
+      .order("batch_year", { ascending: false })
+      .limit(12),
+    supabase
       .from("profiles")
       .select(profileSelect)
       .neq("id", uid)
       .order("created_at", { ascending: false })
-      .limit(16);
+      .limit(16),
+    supabase
+      .from("profiles")
+      .select(profileSelect)
+      .neq("id", uid)
+      .limit(16),
+  ]);
 
-    let pool = (recentAttempt.data ?? []) as unknown as NetworkProfile[];
-    if (recentAttempt.error || pool.length === 0) {
-      const anyAttempt = await supabase
-        .from("profiles")
-        .select(profileSelect)
-        .neq("id", uid)
-        .limit(16);
-      if (anyAttempt.error) {
-        console.error("dashboard community fallback failed", anyAttempt.error);
-      }
-      pool = (anyAttempt.data ?? []) as unknown as NetworkProfile[];
+  if (gradAttempt.error) {
+    console.error("dashboard graduate fallback failed", gradAttempt.error);
+  }
+
+  const graduatePool = (gradAttempt.data ?? []) as unknown as NetworkProfile[];
+  for (const row of filterVisible(graduatePool, uid, conversations)) {
+    if (exclude.has(row.id)) continue;
+    exclude.add(row.id);
+    fallback.push(row);
+    if (fallback.length >= limit) break;
+  }
+
+  if (fallback.length < limit) {
+    if (recentAttempt.error) {
+      console.error("dashboard recent community fallback failed", recentAttempt.error);
+    }
+    const recentPool = (recentAttempt.data ?? []) as unknown as NetworkProfile[];
+    // Keep the previous fallback behavior when created_at is not available
+    // or no recent profiles were returned.
+    const pool =
+      !recentAttempt.error && recentPool.length > 0
+        ? recentPool
+        : ((anyAttempt.data ?? []) as unknown as NetworkProfile[]);
+
+    if (anyAttempt.error && (recentAttempt.error || recentPool.length === 0)) {
+      console.error("dashboard community fallback failed", anyAttempt.error);
     }
 
     for (const row of filterVisible(pool, uid, conversations)) {

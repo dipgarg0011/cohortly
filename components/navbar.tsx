@@ -38,6 +38,8 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Load account state once per mounted navbar. Route changes should not
+  // trigger three extra Supabase round trips on every navigation.
   useEffect(() => {
     let cancelled = false;
 
@@ -79,7 +81,7 @@ export function Navbar() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, pathname]);
+  }, [supabase]);
 
   useEffect(() => {
     if (!userId) return;

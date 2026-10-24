@@ -91,7 +91,10 @@ export default async function DashboardPage() {
         "id, sender_id, receiver_id, content, created_at, read, is_system, message_kind",
       )
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order("created_at", { ascending: true }),
+      // The dashboard only needs a small recent window for its feed and
+      // action summaries; the inbox remains the full message-history view.
+      .order("created_at", { ascending: false })
+      .limit(100),
     supabase
       .from("opportunities")
       .select(
